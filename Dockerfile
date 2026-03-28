@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     git \
-    && docker-docker-ext-install pdo pdo_mysql \
+    && docker-php-ext-install pdo pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Composer

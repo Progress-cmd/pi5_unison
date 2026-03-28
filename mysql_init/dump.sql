@@ -233,8 +233,8 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password-hash`, `time-listened`) VALUES
-                                                                                      (1, 'Franfran', 'haspotfrancis@gmail.com', '$2y$10$xTncNVVzdi3jw7rvHoIBtOYolWAm6PEHn8HlKVuvCs/W6fLquACEa', 0),
-                                                                                      (2, 'Cassous', 'cassandrejosso@gmail.com', NULL, 0);
+                                                                                      (1, 'Francis', 'haspotfrancis@gmail.com', NULL, 0),
+                                                                                      (2, 'Cassandre', 'cassandrejosso@gmail.com', NULL, 0);
 
 --
 -- Index pour les tables déchargées
