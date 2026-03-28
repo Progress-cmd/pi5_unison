@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      target: ${DOCKER_TARGET}
+    container_name: pi5_musics-app
+    depends_on:
+      - db
+      - ms
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      MS_PASS: ${MS_PASS}
+    volumes:
+      - ./src:/var/www/html # transfert du code source
+      - ./musics_storage:/var/www/music_data # persistance des musiques
+    ports:
+      - "${PORT_EXPOSE}:80"
+
+  db: # DataBase
+    image: mariadb:12
+    container_name: pi5_musics-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOTPASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - ./mysql_init:/docker-entrypoint-initdb.d
+      - pi5_musics-db_data:/var/lib/mysql
+
+  ms: # MeiliSearch
+    image: getmeili/meilisearch:v1.40.0
+    container_name: pi5_musics-ms
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: ${MS_PASS}
+      MEILI_ENV: ${DOCKER_TARGET}
+    volumes:
+      - pi5_musics-ms_data:/meili_data
+
+volumes:
+  pi5_musics-db_data:
+  pi5_musics-ms_data:
