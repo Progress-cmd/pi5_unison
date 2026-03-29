@@ -196,3 +196,11 @@ body {
     background-color: #ffebee;
     border-radius: 4px;
 }
+
+#password-reset {
+    color: #2e7d32;
+    margin-bottom: 25px;
+    padding: 10px;
+    background-color: #e8f5e9;
+    border-radius: 4px
+}

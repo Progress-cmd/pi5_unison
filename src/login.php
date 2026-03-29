@@ -44,6 +44,11 @@ $_SESSION['token'] = bin2hex(random_bytes(32));
         <div id="form-group">
             <label id="form-label">Mot de passe</label>
             <input type="password" class="form-input" name="password">
+            <?php if (filter_input(INPUT_GET, 'reset_password', FILTER_VALIDATE_BOOL)): ?>
+                <div id="password-reset">
+                    ✅ Mot de passe réinitialisé avec succès
+                </div>
+            <?php endif; ?>
         </div>
 
         <input type="hidden" id="selectedUser" name="selectedUser" value="Francis">

@@ -6,6 +6,7 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
-echo "Connecté !"
-?>
+echo "Connecté !";
 
+echo "<button onclick=".session_destroy().">Logout</button>";
+?>
