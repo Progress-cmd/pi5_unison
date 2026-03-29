@@ -43,7 +43,7 @@ $_SESSION['token'] = bin2hex(random_bytes(32));
 
         <div id="form-group">
             <label id="form-label">Mot de passe</label>
-            <input type="password" id="form-input" name="password">
+            <input type="password" class="form-input" name="password">
         </div>
 
         <input type="hidden" id="selectedUser" name="selectedUser" value="Francis">

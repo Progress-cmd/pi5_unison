@@ -1,4 +1,5 @@
 .idea/
 musics_storage/
-src/vendor/
+vendor/
+src/prototypes/
 .env

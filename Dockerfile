@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     git \
+    sendmail \
+    mailutils \
     && docker-php-ext-install pdo pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -28,10 +30,26 @@ RUN mkdir -p /var/www/music_data && chown www-data:www-data /var/www/music_data
 
 WORKDIR /var/www/html
 
+# Déplacement des dépendances php
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# Copie composer.json et lock
+COPY ./composer.json ./composer.lock* ./
+
+# Copie le code source
+COPY ./src /var/www/html/src
+
 # --- ÉTAPE 2 : CONFIGURATION POUR LE DÉVELOPPEMENT ---
 FROM base AS development
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
 COPY ./docker/php-dev.ini /usr/local/etc/php/conf.d/z-dev.ini
+COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
+
+# Installation des dépendances
+RUN composer install --optimize-autoloader --no-interaction
+
+# Droits d'accès
+RUN chown -R www-data:www-data /var/www/html
 
 # --- ÉTAPE 3 : CONFIGURATION POUR LA PRODUCTION ---
 FROM base AS production
@@ -42,14 +60,10 @@ COPY ./docker/php-prod.ini /usr/local/etc/php/conf.d/z-prod.ini
 COPY ./docker/security.ini /usr/local/etc/php/conf.d/
 COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Copie du code
-COPY ./src /var/www/html
-
 # Installation des dépendances sans les outils de dev
-ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Droits d'accès stricts
-RUN chown -R www-data:www-data /var/www/html /var/www/music_data
+# Droits d'accès
+RUN chown -R www-data:www-data /var/www/html
 
 USER www-data

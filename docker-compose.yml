@@ -7,17 +7,22 @@ services:
     depends_on:
       - db
       - ms
+      - ml
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       MS_PASS: ${MS_PASS}
+      MAIL_HOST: ml
+      MAIL_PORT: 1025
     volumes:
-      - ./src:/var/www/html # transfert du code source
+      - ./src:/var/www/html/src # transfert du code source
       - ./musics_storage:/var/www/music_data # persistance des musiques
     ports:
       - "${PORT_EXPOSE}:80"
+    networks:
+      - app-network
 
   db: # DataBase
     image: mariadb:12
@@ -30,6 +35,8 @@ services:
     volumes:
       - ./mysql_init:/docker-entrypoint-initdb.d
       - pi5_musics-db_data:/var/lib/mysql
+    networks:
+      - app-network
 
   ms: # MeiliSearch
     image: getmeili/meilisearch:v1.40.0
@@ -41,6 +48,21 @@ services:
       MEILI_ENV: ${DOCKER_TARGET}
     volumes:
       - pi5_musics-ms_data:/meili_data
+    networks:
+      - app-network
+
+  ml: # MailHog
+    image: mailhog/mailhog:v1.0.1
+    container_name: pi5_musics-ml
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   pi5_musics-db_data:

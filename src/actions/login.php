@@ -20,27 +20,14 @@ $req->execute();
 
 $user = $req->fetch();
 
-// Initialisation ou réinitialisation du mot de passe, à ne pas toucher
-//$initPassword = false;
-//if ($user != NULL && $initPassword) {
-//    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-//
-//    $req = $pdo->prepare("UPDATE users SET `password-hash` = :password WHERE id = :id");
-//    $req->bindParam(':password', $hashedPassword);
-//    $req->bindParam(':id', $user['id']);
-//    $req->execute();
-//
-//    $_SESSION['user'] = ['id' => $user['id'], 'username' => $user['username'], 'email' => $user['email']];
-//    header('Location: ../login.php');
-//}
-//
-//if ($user != NULL && password_verify($password, $user['password-hash']) && $user['password-hash'] != NULL) {
-//    session_regenerate_id(true);
+
+if ($user != NULL && password_verify($password, $user['password-hash']) && $user['password-hash'] != NULL) {
+    session_regenerate_id(true);
 
     $_SESSION['user'] = ['id' => $user['id'], 'username' => $user['username'], 'email' => $user['email']];
-//}
-//else {
-//    echo "Identifiant ou mot de passe incorrect";
-//}
+}
+else {
+    echo "Identifiant ou mot de passe incorrect";
+}
 
 header("Location: ../");

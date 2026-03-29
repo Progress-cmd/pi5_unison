@@ -9,21 +9,12 @@ function selectUser(btn, name) {
     currentUser = { name, initial: name[0] };
 }
 
-document.getElementById('login-card').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const user = document.getElementById('selectedUser').value;
-    console.log('Envoi:', user);
-});
-
 function forgotPassword() {
-    // Récupérer l'utilisateur sélectionné
     const selectedUser = document.getElementById('selectedUser').value;
     const token = document.querySelector('input[name="token"]').value;
-
     console.log('Utilisateur:', selectedUser);
     console.log('Token:', token);
 
-    // Envoyer une requête AJAX vers votre serveur
     fetch('actions/forgot_password.php', {
         method: 'POST',
         headers: {
@@ -34,16 +25,26 @@ function forgotPassword() {
             token: token
         })
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Un email de réinitialisation a été envoyé à ' + selectedUser);
-            } else {
-                alert('Erreur: ' + data.message);
+        .then(response => {
+            console.log('Status:', response.status);
+            return response.text();  // Lire comme texte d'abord
+        })
+        .then(text => {
+            console.log('Réponse brute:', text);  // Voir ce qu'on reçoit
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    alert('Email envoyé à ' + selectedUser);
+                } else {
+                    alert('Erreur: ' + data.message);
+                }
+            } catch (e) {
+                console.error('Erreur JSON:', e);
+                alert('Erreur serveur:\n' + text);
             }
         })
         .catch(error => {
-            console.error('Erreur:', error);
-            alert('Une erreur est survenue');
+            console.error('Erreur réseau:', error);
+            alert('Erreur réseau');
         });
 }

@@ -143,7 +143,7 @@ body {
     margin-bottom: 8px;
 }
 
-#form-input {
+.form-input {
     padding: 13px 16px;
     background: #F7F4EF;
     border: 1.5px solid #E2DDD7;
@@ -185,4 +185,14 @@ body {
     color: #C8593A;
     font-weight: 500;
     cursor: pointer;
+}
+
+/* Réinitialisation MDP */
+#password-error {
+    color: #d32f2f;
+    margin-bottom: 25px;
+    display: none;
+    padding:10px;
+    background-color: #ffebee;
+    border-radius: 4px;
 }

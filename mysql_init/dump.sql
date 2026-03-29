@@ -225,7 +225,9 @@ CREATE TABLE `users` (
                          `username` varchar(50) NOT NULL,
                          `email` varchar(50) DEFAULT NULL,
                          `password-hash` varchar(250) DEFAULT NULL,
-                         `time-listened` int(11) NOT NULL DEFAULT 0
+                         `time-listened` int(11) NOT NULL DEFAULT 0,
+                         `reset_token` VARCHAR(64) NULL DEFAULT NULL,
+                         `reset_token_expires` DATETIME NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -372,7 +374,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT pour la table `artists`
 --
 ALTER TABLE `artists`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT pour la table `genres`
@@ -402,13 +404,13 @@ ALTER TABLE `tags`
 -- AUTO_INCREMENT pour la table `tracks`
 --
 ALTER TABLE `tracks`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT pour la table `users`
 --
 ALTER TABLE `users`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Contraintes pour les tables déchargées
