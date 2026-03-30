@@ -24,4 +24,4 @@ if ($username != NULL) {
     $req->bindParam(':username', $username);
     $req->execute();
 }
-header('Location: .FILTER_DEFAULT./login.php?reset_password=true');
+header('Location: ../login.php?reset_password=true');

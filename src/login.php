@@ -48,6 +48,10 @@ $_SESSION['token'] = bin2hex(random_bytes(32));
                 <div id="password-reset">
                     ✅ Mot de passe réinitialisé avec succès
                 </div>
+            <?php elseif (filter_input(INPUT_GET, 'incorrect_password', FILTER_VALIDATE_BOOL)): ?>
+                <div id="password-error" style="display: flex">
+                    ❌ Utilisateur ou mot de passe incorrect
+                </div>
             <?php endif; ?>
         </div>
 

@@ -25,9 +25,9 @@ if ($user != NULL && password_verify($password, $user['password-hash']) && $user
     session_regenerate_id(true);
 
     $_SESSION['user'] = ['id' => $user['id'], 'username' => $user['username'], 'email' => $user['email']];
+    header("Location: ../index.php");
 }
 else {
     echo "Identifiant ou mot de passe incorrect";
+    header('Location: ../login.php?incorrect_password=true');
 }
-
-header("Location: ../");

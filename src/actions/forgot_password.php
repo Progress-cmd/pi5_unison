@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Configuration SMTP
             $mail->isSMTP();
-            $mail->Host = getenv('MAIL_HOST') ?: 'ml';  // 'mail' pour le conteneur
+            $mail->Host = getenv('MAIL_HOST') ?: 'ml';  // 'ml' pour le conteneur
             $mail->Port = getenv('MAIL_PORT') ?: 1025;
             $mail->SMTPAuth = false;  // Mailhog n'a pas besoin d'auth
             $mail->SMTPAutoTLS = false;
