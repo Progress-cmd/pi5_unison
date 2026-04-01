@@ -55,11 +55,23 @@ main {
     padding: 20px 15px 150px 15px;
 }
 
+main::after {
+    content: '';
+    position: fixed;
+    bottom: 135px;
+    left: 0;
+    right: 0;
+    height: 75px;
+    background: linear-gradient(to top, var(--background) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
 footer {
     position: sticky;
     bottom: 0;
     z-index: 1;
-    height: 150px;
+    height: 135px;
 }
 
 a {
@@ -85,14 +97,15 @@ button {
     border-top: var(--border) solid 1px;
     z-index: 100;
     box-sizing: border-box;
-    transition: opacity 0.6s ease, visibility 0.6s ease;
+    transition: opacity 0.6s ease, visibility 0.3s ease;
 }
 
 .mobil-player.expanded .retract {
     display: none;
 }
 
-body:has(.mobil-player.expanded) .mobil-sidebar {
+body:has(.mobil-player.expanded) .mobil-sidebar,
+body:has(.mobil-player .extend.closing) .mobil-sidebar {
     opacity: 0;
     visibility: hidden;
 }
@@ -151,8 +164,8 @@ body:has(.mobil-player.expanded) .mobil-sidebar {
     color: var(--white);
     z-index: 2;
     cursor: pointer;
-    transition: all 0.3s ease;
     box-sizing: border-box;
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .extend {
@@ -255,6 +268,35 @@ body:has(.mobil-player.expanded) .mobil-sidebar {
     box-sizing: border-box;
     transition: all 0.3s ease;
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(100%);
+    animation: slideUpPlayer 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideUpPlayer {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobil-player .extend.closing {
+    animation: slideDownPlayer 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideDownPlayer {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(100%);
+    }
 }
 
 /* Header du player expanded */
@@ -492,7 +534,7 @@ body:has(.mobil-player.expanded) .mobil-sidebar {
     gap: 8px;
     border: none;
     align-items: center;
-    background: white;
+    background: var(--white);
     border-radius: 6px;
     padding: 0;
 }
@@ -542,7 +584,7 @@ body:has(.mobil-player.expanded) .mobil-sidebar {
 
 .playlists-bar, .queue-bar, .artist-bar {
     border: var(--border) solid 1px;
-    background: white;
+    background: var(--white);
     border-radius: 10px;
     padding: 18px;
     width: 100%;
@@ -585,7 +627,7 @@ body:has(.mobil-player.expanded) .mobil-sidebar {
 .queue-bar .content.selected .running, .playlists-bar .content > button {
     display: block;
     background: var(--text-orange);
-    color: white;
+    color: var(--white);
     border-radius: 10px;
     font-size: 10px;
     padding: 3px 5px;

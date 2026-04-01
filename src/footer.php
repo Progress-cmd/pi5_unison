@@ -106,17 +106,21 @@
     <script>
         const player = document.getElementById('playerLink');
         const closeBtn = document.getElementById('closePlayer');
+        const extend = player.querySelector('.extend');
 
-        // Cliquer sur le mini-player l'ouvre
         player.addEventListener('click', function(e) {
             if (e.target.closest('button')) return;
+            extend.classList.remove('closing');
             player.classList.add('expanded');
         });
 
-        // Bouton close le ferme
         closeBtn.addEventListener('click', function(e) {
             e.stopPropagation();
-            player.classList.remove('expanded');
+            extend.classList.add('closing');
+            extend.addEventListener('animationend', () => {
+                player.classList.remove('expanded');
+                extend.classList.remove('closing');
+            }, { once: true });
         });
     </script>
 
