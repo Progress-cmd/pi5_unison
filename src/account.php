@@ -8,9 +8,11 @@ if (!isset($_SESSION['user'])) {
 
 include "header.php";
 ?>
-    <main>
-
-    </main>
+<main>
+    <form action="actions/logout.php">
+        <button type="submit">Déconnexion</button>
+    </form>
+</main>
 
 <?php
 include "footer.php";
