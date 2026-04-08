@@ -2,34 +2,42 @@
 
 class Config
 {
-    public static string $HOST;
-    public static string $NAME;
-    public static string $USER;
-    public static string $PASS;
-}
+    private static ?PDO $instance = null;
 
-Config::$HOST = getenv('DB_HOST');
-Config::$NAME = getenv('DB_NAME');
-Config::$USER = getenv('DB_USER');
-Config::$PASS = getenv('DB_PASS');
-$charset = 'utf8mb4';
+    public static function getConnection(): PDO
+    {
+        if (self::$instance === null) {
+            $host = self::env('DB_HOST');
+            $name = self::env('DB_NAME');
+            $user = self::env('DB_USER');
+            $pass = self::env('DB_PASS');
 
-$options =
-    [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION, // Lance des erreurs si bug
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,       // Retourne des tableaux propres
-        PDO::ATTR_EMULATE_PREPARES   => false                  // Protection injection SQL réelle
-    ];
+            try {
+                self::$instance = new PDO(
+                    "mysql:host=$host;dbname=$name;charset=utf8mb4",
+                    $user,
+                    $pass,
+                    [
+                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::ATTR_EMULATE_PREPARES   => false,
+                    ]
+                );
+            } catch (PDOException $e) {
+                error_log($e->getMessage());
+                die("Erreur de connexion à la base de données.");
+            }
+        }
 
-try
-{
-    $pdo = new PDO("mysql:host=".Config::$HOST.";dbname=".Config::$NAME.";charset=".$charset,
-        Config::$USER,
-        Config::$PASS,
-        $options);
-}
-catch (\PDOException $e)
-{
-    error_log($e->getMessage());
-    die("Erreur de connexion à la base de données.");
+        return self::$instance;
+    }
+
+    private static function env(string $key): string
+    {
+        $value = getenv($key);
+        if ($value === false) {
+            throw new RuntimeException("Variable d'environnement manquante : $key");
+        }
+        return $value;
+    }
 }

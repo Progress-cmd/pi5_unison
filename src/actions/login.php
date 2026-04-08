@@ -12,7 +12,7 @@ $username = filter_input(INPUT_POST, 'selectedUser', FILTER_DEFAULT);
 $password = filter_input(INPUT_POST, 'password', FILTER_DEFAULT);
 
 include_once "../includes/config.php";
-$pdo = new PDO("mysql:host=".config::$HOST.";dbname=".Config::$NAME, Config::$USER, Config::$PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]);
+$pdo = Config::getConnection();
 
 $req = $pdo->prepare("SELECT id, username, email, `password-hash` FROM users WHERE username = :username");
 $req->bindValue(':username', $username);
