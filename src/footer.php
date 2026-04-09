@@ -107,41 +107,45 @@
 
     <nav class="mobil-sidebar">
         <div class="nav-home-area">
-            <a class="sidebar-home" href="index.php">
+            <a class="sidebar-home" href="?page=home" data-page="home">
                 <span class="home-icon">🏠</span>
                 <p>Accueil</p>
             </a>
         </div>
 
         <div class="nav-playlists-area">
-            <a class="sidebar-playlists" href="playlists.php">
+            <a class="sidebar-playlists" href="?page=playlists" data-page="playlists">
                 <span class="playlists-icon">P</span>
                 <p>Playlists</p>
             </a>
         </div>
 
         <div class="nav-search-area">
-            <a class="sidebar-search" href="search.php">
+            <a class="sidebar-search" href="?page=search" data-page="search">
                 <span class="search-icon">🔍</span>
                 <p>Rechercher</p>
             </a>
         </div>
 
         <div class="nav-add-area">
-            <a class="sidebar-add" href="add.php">
+            <a class="sidebar-add" href="?page=add" data-page="add">
                 <span class="add-icon">+</span>
                 <p>Ajouter</p>
             </a>
         </div>
 
         <div class="nav-account-area">
-            <a class="sidebar-account" href="account.php">
+            <a class="sidebar-account" href="?page=account" data-page="account">
                 <span class="account-icon">👤</span>
                 <p>Compte</p>
             </a>
         </div>
     </nav>
 </footer>
+
+<script src="scripts/footer.js"></script>
+<script src="scripts/router.js"></script>
+
 </body>
 </html>
 
