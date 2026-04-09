@@ -9,11 +9,13 @@ if (!isset($_SESSION['user'])) {
 include "header.php";
 ?>
 <main>
-    <form action="actions/search.php" class="search-form" method="post">
+    <form class="search-form"  id="search-form">
         <button class="material-icons" type="submit">search</button>
-        <input type="text" placeholder="Search" required>
+        <input type="text" placeholder="Search" id="search-entry" required>
     </form>
-    <p><?php echo $_GET["test"] ?? ""; ?></p>
+
+    <div id="search-results"></div>
+    <script src="scripts/search.js"></script>
 </main>
 <?php
 include "footer.php";
