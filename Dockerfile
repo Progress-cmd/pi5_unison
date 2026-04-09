@@ -28,13 +28,13 @@ RUN a2enmod rewrite headers
 # Dossier de stockage
 RUN mkdir -p /var/www/music_data && chown www-data:www-data /var/www/music_data
 
-WORKDIR /var/www/html
-
 # Déplacement des dépendances php
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
+WORKDIR /var/www/html
+
 # Copie composer.json et lock
-COPY ./composer.json ./composer.lock* ./
+COPY composer.json composer.lock* ./
 
 # Copie le code source
 COPY ./src /var/www/html/src

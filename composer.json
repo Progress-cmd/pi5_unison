@@ -1,5 +1,12 @@
 {
     "require": {
-        "phpmailer/phpmailer": "^7.0"
+        "phpmailer/phpmailer": "^7.0",
+        "meilisearch/meilisearch-php": "^1.16",
+        "guzzlehttp/guzzle": "^7.10"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
     }
 }
