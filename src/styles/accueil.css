@@ -728,3 +728,69 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     width: auto;
     height: 30px;
 }
+
+
+/* ===== ADD PAGE ===== */
+.add-form {
+    display: flex;
+    align-items: center;
+    border: var(--border) solid 1px;
+    height: 35px;
+    border-radius: 15px;
+    padding: 2px 10px;
+    width: auto;
+    background: var(--white);
+}
+
+.add-form label {
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+    font-weight: bold;
+    width: 100%;
+}
+
+.add-form input {
+    border: none;
+    background: none;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.add-form input:focus {
+    border: none;
+    outline: none;
+}
+
+.add-form:has(input:focus) {
+    outline: var(--border) solid 1px;
+}
+
+#verif-form {
+    flex-direction: column;
+    height: auto;
+    width: auto;
+    justify-content: left;
+    padding: 10px;
+}
+
+#verif-form input {
+    width: auto;
+}
+
+#verif-form > img {
+    height: 75px;
+    width: auto;
+}
+
+#verif-form > button {
+    margin: 10px;
+    width: auto;
+    height: auto;
+    border-radius: 5px;
+    background: var(--background);
+    padding: 5px 10px;
+    font-weight: bolder;
+}

@@ -103,26 +103,7 @@
         </div>
     </div>
 
-    <script>
-        const player = document.getElementById('playerLink');
-        const closeBtn = document.getElementById('closePlayer');
-        const extend = player.querySelector('.extend');
-
-        player.addEventListener('click', function(e) {
-            if (e.target.closest('button')) return;
-            extend.classList.remove('closing');
-            player.classList.add('expanded');
-        });
-
-        closeBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            extend.classList.add('closing');
-            extend.addEventListener('animationend', () => {
-                player.classList.remove('expanded');
-                extend.classList.remove('closing');
-            }, { once: true });
-        });
-    </script>
+    <script src="scripts/footer.js"></script>
 
     <nav class="mobil-sidebar">
         <div class="nav-home-area">

@@ -14,15 +14,11 @@ include "header.php";
     <?php if (is_null($lien)) {
         $_SESSION['token'] = bin2hex(random_bytes(32));
         ?>
-        <form action="#" method="post">
-            <label>
-                Musique à chercher
-                <input type="url" name="url" placeholder="Lien Youtube" required>
-            </label>
+        <form action="#" class="add-form" method="post">
+            <button class="material-icons" type="submit">manage_search</button>
+            <input type="url" name="url" placeholder="Lien Youtube" required>
 
             <input type="hidden" name="token" value="<?= $_SESSION['token']; ?>">
-
-            <button type="submit">Envoyer</button>
         </form>
     <?php } else {
         if (
@@ -59,24 +55,24 @@ include "header.php";
 
         if (!$req->fetch()) {
             ?>
-            <form action="actions/add.php" method="post">
-                <label>Title
+            <form action="actions/add.php" class="add-form" id="verif-form" method="post">
+                <label>Titre :
                     <input type="text" value="<?php echo $title ?>" name="title" readonly>
                 </label>
                 <br>
 
-                <label>Artist
+                <label>Artiste :
                     <input type="text" value="<?php echo $artist ?>" name="artist" readonly>
                 </label>
                 <br>
 
-                <label>Album
+                <label>Album :
                     <input type="text" value="<?php echo $album ?>" name="album" readonly>
                 </label>
                 <br>
 
-                <label>Durée
-                    <input type="number" value="<?php echo $duration ?>" name="duration" readonly>
+                <label>Durée :
+                    <input type="text" value="<?php echo $duration ?>" name="duration" readonly>
                 </label>
                 <br>
 
