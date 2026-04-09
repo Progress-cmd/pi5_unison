@@ -11,8 +11,27 @@
 </head>
 <body>
 <header>
-    <div class="accueil-headline">Bonsoir,<br><em>Francis</em></div>
-    <p class="accueil-sub">Que voulez-vous écouter ce soir ?</p>
+    <?php
+        $time = date("H");
+        $salutation = ($time <= 17) ? "Bonjour" : "Bonsoir";
+        if ($time <= 7) {
+            $moment = "ce matin";
+        }
+        else if ($time <= 12) {
+            $moment = "ce midi";
+        }
+        else if ($time <= 14) {
+            $moment = "cette après-midi";
+        }
+        else if ($time <= 17) {
+            $moment = "ce soir";
+        }
+        else {
+            $moment = "cette nuit";
+        }
+    ?>
+    <div class="accueil-headline"><?= $salutation ?>,<br><em><?= $_SESSION['user']['username'] ?></em></div>
+    <p class="accueil-sub">Que voulez-vous écouter <?= $moment ?> ?</p>
     <div class="present-moi" style="border: <?php if ($_SESSION['user']['username']=='Francis') { echo "#C8593A"; } else { echo "#4A7C99"; }?> 2px solid;">OO</div>
     <div class="present-toi" style="border: <?php if ($_SESSION['user']['username']=='Cassandre') { echo "#C8593A"; } else { echo "#4A7C99"; }?> 2px solid;">OO</div>
 </header>
