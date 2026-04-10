@@ -24,13 +24,13 @@ session_write_close();
     <?php
     $time = date("H");
     $salutation = ($time <= 17) ? "Bonjour" : "Bonsoir";
-    if ($time >= 7) {
+    if ($time >= 7 && $time < 12) {
         $moment = "ce matin";
     }
-    else if ($time >= 12) {
+    else if ($time >= 12 && $time < 14) {
         $moment = "ce midi";
     }
-    else if ($time >= 14) {
+    else if ($time >= 14 && $time < 17) {
         $moment = "cette après-midi";
     }
     else if ($time >= 17 && $time < 22) {

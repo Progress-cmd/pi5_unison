@@ -1,158 +1,152 @@
 <article class="propositions-bar">
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
-    <button class="proposition">
-        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-        <div class="mini-proposition-info">
-            <div class="mini-title">Midnight City</div>
-            <div class="mini-artist">M83</div>
-        </div>
-    </button>
+    <?php
+    include_once "../includes/config.php";
+    $pdo = Config::getConnection();
+
+    $req = $pdo->prepare("SELECT id FROM tracks ORDER BY RAND() LIMIT 8");
+    $req->execute();
+
+    $listTracks = $req->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach ($listTracks as $listTrack)
+    {
+        $req = $pdo->prepare("SELECT img, title, name FROM tracks LEFT JOIN artist__track ON artist__track.track_id = tracks.id LEFT JOIN artists ON artists.id = artist__track.artist_id WHERE tracks.id = :track");
+        $req->bindParam(":track", $listTrack);
+        $req->execute();
+
+        $track = $req->fetchAll();
+
+        echo '<button class="proposition" onclick="loadTrack('.$listTrack.')">
+                  <img src="'.$track[0]["img"].'" class="mini-player-img" alt="image">
+                  <div class="mini-proposition-info">
+                      <div class="mini-title">'.$track[0]["title"].'</div>
+                      <div class="mini-artist">'.$track[0]["name"].'</div>
+                  </div>
+              </button>';
+    }
+    ?>
 </article>
 
 <div class="container">
     <article class="queue-bar">
         <div class="head-bar">Liste d'attente<div class="more-bar">Modifier</div></div>
         <div class="body-bar">
-            <div class="content selected">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">Midnight City</div>
-                    <div class="mini-artist">M83</div>
-                </div>
-                <div class="running">EN COURS</div>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">Midnight City</div>
-                    <div class="mini-artist">M83</div>
-                </div>
-                <div class="running">EN COURS</div>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">Midnight City</div>
-                    <div class="mini-artist">M83</div>
-                </div>
-                <div class="running">EN COURS</div>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">Midnight City</div>
-                    <div class="mini-artist">M83</div>
-                </div>
-                <div class="running">EN COURS</div>
-            </div>
+            <?php
+            $req = $pdo->prepare("SELECT id FROM tracks ORDER BY RAND()");
+            $req->execute();
+            $tracks = $req->fetchAll();
+
+
+            $req = $pdo->prepare("SELECT id FROM playlists WHERE name = 'Wait Tracks' AND `created-by_id` = :user_id");
+            session_start();
+            $req->execute([':user_id' => $_SESSION['user']['id']]);
+            $playlist = $req->fetch();
+
+            $req = $pdo->prepare("DELETE FROM track__playlist WHERE playlist_id = :pid");
+            $req->execute([':pid' => $playlist['id']]);
+
+            $values = [];
+            $params = [];
+            foreach ($tracks as $i => $trackId) {
+                $values[] = "(:p$i, :t$i, :pos$i)";
+                $params[":p$i"] = $playlist['id'];
+                $params[":t$i"] = $trackId['id'];
+                $params[":pos$i"] = $i + 1;
+            }
+
+            $req = $pdo->prepare("INSERT INTO track__playlist (playlist_id, track_id, position) VALUES " . implode(', ', $values));
+            $req->execute($params);
+
+
+            $req = $pdo->prepare("SELECT tracks.id, tracks.img, tracks.title, artists.name
+                                        FROM playlists
+                                        LEFT JOIN track__playlist ON playlist_id = playlists.id
+                                        LEFT JOIN tracks ON track_id = tracks.id
+                                        LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                                        LEFT JOIN artists ON artists.id = artist__track.artist_id
+                                        WHERE playlists.name = 'Wait Tracks' AND playlists.`created-by_id` = :user_id
+                                        ORDER BY track__playlist.position
+                                        LIMIT 4
+                                        ");
+            $req->execute([':user_id' => $_SESSION['user']['id']]);
+            session_write_close();
+            $titres = $req->fetchAll();
+
+            $select = "selected";
+
+            foreach ($titres as $titre) {
+                echo '
+                <div class="content '.$select.'" onclick="loadTrack('.$titre["id"].')">
+                    <img src="'.$titre["img"].'" class="mini-player-img" alt="image">
+                    <div class="mini-content-info">
+                        <div class="mini-title">'.$titre["title"].'</div>
+                        <div class="mini-artist">'.$titre["name"].'</div>
+                    </div>
+                    <div class="running">EN COURS</div>
+                </div>';
+                $select = "";
+            }
+            ?>
         </div>
     </article>
 
     <article class="playlists-bar">
         <div class="head-bar">Playlists<div class="more-bar">Tout voir</div></div>
         <div class="body-bar">
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">PopRock</div>
-                    <div class="mini-info">12 titres - 42 min</div>
+            <?php
+            $req = $pdo->prepare("SELECT playlists.id, name, username FROM playlists LEFT JOIN users ON playlists.`created-by_id` = users.id WHERE name != 'Wait Tracks'");
+            $req->execute();
+
+            $playlists = $req->fetchAll();
+
+            foreach ($playlists as $playlist)
+            {
+                $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE playlist_id = :playlist");
+                $req->bindParam(":playlist", $playlist["id"]);
+                $req->execute();
+
+                $occurrence = $req->fetchColumn();
+                ?>
+                <div class="content">
+                    <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
+                    <div class="mini-content-info">
+                        <div class="mini-title"><?php echo $playlist["name"]; ?></div>
+                        <div style="font-size: 10px"><?php echo $playlist["username"]; ?></div>
+                        <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - 42 min</div>
+                    </div>
+                    <button class="material-icons">play_arrow</button>
                 </div>
-                <button class="material-icons">play_arrow</button>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">PopRock</div>
-                    <div class="mini-info">12 titres - 42 min</div>
-                </div>
-                <button class="material-icons">play_arrow</button>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">PopRock</div>
-                    <div class="mini-info">12 titres - 42 min</div>
-                </div>
-                <button class="material-icons">play_arrow</button>
-            </div>
-            <div class="content">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title">PopRock</div>
-                    <div class="mini-info">12 titres - 42 min</div>
-                </div>
-                <button class="material-icons">play_arrow</button>
-            </div>
+                <?php
+            }
+            ?>
         </div>
     </article>
 
     <article class="artist-bar">
+        <?php
+        $req = $pdo->prepare("
+            SELECT artists.name, COUNT(tracks.id) AS track_count
+            FROM artists
+            LEFT JOIN artist__track ON artist__track.artist_id = artists.id
+            LEFT JOIN tracks ON tracks.id = artist__track.track_id
+            GROUP BY artists.id, artists.name
+            ORDER BY track_count DESC
+            LIMIT 4
+        ");
+        $req->execute();
+
+        $listArtists = $req->fetchAll();
+        ?>
         <div class="head-bar">Artistes<div class="more-bar">Tout voir</div></div>
         <div class="body-bar">
-            <div class="content">
-                <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                <div class="mini-artist">M83</div>
-            </div>
-            <div class="content">
-                <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                <div class="mini-artist">M83</div>
-            </div>
-            <div class="content">
-                <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                <div class="mini-artist">M83</div>
-            </div>
-            <div class="content">
-                <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                <div class="mini-artist">M83</div>
-            </div>
+            <?php
+                foreach ($listArtists as $artist) {
+                    echo '<div class="content">
+                              <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
+                              <div class="mini-artist">'.$artist["name"].'</div>
+                          </div>';
+                }
+            ?>
         </div>
     </article>
 </div>

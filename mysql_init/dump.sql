@@ -139,7 +139,15 @@ CREATE TABLE `playlists` (
   `updated-at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
+--
+-- Déchargement des données de la table `playlists`
+--
+
+INSERT INTO `playlists` (`id`, `name`, `created-by_id`) VALUES
+(1, 'Wait Tracks', 1),
+(2, 'Favorite Tracks', 1),
+(3, 'Wait Tracks', 2),
+(4, 'Favorite Tracks', 2);
 
 --
 -- Structure de la table `tags`
