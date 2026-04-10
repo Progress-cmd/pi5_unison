@@ -5,9 +5,12 @@ services:
       target: ${DOCKER_TARGET}
     container_name: pi5_musics-app
     depends_on:
-      - db
-      - ms
-      - ml
+      db:
+        condition: service_healthy
+      ms:
+        condition: service_healthy
+      ml:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
@@ -37,6 +40,11 @@ services:
       - pi5_musics-db_data:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   ms: # MeiliSearch
     image: getmeili/meilisearch:v1.40.0
@@ -50,6 +58,11 @@ services:
       - pi5_musics-ms_data:/meili_data
     networks:
       - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7700/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   ml: # MailHog
     image: mailhog/mailhog:v1.0.1

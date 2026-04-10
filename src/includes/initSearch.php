@@ -2,7 +2,7 @@
 require __DIR__ . '/../../vendor/autoload.php';
 use Meilisearch\Client;
 
-include_once "../includes/config.php";
+include_once __DIR__ . "/config.php";
 $pdo = Config::getConnection();
 
 // Connexion Meilisearch

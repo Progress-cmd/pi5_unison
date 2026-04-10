@@ -39,6 +39,9 @@ COPY composer.json composer.lock* ./
 # Copie le code source
 COPY ./src /var/www/html/src
 
+COPY meilisearch_init/init.sh /init.sh
+RUN chmod +x /init.sh
+
 # --- ÉTAPE 2 : CONFIGURATION POUR LE DÉVELOPPEMENT ---
 FROM base AS development
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
@@ -50,6 +53,8 @@ RUN composer install --optimize-autoloader --no-interaction
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/html
+
+CMD ["/init.sh"]
 
 # --- ÉTAPE 3 : CONFIGURATION POUR LA PRODUCTION ---
 FROM base AS production
@@ -65,5 +70,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/html
+
+CMD ["/init.sh"]
 
 USER www-data

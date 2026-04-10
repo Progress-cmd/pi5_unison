@@ -20,9 +20,16 @@ async function navigateTo(page) {
 
     // Ré-exécute les <script> injectés (fetch ne les exécute pas)
     mainContent.querySelectorAll('script').forEach(oldScript => {
+        if (oldScript.src && oldScript.src.endsWith('footer.js')) {
+            oldScript.remove();
+            return;
+        }
         const newScript = document.createElement('script');
-        newScript.src = oldScript.src || '';
-        if (!oldScript.src) newScript.textContent = oldScript.textContent;
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        } else {
+            newScript.textContent = oldScript.textContent;
+        }
         document.body.appendChild(newScript);
         oldScript.remove();
     });

@@ -1,131 +1,167 @@
-const player = document.getElementById('playerLink');
-const closeBtn = document.getElementById('closePlayer');
-const extend = player.querySelector('.extend');
+(function() {
+    const player = document.getElementById('playerLink');
+    const closeBtn = document.getElementById('closePlayer');
+    const extend = player.querySelector('.extend');
 
-// --- Audio setup ---
-const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-// Remplace l'URL par ton vrai fichier audio
+    // --- Audio setup ---
+    const audio = new Audio();
+    // Remplace l'URL par ton vrai fichier audio
 
-// --- Expand / Collapse ---
-player.addEventListener('click', function(e) {
-    if (e.target.closest('button')) return;
-    extend.classList.remove('closing');
-    player.classList.add('expanded');
-});
+    // --- Charge une piste par ID et met à jour le player ---
+    async function loadTrack(id) {
+        const res = await fetch(`actions/getTrack.php?id=${id}`);
+        const track = await res.json();
 
-closeBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    extend.classList.add('closing');
-    extend.addEventListener('animationend', () => {
-        player.classList.remove('expanded');
+        if (!track) return;
+
+        // Met à jour l'audio
+        audio.src = track.src;
+
+        // Met à jour l'UI mini player
+        document.getElementById('title').textContent = track.title;
+        document.getElementById('artist').textContent = track.artist;
+
+        // Met à jour l'UI expanded player
+        document.querySelector('.expanded-title').textContent = track.title;
+        document.querySelector('.expanded-artist').textContent = track.artist;
+        document.querySelector('.expanded-album-art').src = track.img;
+        document.querySelector('.expanded-album-art').alt = `${track.title} - ${track.artist}`;
+
+        // Reset barres de progression
+        document.querySelector('.mini-progress-current').style.width = '0%';
+        document.querySelector('.expanded-progress-current').style.width = '0%';
+        document.querySelector('.time-current').textContent = '0:00';
+        document.querySelector('.time-total').textContent = formatTime(track.duration);
+
+        if (!audio.paused) audio.play().catch(() => {});
+    }
+
+    // --- Expose globalement pour appel depuis les pages ---
+    window.loadTrack = loadTrack;
+
+    loadTrack(1);
+
+    // --- Expand / Collapse ---
+    player.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
         extend.classList.remove('closing');
-    }, { once: true });
-});
-
-// --- Play / Pause ---
-function updatePlayBtns() {
-    const icon = audio.paused ? 'play_arrow' : 'pause';
-    document.querySelectorAll('.play-btn .material-symbols-outlined').forEach(el => {
-        el.textContent = icon;
+        player.classList.add('expanded');
     });
-}
 
-document.querySelectorAll('.play-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        audio.paused ? audio.play() : audio.pause();
+        extend.classList.add('closing');
+        extend.addEventListener('animationend', () => {
+            player.classList.remove('expanded');
+            extend.classList.remove('closing');
+        }, { once: true });
     });
-});
 
-audio.addEventListener('play', updatePlayBtns);
-audio.addEventListener('pause', updatePlayBtns);
+    // --- Play / Pause ---
+    function updatePlayBtns() {
+        const icon = audio.paused ? 'play_arrow' : 'pause';
+        document.querySelectorAll('.play-btn .material-symbols-outlined').forEach(el => {
+            el.textContent = icon;
+        });
+    }
 
-// --- Progress bars ---
-audio.addEventListener('timeupdate', () => {
-    if (!audio.duration) return;
-    const pct = (audio.currentTime / audio.duration) * 100;
+    document.querySelectorAll('.play-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.paused ? audio.play() : audio.pause();
+        });
+    });
 
-    // Mini player
-    const miniBar = document.querySelector('.mini-progress-current');
-    if (miniBar) miniBar.style.width = pct + '%';
+    audio.addEventListener('play', updatePlayBtns);
+    audio.addEventListener('pause', updatePlayBtns);
 
-    // Expanded player
-    const expBar = document.querySelector('.expanded-progress-current');
-    if (expBar) expBar.style.width = pct + '%';
+    // --- Progress bars ---
+    audio.addEventListener('timeupdate', () => {
+        if (!audio.duration) return;
+        const pct = (audio.currentTime / audio.duration) * 100;
 
-    // Temps affiché
-    document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
-    document.querySelector('.time-total').textContent = formatTime(audio.duration);
-});
+        // Mini player
+        const miniBar = document.querySelector('.mini-progress-current');
+        if (miniBar) miniBar.style.width = pct + '%';
 
-function formatTime(s) {
-    if (isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
-}
+        // Expanded player
+        const expBar = document.querySelector('.expanded-progress-current');
+        if (expBar) expBar.style.width = pct + '%';
 
-// --- Clic sur la barre de progression ---
-document.querySelector('.expanded-progress-bar').addEventListener('click', function(e) {
-    const rect = this.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = ratio * audio.duration;
-});
+        // Temps affiché
+        document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
+        document.querySelector('.time-total').textContent = formatTime(audio.duration);
+    });
 
-// --- Next / Prev (logique de base, à adapter à ta playlist) ---
-document.querySelectorAll('.next-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    function formatTime(s) {
+        if (isNaN(s)) return '0:00';
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60).toString().padStart(2, '0');
+        return `${m}:${sec}`;
+    }
+
+    // --- Clic sur la barre de progression ---
+    document.querySelector('.expanded-progress-bar').addEventListener('click', function(e) {
+        const rect = this.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = ratio * audio.duration;
+    });
+
+    // --- Next / Prev (logique de base, à adapter à ta playlist) ---
+    document.querySelectorAll('.next-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.currentTime = Math.min(audio.currentTime + 15, audio.duration);
+        });
+    });
+
+    document.querySelectorAll('.prev-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.currentTime = Math.max(audio.currentTime - 15, 0);
+        });
+    });
+
+    // --- Like / Favorite ---
+    document.querySelectorAll('.favorite-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const icon = btn.querySelector('.material-symbols-outlined');
+            const active = btn.classList.toggle('active');
+            icon.style.color = active ? '#C8593A' : '';
+            icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+        });
+    });
+
+    // --- Shuffle ---
+    document.querySelector('.shuffle-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        audio.currentTime = Math.min(audio.currentTime + 15, audio.duration);
+        const btn = e.currentTarget;
+        btn.classList.toggle('active');
+        btn.style.color = btn.classList.contains('active') ? '#C8593A' : '';
     });
-});
 
-document.querySelectorAll('.prev-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    // --- Repeat ---
+    document.querySelector('.repeat-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        audio.currentTime = Math.max(audio.currentTime - 15, 0);
+        const btn = e.currentTarget;
+        btn.classList.toggle('active');
+        audio.loop = btn.classList.contains('active');
+        btn.style.color = audio.loop ? '#C8593A' : '';
     });
-});
 
-// --- Like / Favorite ---
-document.querySelectorAll('.like-btn, .favorite-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    // --- Volume ---
+    document.querySelector('.volume-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        const icon = btn.querySelector('.material-symbols-outlined');
-        const active = btn.classList.toggle('active');
-        icon.style.color = active ? '#C8593A' : '';
-        icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+        audio.muted = !audio.muted;
+        const icon = e.currentTarget.querySelector('.material-symbols-outlined');
+        icon.textContent = audio.muted ? 'volume_off' : 'volume_up';
     });
-});
 
-// --- Shuffle ---
-document.querySelector('.shuffle-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const btn = e.currentTarget;
-    btn.classList.toggle('active');
-    btn.style.color = btn.classList.contains('active') ? '#C8593A' : '';
-});
-
-// --- Repeat ---
-document.querySelector('.repeat-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const btn = e.currentTarget;
-    btn.classList.toggle('active');
-    audio.loop = btn.classList.contains('active');
-    btn.style.color = audio.loop ? '#C8593A' : '';
-});
-
-// --- Volume ---
-document.querySelector('.volume-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    audio.muted = !audio.muted;
-    const icon = e.currentTarget.querySelector('.material-symbols-outlined');
-    icon.textContent = audio.muted ? 'volume_off' : 'volume_up';
-});
-
-// --- Fin de piste ---
-audio.addEventListener('ended', () => {
-    updatePlayBtns();
-    document.querySelector('.mini-progress-current').style.width = '0%';
-    document.querySelector('.expanded-progress-current').style.width = '0%';
-});
+    // --- Fin de piste ---
+    audio.addEventListener('ended', () => {
+        updatePlayBtns();
+        document.querySelector('.mini-progress-current').style.width = '0%';
+        document.querySelector('.expanded-progress-current').style.width = '0%';
+    });
+})();

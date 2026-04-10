@@ -2,7 +2,7 @@
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
 
-$id = $_GET['id'];
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
 $req = $pdo->prepare("
     SELECT tracks.id, tracks.file, tracks.title, tracks.img, artists.name, tracks.duration
@@ -24,7 +24,7 @@ if (!$track) {
 
 echo json_encode([
     "id" => $track["id"],
-    "src" => $track["file"],
+    "src" => "actions/stream.php?file=" . urlencode($track["file"]),
     "title" => $track["title"],
     "artist" => $track["name"],
     "img" => $track["img"],

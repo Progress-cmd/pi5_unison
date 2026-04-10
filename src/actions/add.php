@@ -48,8 +48,8 @@ $meiliKey = getenv('MS_PASS') ?? null;
 $client = new Client('http://ms:7700', $meiliKey);
 
 $client->index('musiques')->addDocuments([[
-    'id' => $track_id,
-    'title' => $title,
+    'id_music' => $track_id,
+    'title_music' => $title,
 ]]);
 
 $req = $pdo->prepare("SELECT id FROM artists WHERE name = :name");
@@ -65,6 +65,11 @@ if ($artistData === false)
     $req->execute();
 
     $artist_id = intval($pdo->lastInsertId());
+
+    $client->index('artists')->addDocuments([[
+        'id_artist' => $artist_id,
+        'name_artist' => $artist,
+    ]]);
 }
 else
 {
@@ -75,10 +80,3 @@ $req = $pdo->prepare("INSERT INTO artist__track (artist_id, track_id) VALUES (:a
 $req->bindParam(':artist_id', $artist_id);
 $req->bindParam(':track_id', $track_id);
 $req->execute();
-
-$client->index('artists')->addDocuments([[
-    'id' => $artist_id,
-    'name' => $artist,
-]]);
-
-header("Location: ../index.php");
