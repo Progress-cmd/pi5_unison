@@ -74,13 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Configuration SMTP
             $mail->isSMTP();
-            $mail->Host = getenv('MAIL_HOST') ?: 'ml';  // 'ml' pour le conteneur
-            $mail->Port = getenv('MAIL_PORT') ?: 1025;
-            $mail->SMTPAuth = false;  // Mailhog n'a pas besoin d'auth
-            $mail->SMTPAutoTLS = false;
+            $mail->Host = getenv('MAIL_HOST');
+            $mail->Port = getenv('MAIL_PORT');
+            $mail->SMTPAuth = true;
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Username = getenv('MAIL_USER');
+            $mail->Password = getenv('MAIL_PASS');
 
             // Paramètres du mail
-            $mail->setFrom('noreply@example.com', 'Musics App');
+            $mail->setFrom('noreply@pi5.ovh', 'Unison');
             $mail->addAddress($user["email"]);
             $mail->Subject = $subject;
             $mail->Body = $message;

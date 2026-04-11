@@ -9,16 +9,18 @@ services:
         condition: service_healthy
       ms:
         condition: service_healthy
-      ml:
-        condition: service_started
+#      ml:
+#        condition: service_started
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       MS_PASS: ${MS_PASS}
-      MAIL_HOST: ml
-      MAIL_PORT: 1025
+      MAIL_HOST: smtp.resend.com # ml
+      MAIL_PORT: 465 # 1025
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASS: ${MAIL_PASS}
     volumes:
       - ./src:/var/www/html/src # transfert du code source
       - ./musics_storage:/var/www/music_data # persistance des musiques
@@ -64,14 +66,14 @@ services:
       timeout: 3s
       retries: 10
 
-  ml: # MailHog
-    image: mailhog/mailhog:v1.0.1
-    container_name: pi5_musics-ml
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      - app-network
+#  ml: # MailHog
+#    image: mailhog/mailhog:v1.0.1
+#    container_name: pi5_musics-ml
+#    ports:
+#      - "1025:1025"
+#      - "8025:8025"
+#    networks:
+#      - app-network
 
 networks:
   app-network:
