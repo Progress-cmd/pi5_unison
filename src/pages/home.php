@@ -32,31 +32,7 @@
         <div class="head-bar">Liste d'attente<div class="more-bar">Modifier</div></div>
         <div class="body-bar">
             <?php
-            $req = $pdo->prepare("SELECT id FROM tracks ORDER BY RAND()");
-            $req->execute();
-            $tracks = $req->fetchAll();
-
-
-            $req = $pdo->prepare("SELECT id FROM playlists WHERE name = 'Wait Tracks' AND `created-by_id` = :user_id");
             session_start();
-            $req->execute([':user_id' => $_SESSION['user']['id']]);
-            $playlist = $req->fetch();
-
-            $req = $pdo->prepare("DELETE FROM track__playlist WHERE playlist_id = :pid");
-            $req->execute([':pid' => $playlist['id']]);
-
-            $values = [];
-            $params = [];
-            foreach ($tracks as $i => $trackId) {
-                $values[] = "(:p$i, :t$i, :pos$i)";
-                $params[":p$i"] = $playlist['id'];
-                $params[":t$i"] = $trackId['id'];
-                $params[":pos$i"] = $i + 1;
-            }
-
-            $req = $pdo->prepare("INSERT INTO track__playlist (playlist_id, track_id, position) VALUES " . implode(', ', $values));
-            $req->execute($params);
-
 
             $req = $pdo->prepare("SELECT tracks.id, tracks.img, tracks.title, artists.name
                                         FROM playlists
@@ -66,7 +42,6 @@
                                         LEFT JOIN artists ON artists.id = artist__track.artist_id
                                         WHERE playlists.name = 'Wait Tracks' AND playlists.`created-by_id` = :user_id
                                         ORDER BY track__playlist.position
-                                        LIMIT 4
                                         ");
             $req->execute([':user_id' => $_SESSION['user']['id']]);
             session_write_close();

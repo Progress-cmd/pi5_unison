@@ -5,7 +5,6 @@
 
     // --- Audio setup ---
     const audio = new Audio();
-    // Remplace l'URL par ton vrai fichier audio
 
     // --- Charge une piste par ID et met à jour le player ---
     async function loadTrack(id) {
@@ -33,14 +32,19 @@
         document.querySelector('.time-current').textContent = '0:00';
         document.querySelector('.time-total').textContent = formatTime(track.duration);
 
-        if (!audio.paused) audio.play().catch(() => {});
+        audio.load();
+        audio.addEventListener('canplay', () => {
+            audio.play().catch(() => {});
+        }, { once: true });
     }
 
     // --- Expose globalement pour appel depuis les pages ---
     window.loadTrack = loadTrack;
 
-    loadTrack(1);
-
+    // Charge le premier titre de la playlist au démarrage
+    if (window.waitPlaylist && window.waitPlaylist.length > 0) {
+        loadTrack(window.waitPlaylist[0]);
+    }
     // --- Expand / Collapse ---
     player.addEventListener('click', function(e) {
         if (e.target.closest('button')) return;
@@ -111,16 +115,49 @@
     document.querySelectorAll('.next-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            audio.currentTime = Math.min(audio.currentTime + 15, audio.duration);
+            if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
+                window.currentIndex++;
+                loadTrack(window.waitPlaylist[window.currentIndex]);
+                updateSelected();
+            }
         });
     });
 
     document.querySelectorAll('.prev-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            audio.currentTime = Math.max(audio.currentTime - 15, 0);
+            if (window.waitPlaylist && window.currentIndex > 0) {
+                window.currentIndex--;
+                loadTrack(window.waitPlaylist[window.currentIndex]);
+                updateSelected();
+            }
         });
     });
+
+    // Passe automatiquement au suivant en fin de piste
+    audio.addEventListener('ended', () => {
+        if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
+            window.currentIndex++;
+            loadTrack(window.waitPlaylist[window.currentIndex]);
+            updateSelected();
+        } else {
+            updatePlayBtns();
+        }
+    });
+
+    // --- Met à jour la div "selected" dans la liste d'attente ---
+    function updateSelected() {
+        const items = document.querySelectorAll('.queue-bar .content');
+        items.forEach((el, i) => {
+            el.classList.toggle('selected', i === window.currentIndex);
+        });
+
+        // Scroll vers le titre en cours
+        const selected = document.querySelector('.queue-bar .content.selected');
+        if (selected) {
+            selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
 
     // --- Like / Favorite ---
     document.querySelectorAll('.favorite-btn').forEach(btn => {

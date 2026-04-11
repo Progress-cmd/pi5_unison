@@ -62,11 +62,17 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Fichiers de configuration spécifiques
 COPY ./docker/php-prod.ini /usr/local/etc/php/conf.d/z-prod.ini
-COPY ./docker/security.ini /usr/local/etc/php/conf.d/
 COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
+# Installer zip AVANT le security.ini
+RUN apt-get update && apt-get install -y libzip-dev && docker-php-ext-install zip && apt-get clean
+
 # Installation des dépendances sans les outils de dev
+ENV COMPOSER_HOME=/tmp/composer
 RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Fichier de configuration spécifique
+COPY ./docker/security.ini /usr/local/etc/php/conf.d/
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/html

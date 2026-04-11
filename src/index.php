@@ -30,10 +30,10 @@ session_write_close();
     else if ($time >= 12 && $time < 14) {
         $moment = "ce midi";
     }
-    else if ($time >= 14 && $time < 17) {
+    else if ($time >= 14 && $time < 18) {
         $moment = "cette après-midi";
     }
-    else if ($time >= 17 && $time < 22) {
+    else if ($time >= 18 && $time < 22) {
         $moment = "ce soir";
     }
     else {
@@ -50,6 +50,52 @@ session_write_close();
 </main>
 
 <footer>
+    <?php
+    include_once "includes/config.php";
+    $pdo = Config::getConnection();
+
+    session_start();
+
+    $req = $pdo->prepare("SELECT id FROM tracks ORDER BY RAND()");
+    $req->execute();
+    $tracks = $req->fetchAll();
+
+    $req = $pdo->prepare("SELECT id FROM playlists WHERE name = 'Wait Tracks' AND `created-by_id` = :user_id");
+    $req->execute([':user_id' => $_SESSION['user']['id']]);
+    $playlist = $req->fetch();
+
+    $req = $pdo->prepare("DELETE FROM track__playlist WHERE playlist_id = :pid");
+    $req->execute([':pid' => $playlist['id']]);
+
+    $values = [];
+    $params = [];
+    foreach ($tracks as $i => $trackId) {
+        $values[] = "(:p$i, :t$i, :pos$i)";
+        $params[":p$i"] = $playlist['id'];
+        $params[":t$i"] = $trackId['id'];
+        $params[":pos$i"] = $i + 1;
+    }
+
+    $req = $pdo->prepare("INSERT INTO track__playlist (playlist_id, track_id, position) VALUES " . implode(', ', $values));
+    $req->execute($params);
+
+    $req = $pdo->prepare("SELECT tracks.id
+                                FROM playlists
+                                LEFT JOIN track__playlist ON playlist_id = playlists.id
+                                LEFT JOIN tracks ON track_id = tracks.id
+                                WHERE playlists.name = 'Wait Tracks' AND playlists.`created-by_id` = :user_id
+                                ORDER BY track__playlist.position
+                                ");
+
+    $req->execute([':user_id' => $_SESSION['user']['id']]);
+    $allTrackIds = $req->fetchAll(PDO::FETCH_COLUMN);
+
+    session_write_close();
+    ?>
+    <script>
+        window.waitPlaylist = <?= json_encode($allTrackIds) ?>;
+        window.currentIndex = 0;
+    </script>
     <div class="mobil-player" id="playerLink">
         <div class="retract">
             <div class="mini-controls">
