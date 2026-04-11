@@ -65,7 +65,7 @@ session_write_close();
     $playlist = $req->fetch();
 
     $req = $pdo->prepare("DELETE FROM track__playlist WHERE playlist_id = :pid");
-    $req->execute([':pid' => $playlist['id']]);
+    $req->execute([':pid' => $playlist['id'] ?? 0]);
 
     $values = [];
     $params = [];
@@ -76,8 +76,11 @@ session_write_close();
         $params[":pos$i"] = $i + 1;
     }
 
-    $req = $pdo->prepare("INSERT INTO track__playlist (playlist_id, track_id, position) VALUES " . implode(', ', $values));
-    $req->execute($params);
+    if (!empty($values)) {
+        $req = $pdo->prepare("INSERT INTO track__playlist (playlist_id, track_id, position) VALUES " . implode(', ', $values));
+        $req->execute($params);
+    }
+
 
     $req = $pdo->prepare("SELECT tracks.id
                                 FROM playlists

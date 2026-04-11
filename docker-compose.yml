@@ -17,8 +17,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       MS_PASS: ${MS_PASS}
-      MAIL_HOST: smtp.resend.com # ml
-      MAIL_PORT: 465 # 1025
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
       MAIL_USER: ${MAIL_USER}
       MAIL_PASS: ${MAIL_PASS}
     volumes:
