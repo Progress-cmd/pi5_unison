@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     git \
     sendmail \
     mailutils \
+    nodejs \
     && docker-php-ext-install pdo pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -76,6 +77,8 @@ COPY ./docker/security.ini /usr/local/etc/php/conf.d/
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/html
+RUN chown -R www-data:www-data /var/www/music_data
+RUN chmod -R 755 /var/www/music_data
 
 CMD ["/init.sh"]
 
