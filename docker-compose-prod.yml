@@ -4,6 +4,7 @@ services:
       context: .
       target: ${DOCKER_TARGET}
     container_name: pi5_musics-app
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
