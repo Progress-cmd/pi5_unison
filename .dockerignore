@@ -3,6 +3,6 @@
 .dockerignore
 .git
 .idea
-docker-compose.yml
+docker-compose-dev.yml
 Dockerfile
 vendor/

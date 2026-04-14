@@ -9,8 +9,8 @@ services:
         condition: service_healthy
       ms:
         condition: service_healthy
-#      ml:
-#        condition: service_started
+      ml:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
@@ -66,14 +66,14 @@ services:
       timeout: 3s
       retries: 10
 
-#  ml: # MailHog
-#    image: mailhog/mailhog:v1.0.1
-#    container_name: pi5_musics-ml
-#    ports:
-#      - "1025:1025"
-#      - "8025:8025"
-#    networks:
-#      - app-network
+  ml: # MailHog
+    image: mailhog/mailhog:v1.0.1
+    container_name: pi5_musics-ml
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - app-network
 
 networks:
   app-network:
