@@ -34,22 +34,22 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 WORKDIR /var/www/html
 
 # Copie composer.json et lock
-COPY composer.json composer.lock* ./
+COPY ../composer.json composer.lock* ./
 
 # Copie le code source
-COPY ./src /var/www/html/src
+COPY ../src /var/www/html/src
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/html
 
-COPY meilisearch_init/init.sh /init.sh
+COPY ../meilisearch_init/init.sh /init.sh
 RUN chmod +x /init.sh
 
 # --- ÉTAPE 2 : CONFIGURATION POUR LE DÉVELOPPEMENT ---
 FROM base AS development
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
-COPY ./docker/php-dev.ini /usr/local/etc/php/conf.d/z-dev.ini
-COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/php-dev.ini /usr/local/etc/php/conf.d/z-dev.ini
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Installation des dépendances
 RUN composer install --optimize-autoloader --no-interaction
@@ -61,8 +61,8 @@ FROM base AS production
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Fichiers de configuration spécifiques
-COPY ./docker/php-prod.ini /usr/local/etc/php/conf.d/z-prod.ini
-COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/php-prod.ini /usr/local/etc/php/conf.d/z-prod.ini
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Installer zip AVANT le security.ini
 RUN apt-get update && apt-get install -y libzip-dev nodejs && docker-php-ext-install zip && apt-get clean
@@ -72,7 +72,7 @@ ENV COMPOSER_HOME=/tmp/composer
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Fichier de configuration spécifique
-COPY ./docker/security.ini /usr/local/etc/php/conf.d/
+COPY security.ini /usr/local/etc/php/conf.d/
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/music_data

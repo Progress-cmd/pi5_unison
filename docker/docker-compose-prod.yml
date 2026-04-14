@@ -1,7 +1,8 @@
 services:
   app:
     build:
-      context: .
+      context: ../
+      dockerfile: docker/Dockerfile
       target: ${DOCKER_TARGET}
     container_name: pi5_musics-app
     restart: unless-stopped
@@ -21,8 +22,8 @@ services:
       MAIL_USER: ${MAIL_USER}
       MAIL_PASS: ${MAIL_PASS}
     volumes:
-      - ./src:/var/www/html/src # transfert du code source
-      - ./musics_storage:/var/www/music_data # persistance des musiques
+      - ../src:/var/www/html/src # transfert du code source
+      - ../musics_storage:/var/www/music_data # persistance des musiques
     ports:
       - "${PORT_EXPOSE}:80"
     networks:
@@ -38,7 +39,7 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
     volumes:
-      - ./mysql_init:/docker-entrypoint-initdb.d
+      - ../mysql_init:/docker-entrypoint-initdb.d
       - pi5_musics-db_data:/var/lib/mysql
     networks:
       - app-network
