@@ -72,7 +72,7 @@ ENV COMPOSER_HOME=/tmp/composer
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Fichier de configuration spécifique
-COPY security.ini /usr/local/etc/php/conf.d/
+COPY docker/security.ini /usr/local/etc/php/conf.d/
 
 # Droits d'accès
 RUN chown -R www-data:www-data /var/www/music_data
