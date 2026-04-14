@@ -52,31 +52,32 @@ $client->index('musiques')->addDocuments([[
     'title_music' => $title,
 ]]);
 
-$req = $pdo->prepare("SELECT id FROM artists WHERE name = :name");
-$req->bindParam(':name', $artist);
-$req->execute();
+$artists = explode(",", $artist);
 
-$artistData = $req->fetch(PDO::FETCH_ASSOC);
-
-if ($artistData === false)
-{
-    $req = $pdo->prepare("INSERT INTO artists (name) VALUES (:name)");
+foreach ($artists as $artist) {
+    $req = $pdo->prepare("SELECT id FROM artists WHERE name = :name");
     $req->bindParam(':name', $artist);
     $req->execute();
 
-    $artist_id = intval($pdo->lastInsertId());
+    $artistData = $req->fetch(PDO::FETCH_ASSOC);
 
-    $client->index('artists')->addDocuments([[
-        'id_artist' => $artist_id,
-        'name_artist' => $artist,
-    ]]);
-}
-else
-{
-    $artist_id = intval($artistData["id"]);
-}
+    if ($artistData === false) {
+        $req = $pdo->prepare("INSERT INTO artists (name) VALUES (:name)");
+        $req->bindParam(':name', $artist);
+        $req->execute();
 
-$req = $pdo->prepare("INSERT INTO artist__track (artist_id, track_id) VALUES (:artist_id, :track_id)");
-$req->bindParam(':artist_id', $artist_id);
-$req->bindParam(':track_id', $track_id);
-$req->execute();
+        $artist_id = intval($pdo->lastInsertId());
+
+        $client->index('artists')->addDocuments([[
+            'id_artist' => $artist_id,
+            'name_artist' => $artist,
+        ]]);
+    } else {
+        $artist_id = intval($artistData["id"]);
+    }
+
+    $req = $pdo->prepare("INSERT INTO artist__track (artist_id, track_id) VALUES (:artist_id, :track_id)");
+    $req->bindParam(':artist_id', $artist_id);
+    $req->bindParam(':track_id', $track_id);
+    $req->execute();
+}
