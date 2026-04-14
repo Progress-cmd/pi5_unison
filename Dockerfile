@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
     git \
     sendmail \
     mailutils \
-    nodejs \
     && docker-php-ext-install pdo pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -40,6 +39,9 @@ COPY composer.json composer.lock* ./
 # Copie le code source
 COPY ./src /var/www/html/src
 
+# Droits d'accès
+RUN chown -R www-data:www-data /var/www/html
+
 COPY meilisearch_init/init.sh /init.sh
 RUN chmod +x /init.sh
 
@@ -52,9 +54,6 @@ COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 # Installation des dépendances
 RUN composer install --optimize-autoloader --no-interaction
 
-# Droits d'accès
-RUN chown -R www-data:www-data /var/www/html
-
 CMD ["/init.sh"]
 
 # --- ÉTAPE 3 : CONFIGURATION POUR LA PRODUCTION ---
@@ -66,7 +65,7 @@ COPY ./docker/php-prod.ini /usr/local/etc/php/conf.d/z-prod.ini
 COPY ./docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Installer zip AVANT le security.ini
-RUN apt-get update && apt-get install -y libzip-dev && docker-php-ext-install zip && apt-get clean
+RUN apt-get update && apt-get install -y libzip-dev nodejs && docker-php-ext-install zip && apt-get clean
 
 # Installation des dépendances sans les outils de dev
 ENV COMPOSER_HOME=/tmp/composer
@@ -76,10 +75,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 COPY ./docker/security.ini /usr/local/etc/php/conf.d/
 
 # Droits d'accès
-RUN chown -R www-data:www-data /var/www/html
 RUN chown -R www-data:www-data /var/www/music_data
 RUN chmod -R 755 /var/www/music_data
 
-CMD ["/init.sh"]
-
 USER www-data
+
+CMD ["/init.sh"]
