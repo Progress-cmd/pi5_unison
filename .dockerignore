@@ -1,8 +1,8 @@
-.env
+docker/.env
 .gitignore
 .dockerignore
 .git
 .idea
-docker-compose-dev.yml
-Dockerfile
+docker/docker-compose-dev.yml
+docker/Dockerfile
 vendor/

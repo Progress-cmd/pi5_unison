@@ -2,4 +2,4 @@
 musics_storage/
 vendor/
 src/prototypes/
-.env
+docker/.env
