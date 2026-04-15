@@ -10,7 +10,12 @@
 
     foreach ($listTracks as $listTrack)
     {
-        $req = $pdo->prepare("SELECT img, title, name FROM tracks LEFT JOIN artist__track ON artist__track.track_id = tracks.id LEFT JOIN artists ON artists.id = artist__track.artist_id WHERE tracks.id = :track");
+        $req = $pdo->prepare("SELECT img, title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                                    FROM tracks
+                                    LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                                    LEFT JOIN artists ON artists.id = artist__track.artist_id
+                                    WHERE tracks.id = :track
+                                    ");
         $req->bindParam(":track", $listTrack);
         $req->execute();
 
@@ -20,7 +25,7 @@
                   <img src="'.$track[0]["img"].'" class="mini-player-img" alt="image">
                   <div class="mini-proposition-info">
                       <div class="mini-title">'.$track[0]["title"].'</div>
-                      <div class="mini-artist">'.$track[0]["name"].'</div>
+                      <div class="mini-artist">'.$track[0]["artists_names"].'</div>
                   </div>
               </button>';
     }
@@ -113,7 +118,7 @@
 
         $listArtists = $req->fetchAll();
         ?>
-        <div class="head-bar">Artistes<div class="more-bar">Tout voir</div></div>
+        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar">Tout voir</a></div>
         <div class="body-bar">
             <?php
                 foreach ($listArtists as $artist) {

@@ -7,6 +7,7 @@ const routes = {
     'playlists': 'pages/playlists.php',
     'add':       'pages/add.php',
     'account':   'pages/account.php',
+    'home/artists': 'pages/artists.php',
 };
 
 // Charge une page sans recharger

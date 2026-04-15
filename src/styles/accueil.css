@@ -690,6 +690,52 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     max-width: 65px;
 }
 
+/* ----- ARTISTS ----- */
+.artist-list {
+    display: flex;
+    margin: 10px;
+    flex-direction: column;
+    border: var(--border) solid 1px;
+    background: var(--white);
+    border-radius: 10px;
+    padding: 18px;
+    height: auto;
+    box-sizing: border-box;
+}
+
+.artist-list > .body-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.artist-list .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 80px;
+    box-sizing: border-box;
+}
+
+.artist-list img {
+    border-radius: 50%;
+    height: 65px;
+    width: 65px;
+    margin-bottom: 5px;
+}
+
+.artist-list .mini-artist {
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: black;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
 
 /* ===== SEARCH PAGE ===== */
 .search-form {
