@@ -1,0 +1,5 @@
+#!/bin/bash
+mariadb -u root -p"${DB_ROOTPASS}" <<EOF
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+FLUSH PRIVILEGES;
+EOF
