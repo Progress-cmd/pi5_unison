@@ -12,6 +12,7 @@ Une application web d'écoute et de partage interne de musique.
 
 ## Prérequis
 - Docker >= 4.69.0
+- Linux, distribution `Debian` (ou dérivé)
 - Connexion internet fiable
 
 ## Installation
@@ -66,7 +67,7 @@ docker compose -f docker-compose-prod.yml up -d
 | MAIL_PORT     | 587             | Port utilisé par celui-ci             |
 | MAIL_USER     | resend          | Nom d'utilisateur donné               |
 | MAIL_PASS     | ?               | Clé API donnée                        |
-src/
+
 ├── docker/                 # Création du conteneur \
 ├── meilisearch_init/       # Initialisation de l'outil de recherche avancé \
 ├── mysqlinit/              # Initialisation de la base de donnée \
