@@ -26,7 +26,7 @@ RUN curl -fL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
 RUN a2enmod rewrite headers
 
 # Dossier de stockage
-RUN mkdir -p /var/www/music_data && chown www-data:www-data /var/www/music_data
+RUN mkdir -p /var/www/music_data && chown www-data:www-data /var/www/music_data && chmod -R 755 /var/www/music_data
 
 # Déplacement des dépendances php
 ENV COMPOSER_ALLOW_SUPERUSER=1
@@ -73,10 +73,6 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Fichier de configuration spécifique
 COPY docker/security.ini /usr/local/etc/php/conf.d/
-
-# Droits d'accès
-RUN chown -R www-data:www-data /var/www/music_data
-RUN chmod -R 755 /var/www/music_data
 
 USER www-data
 

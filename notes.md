@@ -9,7 +9,7 @@
     - [x] A : Initialisation de session
     - [ ] B : Formulaires et base de donnée
     - [ ] C : Interactions API
-- [ ] 4 : La mise en place
+- [x] 4 : La mise en place
 - [ ] 5 : La maintenance
 
 
