@@ -5,6 +5,7 @@ services:
       dockerfile: docker/Dockerfile
       target: ${DOCKER_TARGET}
     container_name: pi5_musics-app
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +34,7 @@ services:
   db: # DataBase
     image: mariadb:12
     container_name: pi5_musics-db
+    env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOTPASS}
       MYSQL_DATABASE: ${DB_NAME}
@@ -52,6 +54,7 @@ services:
   ms: # MeiliSearch
     image: getmeili/meilisearch:v1.40.0
     container_name: pi5_musics-ms
+    env_file: .env
     ports:
       - "7700:7700"
     environment:
@@ -70,6 +73,7 @@ services:
   ml: # MailHog
     image: mailhog/mailhog:v1.0.1
     container_name: pi5_musics-ml
+    env_file: .env
     ports:
       - "1025:1025"
       - "8025:8025"

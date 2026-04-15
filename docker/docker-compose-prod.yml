@@ -23,7 +23,7 @@ services:
       MAIL_PASS: ${MAIL_PASS}
     volumes:
       - ../src:/var/www/html/src # transfert du code source
-      - ../musics_storage:/var/www/music_data # persistance des musiques
+      - pi5_musics-app_data:/var/www/music_data # persistance des musiques
     ports:
       - "${PORT_EXPOSE}:80"
     networks:
@@ -53,8 +53,6 @@ services:
   ms: # MeiliSearch
     image: getmeili/meilisearch:v1.40.0
     container_name: pi5_musics-ms
-    ports:
-      - "7700:7700"
     environment:
       MEILI_MASTER_KEY: ${MS_PASS}
       MEILI_ENV: ${DOCKER_TARGET}
