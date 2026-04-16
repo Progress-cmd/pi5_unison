@@ -111,7 +111,7 @@
         audio.currentTime = ratio * audio.duration;
     });
 
-    // --- Next / Prev (logique de base, à adapter à ta playlist) ---
+    // --- Next / Prev ---
     document.querySelectorAll('.next-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();

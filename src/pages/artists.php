@@ -20,9 +20,9 @@ $listArtists = $req->fetchAll();
         <?php
         foreach ($listArtists as $artist) {
             echo '<div class="content">
-                                  <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                                  <div class="mini-artist">'.$artist["name"].'</div>
-                              </div>';
+                      <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
+                      <div class="mini-artist">'.$artist["name"].'</div>
+                  </div>';
         }
         ?>
     </div>

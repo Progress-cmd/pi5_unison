@@ -32,8 +32,8 @@
     ?>
 </article>
 
-<div class="container">
-    <article class="queue-bar">
+<div class="box">
+    <article class="queue-bar container">
         <div class="head-bar">Liste d'attente<div class="more-bar">Modifier</div></div>
         <div class="body-bar">
             <?php
@@ -71,7 +71,7 @@
         </div>
     </article>
 
-    <article class="playlists-bar">
+    <article class="playlists-bar container">
         <div class="head-bar">Playlists<div class="more-bar">Tout voir</div></div>
         <div class="body-bar">
             <?php
@@ -103,7 +103,7 @@
         </div>
     </article>
 
-    <article class="artist-bar">
+    <article class="artist-bar container">
         <?php
         $req = $pdo->prepare("
             SELECT artists.name, COUNT(tracks.id) AS track_count
@@ -118,7 +118,7 @@
 
         $listArtists = $req->fetchAll();
         ?>
-        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar">Tout voir</a></div>
+        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Tout voir</a></div>
         <div class="body-bar">
             <?php
                 foreach ($listArtists as $artist) {

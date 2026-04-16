@@ -84,6 +84,52 @@ button {
     border: none;
 }
 
+.container {
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    width: 100%;
+    background-color: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.head-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    font-family: var(--serif);
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.head-bar > .more-bar {
+    font-size: 12px;
+    font-family: var(--sans);
+    color: var(--text-orange);
+}
+
+.body-bar > .content {
+    display: flex;
+    flex-direction: row;
+}
+
+.bouton {
+    display: flex;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.bouton:hover {
+    box-shadow: lightgray 1px 1px;
+}
+
+
+
 /* ===== NAVIGATION MOBILE (SIDEBAR) ===== */
 .mobil-sidebar {
     display: flex;
@@ -563,7 +609,7 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
 }
 
 /* bars */
-.container {
+.box {
     width: 100%;
     height: auto;
     display: flex;
@@ -572,30 +618,6 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     box-sizing: border-box;
     gap: 10px;
     padding-bottom: 20px;
-}
-
-.playlists-bar, .queue-bar, .artist-bar {
-    border: var(--border) solid 1px;
-    background: var(--white);
-    border-radius: 10px;
-    padding: 18px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.head-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    font-family: var(--serif);
-    font-size: 20px;
-    margin-bottom: 10px;
-}
-
-.head-bar > .more-bar {
-    font-size: 12px;
-    font-family: var(--sans);
-    color: var(--text-orange);
 }
 
 .queue-bar .content, .playlists-bar .content {
@@ -845,4 +867,14 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     background: var(--background);
     padding: 5px 10px;
     font-weight: bolder;
+}
+
+
+/* ===== ACCOUNT ===== */
+.account-dashboard {
+    margin-bottom: 10px;
+}
+
+.account-boutons .content {
+    justify-content: space-between;
 }

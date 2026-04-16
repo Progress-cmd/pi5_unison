@@ -8,6 +8,7 @@ const routes = {
     'add':       'pages/add.php',
     'account':   'pages/account.php',
     'home/artists': 'pages/artists.php',
+    'account/infos': 'pages/infos.php',
 };
 
 // Charge une page sans recharger
@@ -35,6 +36,13 @@ async function navigateTo(page) {
         oldScript.remove();
     });
 
+    mainContent.querySelectorAll('a[data-page]').forEach(a => {
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo(a.dataset.page);
+        });
+    });
+
     // Met à jour l'URL dans la barre d'adresse sans recharger
     history.pushState({ page }, '', `?page=${page}`);
 
@@ -46,6 +54,13 @@ async function navigateTo(page) {
 
 // Intercepte tous les liens de la sidebar
 document.querySelectorAll('.mobil-sidebar a').forEach(a => {
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo(a.dataset.page);
+    });
+});
+
+document.querySelectorAll('.more-bar').forEach(a => {
     a.addEventListener('click', (e) => {
         e.preventDefault();
         navigateTo(a.dataset.page);
