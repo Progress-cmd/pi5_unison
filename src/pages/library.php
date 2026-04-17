@@ -1,0 +1,113 @@
+<article class="artist-bar container">
+    <?php
+    include_once "../includes/config.php";
+    $pdo = Config::getConnection();
+
+    $req = $pdo->prepare("
+            SELECT artists.name, COUNT(tracks.id) AS track_count
+            FROM artists
+            LEFT JOIN artist__track ON artist__track.artist_id = artists.id
+            LEFT JOIN tracks ON tracks.id = artist__track.track_id
+            GROUP BY artists.id, artists.name
+            ORDER BY track_count DESC
+            LIMIT 4
+        ");
+    $req->execute();
+
+    $listArtists = $req->fetchAll();
+    ?>
+    <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Voir tout</a></div>
+    <div class="body-bar">
+        <?php
+        foreach ($listArtists as $artist) {
+            echo '<div class="content">
+                              <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
+                              <div class="mini-artist">'.$artist["name"].'</div>
+                          </div>';
+        }
+        ?>
+    </div>
+</article>
+
+<article class="queue-bar container">
+    <div class="head-bar">Favorite Tracks</div>
+    <div class="body-bar">
+        <?php
+        session_start();
+
+        $req = $pdo->prepare("SELECT tracks.id, tracks.img, tracks.title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                                        FROM playlists
+                                        LEFT JOIN track__playlist ON playlist_id = playlists.id
+                                        LEFT JOIN tracks ON track_id = tracks.id
+                                        LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                                        LEFT JOIN artists ON artists.id = artist__track.artist_id
+                                        WHERE playlists.name = 'Favorite Tracks' AND playlists.`created-by_id` = :user_id
+                                        GROUP BY tracks.id, tracks.img, tracks.title, track__playlist.position
+                                        ORDER BY track__playlist.position
+                                        ");
+        $req->execute([':user_id' => $_SESSION['user']['id']]);
+        session_write_close();
+        $titres = $req->fetchAll();
+
+        $select = "selected";
+
+        foreach ($titres as $titre) {
+            echo '
+                <div class="content '.$select.'" onclick="loadTrack('.$titre["id"].')">
+                    <img src="'.$titre["img"].'" class="mini-player-img" alt="image">
+                    <div class="mini-content-info">
+                        <div class="mini-title">'.$titre["title"].'</div>
+                        <div class="mini-artist">'.$titre["artists_names"].'</div>
+                    </div>
+                    <div class="running">EN COURS</div>
+                </div>';
+            $select = "";
+        }
+        ?>
+    </div>
+</article>
+
+<article class="playlists-bar playlist container">
+    <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar" data-page="home/playlists">Voir tout</a></div>
+    <div class="body-bar">
+        <?php
+        $req = $pdo->prepare("SELECT playlists.id, name, username
+                                        FROM playlists
+                                        LEFT JOIN users ON playlists.`created-by_id` = users.id
+                                        WHERE name != 'Wait Tracks'
+                                        ORDER BY name
+                                        LIMIT 4
+                                        ");
+        $req->execute();
+
+        $playlists = $req->fetchAll();
+
+        foreach ($playlists as $playlist)
+        {
+            $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE playlist_id = :playlist");
+            $req->bindParam(":playlist", $playlist["id"]);
+            $req->execute();
+
+            $occurrence = $req->fetchColumn();
+
+            $req = $pdo->prepare("SELECT SUM(duration) FROM tracks RIGHT JOIN track__playlist ON track_id = tracks.id WHERE playlist_id = :playlist");
+            $req->bindParam(":playlist", $playlist["id"]);
+            $req->execute();
+
+            $time = $req->fetchColumn();
+            ?>
+            <div class="content"  data-id="<?php echo $playlist['id']; ?>">
+                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
+                <div class="mini-content-info">
+                    <div class="mini-title"><?php echo $playlist["name"]; ?></div>
+                    <div style="font-size: 10px"><?php echo $playlist["username"]; ?></div>
+                    <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?= $time ?? 0 ?> min</div>
+                </div>
+                <button class="material-icons">play_arrow</button>
+            </div>
+            <?php
+        }
+        ?>
+    </div>
+</article>
+<script src="../scripts/playlists.js"></script>

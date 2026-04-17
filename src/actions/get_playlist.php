@@ -32,6 +32,7 @@ $req = $pdo->prepare("
     LEFT JOIN artists ON artists.id = artist__track.artist_id
     WHERE playlist_id = :id
     GROUP BY tracks.id, title, duration, img
+    ORDER BY position
 ");
 $req->bindParam(':id', $id, PDO::PARAM_INT);
 $req->execute();

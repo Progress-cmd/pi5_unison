@@ -8,7 +8,7 @@
 - [ ] 3 : Le back end
     - [x] A : Initialisation de session
     - [ ] B : Formulaires et base de donnée
-    - [ ] C : Interactions API
+    - [x] C : Interactions API
 - [x] 4 : La mise en place
 - [ ] 5 : La maintenance
 

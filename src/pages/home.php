@@ -72,7 +72,7 @@
     </article>
 
     <article class="playlists-bar playlist container">
-        <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar"  data-page="home/playlists">Voir tout</a></div>
+        <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar" data-page="home/playlists">Voir tout</a></div>
         <div class="body-bar">
             <?php
             $req = $pdo->prepare("SELECT playlists.id, name, username
