@@ -14,7 +14,7 @@ $req->execute();
 
 $listArtists = $req->fetchAll();
 ?>
-<article class="artist-list">
+<article class="artist-list container">
     <div class="head-bar">Artistes</div>
     <div class="body-bar">
         <?php

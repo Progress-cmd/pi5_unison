@@ -3,11 +3,14 @@ const mainContent = document.getElementById('main-content');
 // Carte des pages
 const routes = {
     'home':      'pages/home.php',
+    'home/artists': 'pages/artists.php',
+    'home/playlists': 'pages/playlists.php',
+    'home/playlists/add_playlist': 'pages/add_playlist.php',
+    'home/playlists/playlist': 'pages/playlist.php',
     'search':    'pages/search.php',
     'playlists': 'pages/playlists.php',
     'add':       'pages/add.php',
     'account':   'pages/account.php',
-    'home/artists': 'pages/artists.php',
     'account/infos': 'pages/infos.php',
 };
 

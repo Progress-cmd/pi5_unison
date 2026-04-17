@@ -117,11 +117,13 @@ button {
 
 .bouton {
     display: flex;
+    text-align: center;
     background-color: var(--background);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 5px;
     cursor: pointer;
+    font-size: 14px;
 }
 
 .bouton:hover {
@@ -713,18 +715,6 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
 }
 
 /* ----- ARTISTS ----- */
-.artist-list {
-    display: flex;
-    margin: 10px;
-    flex-direction: column;
-    border: var(--border) solid 1px;
-    background: var(--white);
-    border-radius: 10px;
-    padding: 18px;
-    height: auto;
-    box-sizing: border-box;
-}
-
 .artist-list > .body-bar {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -732,7 +722,6 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
 }
 
 .artist-list .content {
-    display: flex;
     flex-direction: column;
     align-items: center;
     width: 80px;
@@ -755,6 +744,18 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* ----- PLAYLISTS ----- */
+.playlits-list .content {
+    border-bottom: var(--border) solid 1px;
+    padding: 5px 0;
+}
+
+/* --- PLAYLIST --- */
+.playlist-bouton {
+    display: flex;
+    justify-content: space-between;
 }
 
 

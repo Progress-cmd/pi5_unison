@@ -71,11 +71,17 @@
         </div>
     </article>
 
-    <article class="playlists-bar container">
-        <div class="head-bar">Playlists<div class="more-bar">Tout voir</div></div>
+    <article class="playlists-bar playlist container">
+        <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar"  data-page="home/playlists">Voir tout</a></div>
         <div class="body-bar">
             <?php
-            $req = $pdo->prepare("SELECT playlists.id, name, username FROM playlists LEFT JOIN users ON playlists.`created-by_id` = users.id WHERE name != 'Wait Tracks'");
+            $req = $pdo->prepare("SELECT playlists.id, name, username
+                                        FROM playlists
+                                        LEFT JOIN users ON playlists.`created-by_id` = users.id
+                                        WHERE name != 'Wait Tracks'
+                                        ORDER BY name
+                                        LIMIT 4
+                                        ");
             $req->execute();
 
             $playlists = $req->fetchAll();
@@ -87,13 +93,19 @@
                 $req->execute();
 
                 $occurrence = $req->fetchColumn();
+
+                $req = $pdo->prepare("SELECT SUM(duration) FROM tracks RIGHT JOIN track__playlist ON track_id = tracks.id WHERE playlist_id = :playlist");
+                $req->bindParam(":playlist", $playlist["id"]);
+                $req->execute();
+
+                $time = $req->fetchColumn();
                 ?>
-                <div class="content">
+                <div class="content"  data-id="<?php echo $playlist['id']; ?>">
                     <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
                     <div class="mini-content-info">
                         <div class="mini-title"><?php echo $playlist["name"]; ?></div>
                         <div style="font-size: 10px"><?php echo $playlist["username"]; ?></div>
-                        <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - 42 min</div>
+                        <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?= $time ?? 0 ?> min</div>
                     </div>
                     <button class="material-icons">play_arrow</button>
                 </div>
@@ -102,6 +114,7 @@
             ?>
         </div>
     </article>
+    <script src="../scripts/playlists.js"></script>
 
     <article class="artist-bar container">
         <?php
@@ -118,7 +131,7 @@
 
         $listArtists = $req->fetchAll();
         ?>
-        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Tout voir</a></div>
+        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Voir tout</a></div>
         <div class="body-bar">
             <?php
                 foreach ($listArtists as $artist) {
