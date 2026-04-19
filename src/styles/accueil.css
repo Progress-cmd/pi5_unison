@@ -84,6 +84,54 @@ button {
     border: none;
 }
 
+.container {
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    width: 100%;
+    background-color: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.head-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    font-family: var(--serif);
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.head-bar > .more-bar {
+    font-size: 12px;
+    font-family: var(--sans);
+    color: var(--text-orange);
+}
+
+.body-bar > .content {
+    display: flex;
+    flex-direction: row;
+}
+
+.bouton {
+    display: flex;
+    text-align: center;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.bouton:hover {
+    box-shadow: lightgray 1px 1px;
+}
+
+
+
 /* ===== NAVIGATION MOBILE (SIDEBAR) ===== */
 .mobil-sidebar {
     display: flex;
@@ -563,7 +611,7 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
 }
 
 /* bars */
-.container {
+.box {
     width: 100%;
     height: auto;
     display: flex;
@@ -572,30 +620,6 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     box-sizing: border-box;
     gap: 10px;
     padding-bottom: 20px;
-}
-
-.playlists-bar, .queue-bar, .artist-bar {
-    border: var(--border) solid 1px;
-    background: var(--white);
-    border-radius: 10px;
-    padding: 18px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.head-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    font-family: var(--serif);
-    font-size: 20px;
-    margin-bottom: 10px;
-}
-
-.head-bar > .more-bar {
-    font-size: 12px;
-    font-family: var(--sans);
-    color: var(--text-orange);
 }
 
 .queue-bar .content, .playlists-bar .content {
@@ -689,6 +713,51 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     color: black;
     max-width: 65px;
 }
+
+/* ----- ARTISTS ----- */
+.artist-list > .body-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.artist-list .content {
+    flex-direction: column;
+    align-items: center;
+    width: 80px;
+    box-sizing: border-box;
+}
+
+.artist-list img {
+    border-radius: 50%;
+    height: 65px;
+    width: 65px;
+    margin-bottom: 5px;
+}
+
+.artist-list .mini-artist {
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: black;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ----- PLAYLISTS ----- */
+.playlits-list .content {
+    border-bottom: var(--border) solid 1px;
+    padding: 5px 0;
+}
+
+/* --- PLAYLIST --- */
+.playlist-bouton {
+    display: flex;
+    justify-content: space-between;
+}
+
 
 
 /* ===== SEARCH PAGE ===== */
@@ -799,4 +868,14 @@ body:has(.mobil-player .extend.closing) .mobil-sidebar {
     background: var(--background);
     padding: 5px 10px;
     font-weight: bolder;
+}
+
+
+/* ===== ACCOUNT ===== */
+.account-dashboard {
+    margin-bottom: 10px;
+}
+
+.account-boutons .content {
+    justify-content: space-between;
 }

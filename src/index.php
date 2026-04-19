@@ -213,9 +213,9 @@ session_write_close();
         </div>
 
         <div class="nav-playlists-area">
-            <a class="sidebar-playlists" href="?page=playlists" data-page="playlists">
-                <span class="playlists-icon">P</span>
-                <p>Playlists</p>
+            <a class="sidebar-playlists" href="?page=library" data-page="library">
+                <span class="playlists-icon">L</span>
+                <p>Library</p>
             </a>
         </div>
 

@@ -1,18 +1,33 @@
 const mainContent = document.getElementById('main-content');
+let previousPage = null; // garde en mémoire la page précédente
 
 // Carte des pages
 const routes = {
     'home':      'pages/home.php',
+    'home/artists': 'pages/artists.php',
+    'home/playlists': 'pages/playlists.php',
+    'home/playlists/add_playlist': 'pages/add_playlist.php',
+    'home/playlists/playlist': 'pages/playlist.php',
     'search':    'pages/search.php',
-    'playlists': 'pages/playlists.php',
+    'library': 'pages/library.php',
     'add':       'pages/add.php',
     'account':   'pages/account.php',
+    'account/infos': 'pages/infos.php',
 };
 
 // Charge une page sans recharger
 async function navigateTo(page) {
+    if (page !== 'search' || (page === 'search' && previousPage !== 'home/playlists/playlist')) {
+        sessionStorage.removeItem('search_playlist_id');
+    }
+    previousPage = page;
+
     const url = routes[page];
     if (!url) return;
+
+
+    // Nettoie les scripts injectés par la page précédente
+    document.querySelectorAll('script[data-injected]').forEach(s => s.remove());
 
     const res = await fetch(url);
     const html = await res.text();
@@ -25,6 +40,7 @@ async function navigateTo(page) {
             return;
         }
         const newScript = document.createElement('script');
+        newScript.setAttribute('data-injected', ''); // marque le script pour pouvoir le supprimer
         if (oldScript.src) {
             newScript.src = oldScript.src;
         } else {
@@ -32,6 +48,13 @@ async function navigateTo(page) {
         }
         document.body.appendChild(newScript);
         oldScript.remove();
+    });
+
+    mainContent.querySelectorAll('a[data-page]').forEach(a => {
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo(a.dataset.page);
+        });
     });
 
     // Met à jour l'URL dans la barre d'adresse sans recharger
@@ -45,6 +68,13 @@ async function navigateTo(page) {
 
 // Intercepte tous les liens de la sidebar
 document.querySelectorAll('.mobil-sidebar a').forEach(a => {
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo(a.dataset.page);
+    });
+});
+
+document.querySelectorAll('.more-bar').forEach(a => {
     a.addEventListener('click', (e) => {
         e.preventDefault();
         navigateTo(a.dataset.page);

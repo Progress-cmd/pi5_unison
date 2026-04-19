@@ -10,7 +10,12 @@
 
     foreach ($listTracks as $listTrack)
     {
-        $req = $pdo->prepare("SELECT img, title, name FROM tracks LEFT JOIN artist__track ON artist__track.track_id = tracks.id LEFT JOIN artists ON artists.id = artist__track.artist_id WHERE tracks.id = :track");
+        $req = $pdo->prepare("SELECT img, title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                                    FROM tracks
+                                    LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                                    LEFT JOIN artists ON artists.id = artist__track.artist_id
+                                    WHERE tracks.id = :track
+                                    ");
         $req->bindParam(":track", $listTrack);
         $req->execute();
 
@@ -20,15 +25,15 @@
                   <img src="'.$track[0]["img"].'" class="mini-player-img" alt="image">
                   <div class="mini-proposition-info">
                       <div class="mini-title">'.$track[0]["title"].'</div>
-                      <div class="mini-artist">'.$track[0]["name"].'</div>
+                      <div class="mini-artist">'.$track[0]["artists_names"].'</div>
                   </div>
               </button>';
     }
     ?>
 </article>
 
-<div class="container">
-    <article class="queue-bar">
+<div class="box">
+    <article class="queue-bar container">
         <div class="head-bar">Liste d'attente<div class="more-bar">Modifier</div></div>
         <div class="body-bar">
             <?php
@@ -66,11 +71,17 @@
         </div>
     </article>
 
-    <article class="playlists-bar">
-        <div class="head-bar">Playlists<div class="more-bar">Tout voir</div></div>
+    <article class="playlists-bar playlist container">
+        <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar" data-page="home/playlists">Voir tout</a></div>
         <div class="body-bar">
             <?php
-            $req = $pdo->prepare("SELECT playlists.id, name, username FROM playlists LEFT JOIN users ON playlists.`created-by_id` = users.id WHERE name != 'Wait Tracks'");
+            $req = $pdo->prepare("SELECT playlists.id, name, username
+                                        FROM playlists
+                                        LEFT JOIN users ON playlists.`created-by_id` = users.id
+                                        WHERE name != 'Wait Tracks'
+                                        ORDER BY name
+                                        LIMIT 4
+                                        ");
             $req->execute();
 
             $playlists = $req->fetchAll();
@@ -82,13 +93,19 @@
                 $req->execute();
 
                 $occurrence = $req->fetchColumn();
+
+                $req = $pdo->prepare("SELECT SUM(duration) FROM tracks RIGHT JOIN track__playlist ON track_id = tracks.id WHERE playlist_id = :playlist");
+                $req->bindParam(":playlist", $playlist["id"]);
+                $req->execute();
+
+                $time = $req->fetchColumn();
                 ?>
-                <div class="content">
+                <div class="content"  data-id="<?php echo $playlist['id']; ?>">
                     <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
                     <div class="mini-content-info">
                         <div class="mini-title"><?php echo $playlist["name"]; ?></div>
                         <div style="font-size: 10px"><?php echo $playlist["username"]; ?></div>
-                        <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - 42 min</div>
+                        <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?= $time ?? 0 ?> min</div>
                     </div>
                     <button class="material-icons">play_arrow</button>
                 </div>
@@ -97,8 +114,9 @@
             ?>
         </div>
     </article>
+    <script src="../scripts/playlists.js"></script>
 
-    <article class="artist-bar">
+    <article class="artist-bar container">
         <?php
         $req = $pdo->prepare("
             SELECT artists.name, COUNT(tracks.id) AS track_count
@@ -113,7 +131,7 @@
 
         $listArtists = $req->fetchAll();
         ?>
-        <div class="head-bar">Artistes<div class="more-bar">Tout voir</div></div>
+        <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Voir tout</a></div>
         <div class="body-bar">
             <?php
                 foreach ($listArtists as $artist) {
