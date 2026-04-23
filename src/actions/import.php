@@ -13,16 +13,26 @@ $artist = filter_input(INPUT_POST, 'artist', FILTER_DEFAULT);
 $duration = filter_input(INPUT_POST, 'duration', FILTER_DEFAULT);
 $url = filter_input(INPUT_POST, 'url', FILTER_DEFAULT);
 $miniature = filter_input(INPUT_POST, 'miniature', FILTER_DEFAULT);
-$output_path = "/var/www/music_data/%(title)s.%(ext)s";
-$file = $title.".wav";
+
+// Extraction de l'ID YouTube depuis l'URL pour nommer le fichier de façon sûre
+parse_str(parse_url($url, PHP_URL_QUERY), $params);
+$video_id = $params['v'] ?? basename(parse_url($url, PHP_URL_PATH)); // fallback pour les URLs courtes
+if (empty($video_id)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'URL invalide']);
+    exit;
+}
+
+$output_path = "/var/www/music_data/%(id)s.%(ext)s";
+$file = $video_id . ".wav"; // correspond maintenant au vrai fichier créé par yt-dlp
 $safe_url = escapeshellarg($url);
 $cmd = "/usr/local/bin/yt-dlp -x --audio-format wav --audio-quality 0 --add-metadata --no-overwrites -o " . escapeshellarg($output_path) . " " . $safe_url . " 2>&1";
-
 exec($cmd, $output, $code);
 
-if ($code !== 0) {
+$wav_path = "/var/www/music_data/" . $file;
+if ($code !== 0 || !file_exists($wav_path)) {
     http_response_code(500);
-    echo "<pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+    echo json_encode(['success' => false, 'message' => "Erreur lors de l'import"]);
     exit;
 }
 
@@ -30,16 +40,9 @@ include_once "../includes/config.php";
 $pdo = Config::getConnection();
 
 $req = $pdo->prepare("INSERT INTO tracks (title, duration, file, url, img, `added-by_id`) VALUES (:title, :duration, :file, :url, :img, :user)");
-$req->bindParam(':title', $title);
-$req->bindParam(':duration', $duration);
-$req->bindParam(':file', $file);
-$req->bindParam(':url', $url);
-$req->bindParam(':img', $miniature);
-$req->bindParam(':user', $_SESSION['user']['id']);
-$req->execute();
+$req->execute([':title' => $title, ':duration' => $duration, ':file' => $file, ':url' => $url, ':img' => $miniature, ':user' => $_SESSION['user']['id']]);
 
 $track_id = intval($pdo->lastInsertId());
-
 
 require '../../vendor/autoload.php';
 use Meilisearch\Client;
@@ -55,16 +58,16 @@ $client->index('musiques')->addDocuments([[
 $artists = explode(",", $artist);
 
 foreach ($artists as $artist) {
+    $artist = trim($artist);
+
     $req = $pdo->prepare("SELECT id FROM artists WHERE name = :name");
-    $req->bindParam(':name', $artist);
-    $req->execute();
+    $req->execute([':name'=> $artist]);
 
     $artistData = $req->fetch(PDO::FETCH_ASSOC);
 
     if ($artistData === false) {
         $req = $pdo->prepare("INSERT INTO artists (name) VALUES (:name)");
-        $req->bindParam(':name', $artist);
-        $req->execute();
+        $req->execute([':name' => $artist]);
 
         $artist_id = intval($pdo->lastInsertId());
 
@@ -77,7 +80,8 @@ foreach ($artists as $artist) {
     }
 
     $req = $pdo->prepare("INSERT INTO artist__track (artist_id, track_id) VALUES (:artist_id, :track_id)");
-    $req->bindParam(':artist_id', $artist_id);
-    $req->bindParam(':track_id', $track_id);
-    $req->execute();
+    $req->execute([':artist_id' => $artist_id, ':track_id' => $track_id]);
 }
+
+http_response_code(200);
+echo json_encode(['success' => true, 'message' => 'Importé avec succès', 'track_id' => $track_id]);

@@ -1,5 +1,7 @@
-<article class="artist-bar container">
+<article id="artist-bar" class="containers">
     <?php
+    session_start();
+
     include_once "../includes/config.php";
     $pdo = Config::getConnection();
 
@@ -9,75 +11,71 @@
             LEFT JOIN artist__track ON artist__track.artist_id = artists.id
             LEFT JOIN tracks ON tracks.id = artist__track.track_id
             GROUP BY artists.id, artists.name
-            ORDER BY track_count DESC
+            ORDER BY track_count DESC, artists.name ASC
             LIMIT 4
         ");
     $req->execute();
 
     $listArtists = $req->fetchAll();
     ?>
-    <div class="head-bar">Artistes<a href="?page=home/artists" class="more-bar"  data-page="home/artists">Voir tout</a></div>
+    <div class="head-bar">Artistes<a href="?page=library/artists" class="redirect more-bar" data-page="library/artists">Voir tout</a></div>
     <div class="body-bar">
         <?php
         foreach ($listArtists as $artist) {
-            echo '<div class="content">
-                              <div><img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover"></div>
-                              <div class="mini-artist">'.$artist["name"].'</div>
-                          </div>';
+            echo '<div class="mini-artist">
+                      <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="artist-img" alt="Cover">
+                      <div class="artist-name">'.$artist["name"].'</div>
+                  </div>';
         }
         ?>
     </div>
 </article>
 
-<article class="queue-bar container">
+<article id="favorite-bar" class="containers">
     <div class="head-bar">Favorite Tracks</div>
     <div class="body-bar">
         <?php
-        session_start();
-
-        $req = $pdo->prepare("SELECT tracks.id, tracks.img, tracks.title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
-                                        FROM playlists
-                                        LEFT JOIN track__playlist ON playlist_id = playlists.id
-                                        LEFT JOIN tracks ON track_id = tracks.id
-                                        LEFT JOIN artist__track ON artist__track.track_id = tracks.id
-                                        LEFT JOIN artists ON artists.id = artist__track.artist_id
-                                        WHERE playlists.name = 'Favorite Tracks' AND playlists.`created-by_id` = :user_id
-                                        GROUP BY tracks.id, tracks.img, tracks.title, track__playlist.position
-                                        ORDER BY track__playlist.position
-                                        ");
+        $req = $pdo->prepare("
+                SELECT tracks.id, tracks.img, tracks.title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                FROM playlists
+                LEFT JOIN track__playlist ON playlist_id = playlists.id
+                LEFT JOIN tracks ON track_id = tracks.id
+                LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                LEFT JOIN artists ON artists.id = artist__track.artist_id
+                WHERE playlists.name = 'Favorite Tracks' AND playlists.`created-by_id` = :user_id
+                GROUP BY tracks.id, tracks.img, tracks.title, track__playlist.position
+                ORDER BY track__playlist.position
+            ");
         $req->execute([':user_id' => $_SESSION['user']['id']]);
-        session_write_close();
+
         $titres = $req->fetchAll();
 
-        $select = "selected";
-
         foreach ($titres as $titre) {
-            echo '
-                <div class="content '.$select.'" onclick="loadTrack('.$titre["id"].')">
-                    <img src="'.$titre["img"].'" class="mini-player-img" alt="image">
-                    <div class="mini-content-info">
-                        <div class="mini-title">'.$titre["title"].'</div>
-                        <div class="mini-artist">'.$titre["artists_names"].'</div>
-                    </div>
-                    <div class="running">EN COURS</div>
-                </div>';
-            $select = "";
+            echo '<div class="content mini-song" onclick="loadTrack('.$titre["id"].')">
+                      <img src="'.$titre["img"].'" class="song-img" alt="image">
+                      <div class="song-infos">
+                          <div class="song-title">'.$titre["title"].'</div>
+                          <div class="song-artist">'.$titre["artists_names"].'</div>
+                      </div>
+                      <button class="buttons material-symbols-outlined">more_vert</button>
+                  </div>';
         }
         ?>
     </div>
 </article>
 
-<article class="playlists-bar playlist container">
-    <div class="head-bar">Playlists<a href="?page=home/playlists" class="more-bar" data-page="home/playlists">Voir tout</a></div>
+<article class="containers playlists-bar">
+    <div class="head-bar">Playlists<a href="?page=library/playlists" class="more-bar" data-page="library/playlists">Voir tout</a></div>
     <div class="body-bar">
         <?php
-        $req = $pdo->prepare("SELECT playlists.id, name, username
-                                        FROM playlists
-                                        LEFT JOIN users ON playlists.`created-by_id` = users.id
-                                        WHERE name != 'Wait Tracks'
-                                        ORDER BY name
-                                        LIMIT 4
-                                        ");
+        $req = $pdo->prepare("
+                SELECT playlists.id, name, users.id AS user_id
+                FROM playlists
+                LEFT JOIN users ON playlists.`created-by_id` = users.id
+                WHERE name != 'Wait Tracks'
+                ORDER BY name
+                LIMIT 4
+            ");
         $req->execute();
 
         $playlists = $req->fetchAll();
@@ -85,29 +83,47 @@
         foreach ($playlists as $playlist)
         {
             $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE playlist_id = :playlist");
-            $req->bindParam(":playlist", $playlist["id"]);
-            $req->execute();
+            $req->execute([':playlist' => $playlist['id']]);
 
             $occurrence = $req->fetchColumn();
 
             $req = $pdo->prepare("SELECT SUM(duration) FROM tracks RIGHT JOIN track__playlist ON track_id = tracks.id WHERE playlist_id = :playlist");
-            $req->bindParam(":playlist", $playlist["id"]);
-            $req->execute();
+            $req->execute([':playlist' => $playlist['id']]);
 
             $time = $req->fetchColumn();
             ?>
-            <div class="content"  data-id="<?php echo $playlist['id']; ?>">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="mini-player-img" alt="Cover">
-                <div class="mini-content-info">
-                    <div class="mini-title"><?php echo $playlist["name"]; ?></div>
-                    <div style="font-size: 10px"><?php echo $playlist["username"]; ?></div>
-                    <div class="mini-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?= $time ?? 0 ?> min</div>
+            <div class="content playlist-<?= $playlist['user_id'] ?> mini-playlist" data-id="<?php echo $playlist['id']; ?>">
+                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
+                <div class="playlist-infos">
+                    <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
+                    <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
                 </div>
-                <button class="material-icons">play_arrow</button>
+                <button class="material-symbols-outlined buttons">play_arrow</button>
+                <button class="buttons material-symbols-outlined">more_vert</button>
             </div>
             <?php
         }
         ?>
     </div>
 </article>
-<script src="../scripts/playlists.js"></script>
+
+<script>
+    (function() {
+        // Délègue le clic sur tous les .content qui ont un data-id
+        const body = document.querySelector('.playlists-bar');
+        if (!body) return;
+
+        body.addEventListener('click', (e) => {
+            const card = e.target.closest('.content[data-id]');
+            if (!card) return;
+
+            const id = card.dataset.id;
+
+            // Stocke l'id pour que la page playlist.php puisse le récupérer
+            sessionStorage.setItem('playlist_id', id);
+
+            // Navigue via le routeur existant
+            navigateTo('library/playlist');
+        });
+    })();
+</script>

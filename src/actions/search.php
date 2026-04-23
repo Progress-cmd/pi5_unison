@@ -22,8 +22,8 @@ $resultatsMusiques = $indexMusiques->search($q);
 $indexArtists = $client->index('artists');
 $resultatsArtists = $indexArtists->search($q);
 
-// Combiner les hits
-$hits = array_merge($resultatsMusiques->getHits(), $resultatsArtists->getHits());
-
 // Retour JSON
-echo json_encode($hits);
+echo json_encode([
+    'musiques' => $resultatsMusiques->getHits(),
+    'artistes' => $resultatsArtists->getHits(),
+]);
