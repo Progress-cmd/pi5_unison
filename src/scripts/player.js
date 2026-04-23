@@ -1,13 +1,15 @@
 (function() {
-    const player = document.getElementById('playerLink');
-    const closeBtn = document.getElementById('closePlayer');
-    const extend = player.querySelector('.extend');
+    const player = document.getElementById('player');
+    const closeBtn = document.getElementById('close-button');
+    const extend = document.getElementById('extend');
+    let currentTrackId = null;
 
     // --- Audio setup ---
     const audio = new Audio();
 
     // --- Charge une piste par ID et met à jour le player ---
-    async function loadTrack(id) {
+    async function loadTrack(id, autoplay = true) {
+        currentTrackId = id;
         const res = await fetch(`actions/getTrack.php?id=${id}`);
         const track = await res.json();
 
@@ -16,60 +18,65 @@
         // Met à jour l'audio
         audio.src = track.src;
 
-        // Met à jour l'UI mini player
-        document.getElementById('title').textContent = track.title;
-        document.getElementById('artist').textContent = track.artist;
-
-        // Met à jour l'UI expanded player
-        document.querySelector('.expanded-title').textContent = track.title;
-        document.querySelector('.expanded-artist').textContent = track.artist;
-        document.querySelector('.expanded-album-art').src = track.img;
-        document.querySelector('.expanded-album-art').alt = `${track.title} - ${track.artist}`;
+        // Met à jour l'UI du player
+        document.querySelector('#retract .title-info').textContent = track.title;
+        document.querySelector('#retract  .artist-info').textContent = track.artist;
+        document.querySelector('#extend .title-info').textContent = track.title;
+        document.querySelector('#extend  .artist-info').textContent = track.artist;
+        document.getElementById('player-img').src = track.img;
+        document.getElementById('player-img').alt = `${track.title} - ${track.artist}`;
 
         // Reset barres de progression
-        document.querySelector('.mini-progress-current').style.width = '0%';
-        document.querySelector('.expanded-progress-current').style.width = '0%';
+        document.querySelector('.player-progress_current').style.width = '0%';
         document.querySelector('.time-current').textContent = '0:00';
         document.querySelector('.time-total').textContent = formatTime(track.duration);
 
+        // Charge et lit l'audio
         audio.load();
-        audio.addEventListener('canplay', () => {
-            audio.play().catch(() => {});
-        }, { once: true });
+        if (autoplay) {
+            audio.addEventListener('canplay', () => {
+                audio.play().catch(() => {});
+            }, { once: true });
+        }
     }
 
     // --- Expose globalement pour appel depuis les pages ---
     window.loadTrack = loadTrack;
 
     // Charge le premier titre de la playlist au démarrage
-    if (window.waitPlaylist && window.waitPlaylist.length > 0) {
-        loadTrack(window.waitPlaylist[0]);
-    }
+    window.addEventListener('playlistReady', (e) => {
+        const playlist = e.detail.playlist;
+        if (playlist && playlist.length > 0) {
+            loadTrack(playlist[0]['id'], false);
+        }
+    });
+
     // --- Expand / Collapse ---
     player.addEventListener('click', function(e) {
-        if (e.target.closest('button')) return;
+        if (e.target.closest('button, .player-progress_bar')) return;
+        extend.style.visibility = '';
         extend.classList.remove('closing');
-        player.classList.add('expanded');
+        extend.classList.add('expanded');
     });
 
     closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
+        extend.classList.remove('expanded');
         extend.classList.add('closing');
-        extend.addEventListener('animationend', () => {
-            player.classList.remove('expanded');
+        extend.addEventListener('animationend', () => { // Attend que l'animation soit finie avant de disparaitre
             extend.classList.remove('closing');
+            extend.style.visibility = 'hidden';
         }, { once: true });
     });
 
-    // --- Play / Pause ---
     function updatePlayBtns() {
         const icon = audio.paused ? 'play_arrow' : 'pause';
-        document.querySelectorAll('.play-btn .material-symbols-outlined').forEach(el => {
+        document.querySelectorAll('.play-button').forEach(el => {
             el.textContent = icon;
         });
     }
 
-    document.querySelectorAll('.play-btn').forEach(btn => {
+    document.querySelectorAll('.play-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             audio.paused ? audio.play() : audio.pause();
@@ -85,11 +92,11 @@
         const pct = (audio.currentTime / audio.duration) * 100;
 
         // Mini player
-        const miniBar = document.querySelector('.mini-progress-current');
+        const miniBar = document.querySelector('#retract .player-progress_current');
         if (miniBar) miniBar.style.width = pct + '%';
 
         // Expanded player
-        const expBar = document.querySelector('.expanded-progress-current');
+        const expBar = document.querySelector('#extend .player-progress_current');
         if (expBar) expBar.style.width = pct + '%';
 
         // Temps affiché
@@ -105,14 +112,17 @@
     }
 
     // --- Clic sur la barre de progression ---
-    document.querySelector('.expanded-progress-bar').addEventListener('click', function(e) {
-        const rect = this.getBoundingClientRect();
-        const ratio = (e.clientX - rect.left) / rect.width;
-        audio.currentTime = ratio * audio.duration;
+    document.querySelectorAll('.player-progress_bar').forEach(bar => {
+        bar.addEventListener('click', function(e) {
+            if (!audio.duration) return;
+            const rect = this.getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = ratio * audio.duration;
+        });
     });
 
     // --- Next / Prev ---
-    document.querySelectorAll('.next-btn').forEach(btn => {
+    document.querySelectorAll('.next-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
@@ -123,7 +133,7 @@
         });
     });
 
-    document.querySelectorAll('.prev-btn').forEach(btn => {
+    document.querySelectorAll('.prev-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (window.waitPlaylist && window.currentIndex > 0) {
@@ -147,31 +157,42 @@
 
     // --- Met à jour la div "selected" dans la liste d'attente ---
     function updateSelected() {
-        const items = document.querySelectorAll('.queue-bar .content');
+        const items = document.querySelectorAll('.mini-song');
         items.forEach((el, i) => {
             el.classList.toggle('selected', i === window.currentIndex);
         });
 
         // Scroll vers le titre en cours
-        const selected = document.querySelector('.queue-bar .content.selected');
+        const selected = document.querySelector('.mini-song.selected');
         if (selected) {
             selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 
     // --- Like / Favorite ---
-    document.querySelectorAll('.favorite-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.favorite-button').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const icon = btn.querySelector('.material-symbols-outlined');
-            const active = btn.classList.toggle('active');
-            icon.style.color = active ? '#C8593A' : '';
-            icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+
+            const trackId = currentTrackId;
+            // Récupère l'id depuis l'URL audio — adapte si tu stockes l'id autrement
+            if (!trackId) return;
+            const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
+            const text = await res.text();
+            console.log('réponse brute:', text); // ← montre ce que le PHP retourne vraiment
+            const data = JSON.parse(text);
+
+            if (data.success) {
+                const active = data.liked;
+                btn.classList.toggle('active', active);
+                btn.style.color = active ? '#C8593A' : '';
+                btn.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+            }
         });
     });
 
     // --- Shuffle ---
-    document.querySelector('.shuffle-btn').addEventListener('click', (e) => {
+    document.getElementById('rand-button').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
         btn.classList.toggle('active');
@@ -179,7 +200,7 @@
     });
 
     // --- Repeat ---
-    document.querySelector('.repeat-btn').addEventListener('click', (e) => {
+    document.getElementById('repeat-button').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
         btn.classList.toggle('active');
@@ -188,7 +209,7 @@
     });
 
     // --- Volume ---
-    document.querySelector('.volume-btn').addEventListener('click', (e) => {
+    document.getElementById('volume-button').addEventListener('click', (e) => {
         e.stopPropagation();
         audio.muted = !audio.muted;
         const icon = e.currentTarget.querySelector('.material-symbols-outlined');
@@ -198,7 +219,38 @@
     // --- Fin de piste ---
     audio.addEventListener('ended', () => {
         updatePlayBtns();
-        document.querySelector('.mini-progress-current').style.width = '0%';
-        document.querySelector('.expanded-progress-current').style.width = '0%';
+        document.querySelector('#retract .player-progress_current').style.width = '0%';
+        document.querySelector('#extend .player-progress_current').style.width = '0%';
     });
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

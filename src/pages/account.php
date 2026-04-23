@@ -1,10 +1,12 @@
-<article class="account-dashboard container">
+<article class="containers" id="account-dashboard">
     <div class="head-bar">Dashboard</div>
     <div class="body-bar">
         <div class="content">
-            <div class="dasboard-title">Total Morceaux : </div>
+            <div class="dasboard-title"><b>Total Morceaux : </b></div>
             <div class="dashboard-value">
                 <?php
+                session_start();
+
                 include_once "../includes/config.php";
                 $pdo = Config::getConnection();
 
@@ -15,7 +17,7 @@
             </div>
         </div>
         <div class="content">
-            <div class="dasboard-title">Total Playlists : </div>
+            <div class="dasboard-title"><b>Total Playlists : </b></div>
             <div class="dashboard-value">
                 <?php
                 $req = $pdo->prepare("SELECT COUNT(*) FROM playlists");
@@ -25,13 +27,11 @@
             </div>
         </div>
         <div class="content">
-            <div class="dasboard-title">Total temps d'écoute : </div>
+            <div class="dasboard-title"><b>Total temps d'écoute : </b></div>
             <div class="dashboard-value">
                 <?php
-                session_start();
                 $req = $pdo->prepare("SELECT `time-listened` FROM users WHERE id = :user_id");
                 $req->execute([':user_id' => $_SESSION['user']['id']]);
-                session_write_close();
                 echo $req->fetchColumn();
                 ?>
             </div>
@@ -39,15 +39,14 @@
     </div>
 </article>
 
-<article class="container account-boutons">
-    <div class="header-bar"></div>
+<article class="containers" id="account-boutons">
     <div class="body-bar">
         <div class="content">
-            <a class="more-bar bouton" href="?page=account/infos" data-page="account/infos">
-                <span class="add-icon">Infos</span>
+            <a class="redirect buttons" href="?page=account/infos" data-page="account/infos">
+                <span>Infos</span>
             </a>
-            <form action="../actions/logout.php" class="bouton">
-                <button type="submit">Déconnexion</button>
+            <form action="../actions/logout.php">
+                <button type="submit" class="buttons">Déconnexion</button>
             </form>
         </div>
     </div>

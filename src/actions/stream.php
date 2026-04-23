@@ -2,7 +2,6 @@
 session_start();
 
 // 1. VERIFICATION DE SECURITE
-// Remplace 'user_id' par ta variable de session qui prouve que l'utilisateur est connecté
 if (!isset($_SESSION['user'])) {
     header("HTTP/1.1 403 Forbidden");
     exit("Accès refusé. Veuillez vous connecter.");

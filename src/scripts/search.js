@@ -1,70 +1,116 @@
 (function() {
     const input = document.getElementById('search-entry');
+    const form = document.getElementById('search-form');
     const resultsDiv = document.getElementById('search-results');
-    // Lit directement depuis sessionStorage, pas besoin du DOM PHP
     const playlistId = sessionStorage.getItem('search_playlist_id');
+    const playlistName = sessionStorage.getItem('search_playlist_name');
+
+    // Échappe les caractères spéciaux HTML pour éviter les injections XSS
+    const escape = str => str.replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
 
     if (!input) return;
+    if (window._searchInit) return;
+    window.addEventListener('beforeunload', () => { window._searchInit = false; }, { once: true });
+    window._searchInit = true;
 
-    // Affiche un bandeau si on est en mode ajout
     if (playlistId) {
-        const banner = document.createElement('div');
-        banner.id = 'playlist-context';
-        banner.dataset.playlistId = playlistId;
-        banner.textContent = `Ajout à la playlist #${playlistId}`;
-        input.insertAdjacentElement('afterend', banner);
+        if (!document.getElementById('playlist-context')) {
+            const banner = document.createElement('div');
+            banner.id = 'playlist-context';
+            banner.dataset.playlistId = playlistId;
+            banner.innerHTML = `Ajouter à <em>${escape(playlistName) || playlistId}</em>`;
+            form.insertAdjacentElement('afterend', banner);
+        }
     }
 
-    input.addEventListener('input', async () => {
-        const query = input.value.trim();
-        if (query.length < 2) {
-            resultsDiv.innerHTML = '';
-            return;
-        }
-        const formData = new FormData();
-        formData.append('search-entry', query);
-        const response = await fetch('actions/search.php', {
-            method: 'POST',
-            body: formData
-        });
-        const hits = await response.json();
-        afficherResultats(hits);
+    // Debounce : attend 300ms après la dernière frappe avant d'envoyer la requête
+    let debounceTimer;
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            const query = input.value.trim();
+            if (query.length < 2) {
+                resultsDiv.innerHTML = 'Que souhaitez-vous rechercher ?';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('search-entry', query);
+            try {
+                const response = await fetch('actions/search.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                console.log(data);
+                afficherResultats(data);
+            } catch (err) {
+                resultsDiv.innerHTML = '<p>Erreur lors de la recherche.</p>';
+            }
+        }, 300);
     });
 
-    function afficherResultats(hits) {
-        if (hits.length === 0) {
+    function afficherResultats(data) {
+        const { musiques, artistes } = data;
+
+        if (musiques.length === 0 && artistes.length === 0) {
             resultsDiv.innerHTML = '<p>Aucun résultat</p>';
             return;
         }
-        resultsDiv.innerHTML = hits.map(hit => `
-            <div class="result-item">
-                <span>${hit.title_music || hit.name_artist}</span>
-                ${playlistId && hit.id_music ? `<button onclick="addToPlaylist(${hit.id_music}, ${playlistId})"> +</button>` : ''}
-            </div>
-        `).join('');
-    }
-})();
 
-function addToPlaylist(trackId, playlistId) {
-    console.log('Envoi :', { trackId, playlistId });
-    const formData = new FormData();
-    formData.append('track_id', trackId);
-    formData.append('playlist_id', playlistId);
-    fetch('actions/add_to_playlist.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.text())
-    .then(text => {
-        const data = JSON.parse(text);
-        const btn = document.querySelector(`button[onclick="addToPlaylist(${trackId}, ${playlistId})"]`);
-        if (data.success) {
-            btn.textContent = '✓';
-            btn.disabled = true;
-        }
-        if (data.error) {
-            btn.textContent = data.error === 'Déjà dans la playlist' ? '✓' : '✗';
-            btn.disabled = true;
-        }
+        const renderSection = (titre, hits, isMusic) => {
+            if (hits.length === 0) return '';
+            return `
+            <div class="result-section">
+                <h3>${titre}</h3>
+                ${hits.map(hit => `
+                    <div class="result-item">
+                        <span>${escape(isMusic ? hit.title_music : hit.name_artist)}</span>
+                        ${playlistId && isMusic
+                     ? `<button class="add-btn" data-track-id="${hit.id_music}" data-playlist-id="${playlistId}">+</button>`
+                     : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        };
+
+        resultsDiv.innerHTML =
+            renderSection('Titres', musiques, true) +
+            renderSection('Artistes', artistes, false);
+    }
+
+    resultsDiv.addEventListener('click', e => {
+        const btn = e.target.closest('.add-btn');
+        if (!btn) return;
+
+        const trackId = btn.dataset.trackId;
+        const playlistId = btn.dataset.playlistId;
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('track_id', trackId);
+        formData.append('playlist_id', playlistId);
+
+        fetch('actions/add_to_playlist.php', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success || data.error === 'Déjà dans la playlist') {
+                    btn.textContent = '✓';
+                    // Rafraîchit les résultats avec la même query sans recharger la page
+                    const query = input.value.trim();
+                    if (query.length >= 2) {
+                        const formData = new FormData();
+                        formData.append('search-entry', query);
+                        fetch('actions/search.php', { method: 'POST', body: formData })
+                            .then(r => r.json())
+                            .then(afficherResultats) // Ré-affiche les résultats à jour
+                            .catch(() => {});
+                    }
+                } else {
+                    btn.textContent = '✗';
+                }
+            })
     });
-}
+})();
