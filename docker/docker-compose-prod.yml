@@ -74,5 +74,6 @@ networks:
     external: true
 
 volumes:
+  pi5_musics-app_data:
   pi5_musics-db_data:
   pi5_musics-ms_data:
