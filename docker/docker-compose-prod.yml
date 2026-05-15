@@ -28,6 +28,7 @@ services:
       - "${PORT_EXPOSE}:80"
     networks:
       - app-network
+      - proxy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.nas.rule=Host(`unison.pi5.ovh`)"
@@ -75,6 +76,8 @@ services:
 networks:
   app-network:
     driver: bridge
+  proxy-network:
+    external: true
 
 volumes:
   pi5_musics-app_data:
