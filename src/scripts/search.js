@@ -37,6 +37,7 @@
             }
             const formData = new FormData();
             formData.append('search-entry', query);
+            if (playlistId) formData.append('playlist_id', playlistId);
             try {
                 const response = await fetch('actions/search.php', {
                     method: 'POST',
@@ -68,7 +69,12 @@
                     <div class="result-item">
                         <span>${escape(isMusic ? hit.title_music : hit.name_artist)}</span>
                         ${playlistId && isMusic
-                     ? `<button class="add-btn" data-track-id="${hit.id_music}" data-playlist-id="${playlistId}">+</button>`
+                     ? `<button class="add-btn ${hit.in_playlist ? 'already-added' : ''}" 
+                              data-track-id="${hit.id_music}" 
+                              data-playlist-id="${playlistId}"
+                              ${hit.in_playlist ? 'disabled' : ''}>
+                          ${hit.in_playlist ? '✓' : '+'}
+                       </button>`
                      : ''}
                     </div>
                 `).join('')}
@@ -96,20 +102,11 @@
         fetch('actions/add_to_playlist.php', { method: 'POST', body: formData })
             .then(r => r.json())
             .then(data => {
-                if (data.success || data.error === 'Déjà dans la playlist') {
+                if (data.success) {
                     btn.textContent = '✓';
-                    // Rafraîchit les résultats avec la même query sans recharger la page
-                    const query = input.value.trim();
-                    if (query.length >= 2) {
-                        const formData = new FormData();
-                        formData.append('search-entry', query);
-                        fetch('actions/search.php', { method: 'POST', body: formData })
-                            .then(r => r.json())
-                            .then(afficherResultats) // Ré-affiche les résultats à jour
-                            .catch(() => {});
-                    }
                 } else {
                     btn.textContent = '✗';
+                    btn.disabled = false;
                 }
             })
     });

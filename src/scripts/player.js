@@ -38,6 +38,7 @@
                 audio.play().catch(() => {});
             }, { once: true });
         }
+        updateSelected();
     }
 
     // --- Expose globalement pour appel depuis les pages ---
@@ -46,8 +47,20 @@
     // Charge le premier titre de la playlist au démarrage
     window.addEventListener('playlistReady', (e) => {
         const playlist = e.detail.playlist;
-        if (playlist && playlist.length > 0) {
+        if (!playlist || playlist.length === 0) return;
+
+        // Met à jour la playlist globale pour next/prev
+        window.waitPlaylist = playlist;
+
+        // Ne recharge la piste que si rien n'est en cours de lecture
+        if (!currentTrackId) {
             loadTrack(playlist[0]['id'], false);
+            window.currentIndex = 0;
+        } else {
+            // Retrouve l'index de la piste en cours dans la nouvelle playlist
+            const idx = playlist.findIndex(t => t.id == currentTrackId);
+            window.currentIndex = idx !== -1 ? idx : 0;
+            updateSelected();
         }
     });
 
@@ -127,7 +140,7 @@
             e.stopPropagation();
             if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
                 window.currentIndex++;
-                loadTrack(window.waitPlaylist[window.currentIndex]);
+                loadTrack(window.waitPlaylist[window.currentIndex].id);
                 updateSelected();
             }
         });
@@ -138,7 +151,7 @@
             e.stopPropagation();
             if (window.waitPlaylist && window.currentIndex > 0) {
                 window.currentIndex--;
-                loadTrack(window.waitPlaylist[window.currentIndex]);
+                loadTrack(window.waitPlaylist[window.currentIndex].id);
                 updateSelected();
             }
         });
@@ -148,7 +161,7 @@
     audio.addEventListener('ended', () => {
         if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
             window.currentIndex++;
-            loadTrack(window.waitPlaylist[window.currentIndex]);
+            loadTrack(window.waitPlaylist[window.currentIndex].id);
             updateSelected();
         } else {
             updatePlayBtns();
@@ -161,6 +174,7 @@
         items.forEach((el, i) => {
             el.classList.toggle('selected', i === window.currentIndex);
         });
+        getFavorite(currentTrackId);
 
         // Scroll vers le titre en cours
         const selected = document.querySelector('.mini-song.selected');
@@ -179,7 +193,6 @@
             if (!trackId) return;
             const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
             const text = await res.text();
-            console.log('réponse brute:', text); // ← montre ce que le PHP retourne vraiment
             const data = JSON.parse(text);
 
             if (data.success) {
@@ -222,6 +235,22 @@
         document.querySelector('#retract .player-progress_current').style.width = '0%';
         document.querySelector('#extend .player-progress_current').style.width = '0%';
     });
+
+    // --- Cherche si dans Favorite ---
+    async function getFavorite(trackId) {
+        const res = await fetch(`actions/get_favorite.php?track_id=${trackId}`);
+        const text = await res.text();
+        const data = JSON.parse(text);
+
+        if (data.status) {
+            const active = data.liked;
+            document.querySelectorAll('.favorite-button').forEach(btn => {
+                btn.classList.toggle('active', active);
+                btn.style.color = active ? '#C8593A' : '';
+                btn.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+            });
+        }
+    }
 })();
 
 

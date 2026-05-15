@@ -22,7 +22,7 @@
                 <?php
                 $req = $pdo->prepare("SELECT COUNT(*) FROM playlists");
                 $req->execute();
-                echo $req->fetchColumn();
+                echo $req->fetchColumn()-2; // On retire les deux playlists Wait track
                 ?>
             </div>
         </div>

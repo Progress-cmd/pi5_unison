@@ -123,7 +123,7 @@ if (!isset($_SESSION['user'])) {
                     <button class="buttons material-symbols-outlined" id="repeat-button">
                         repeat
                     </button>
-                    <button class="buttons material-symbols-outlined" id="prev-button">
+                    <button class="buttons material-symbols-outlined prev-button">
                         skip_previous
                     </button>
                     <button class="buttons material-symbols-outlined play-button">
