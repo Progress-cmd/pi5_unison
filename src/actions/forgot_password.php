@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->CharSet    = 'UTF-8';
 
             // Paramètres du mail
-            $mail->setFrom('noreply@pi5.ovh', 'Unison');
+            $mail->setFrom('noreply@mail.pi5.ovh', 'Unison');
             $mail->addAddress($user["email"]);
             $mail->Subject = $subject;
             $mail->Body = $message;
@@ -102,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Erreur PHPMailer: " . $errorMsg);
             echo json_encode([
                 'success' => false,
+                'message' => $errorMsg
             ]);
         }
 
