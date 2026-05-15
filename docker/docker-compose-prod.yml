@@ -28,6 +28,12 @@ services:
       - "${PORT_EXPOSE}:80"
     networks:
       - app-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nas.rule=Host(`unison.pi5.ovh`)"
+      - "traefik.http.routers.nas.entrypoints=websecure"
+      - "traefik.http.routers.nas.tls.certresolver=letsencrypt"
+      - "traefik.http.services.nas.loadbalancer.server.port=80"
 
   db: # DataBase
     image: mariadb:12
