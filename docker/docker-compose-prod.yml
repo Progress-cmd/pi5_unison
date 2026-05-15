@@ -28,11 +28,11 @@ services:
       - "${PORT_EXPOSE}:80"
     networks:
       - app-network
-      - cloudflare-net
 
   db: # DataBase
     image: mariadb:12
     container_name: pi5_musics-db
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOTPASS}
       MYSQL_DATABASE: ${DB_NAME}
@@ -43,7 +43,6 @@ services:
       - pi5_musics-db_data:/var/lib/mysql
     networks:
       - app-network
-      - cloudflare-net
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 5s
@@ -53,6 +52,7 @@ services:
   ms: # MeiliSearch
     image: getmeili/meilisearch:v1.40.0
     container_name: pi5_musics-ms
+    restart: unless-stopped
     environment:
       MEILI_MASTER_KEY: ${MS_PASS}
       MEILI_ENV: ${DOCKER_TARGET}
@@ -60,7 +60,6 @@ services:
       - pi5_musics-ms_data:/meili_data
     networks:
       - app-network
-      - cloudflare-net
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:7700/health" ]
       interval: 5s
@@ -70,8 +69,6 @@ services:
 networks:
   app-network:
     driver: bridge
-  cloudflare-net:
-    external: true
 
 volumes:
   pi5_musics-app_data:

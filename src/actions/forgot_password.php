@@ -80,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Username = getenv('MAIL_USER');
             $mail->Password = getenv('MAIL_PASS');
+            $mail->CharSet    = 'UTF-8';
 
             // Paramètres du mail
             $mail->setFrom('noreply@pi5.ovh', 'Unison');

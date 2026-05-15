@@ -49,10 +49,11 @@
         $req->execute([':user_id' => $_SESSION['user']['id']]);
 
         $titres = $req->fetchAll();
+        if ($titres[0]["id"] === NULL) { $titres = []; }
 
         foreach ($titres as $titre) {
             echo '<div class="content mini-song" onclick="loadTrack('.$titre["id"].')">
-                      <img src="'.$titre["img"].'" class="song-img" alt="image">
+                      <img src="'.$titre["img"].'" class="song-img" alt=" ">
                       <div class="song-infos">
                           <div class="song-title">'.$titre["title"].'</div>
                           <div class="song-artist">'.$titre["artists_names"].'</div>
