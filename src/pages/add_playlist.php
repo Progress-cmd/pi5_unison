@@ -9,7 +9,7 @@ $token = $_SESSION['token'];
     </div>
     <div class="body-bar">
         <div class="content">
-            <form id="add_playlist-form" data-action="../actions/add_playlist.php" method="post">
+            <form id="add_playlist-form" data-action="../actions/add_playlist.php" data-redirect="home" method="post">
                 <input class="head-bar" type="text" id="add-entry" placeholder="Nom" name="name" required>
                 <div id="add_playlist-buttons">
                     <a href="?page=library/playlists" class="redirect buttons" data-page="library/playlists">Annuler</a>

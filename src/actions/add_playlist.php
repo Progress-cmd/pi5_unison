@@ -8,7 +8,12 @@ if (
     die('Token invalide');
 }
 
-$name = filter_input(INPUT_POST, 'name', FILTER_DEFAULT);
+$name = trim(filter_input(INPUT_POST, 'name', FILTER_DEFAULT));
+if (empty($name) || strlen($name) > 100) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Nom invalide']);
+    exit;
+}
 
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
@@ -17,3 +22,7 @@ $req = $pdo->prepare("INSERT INTO playlists (name, `created-by_id`) VALUES (:nam
 $req->bindParam(':name', $name);
 $req->bindParam(':user', $_SESSION['user']['id']);
 $req->execute();
+
+header('Content-Type: application/json');
+echo json_encode(['success' => true]);
+exit;

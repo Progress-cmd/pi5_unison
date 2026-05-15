@@ -58,8 +58,8 @@ function bindForms(container) {
                 // Réponse JSON → action serveur (import, save, delete...)
                 const json = await res.json();
                 if (json.success) {
-                    navigateTo(previousPage); // Recharge la page courante proprement
-                    // Ou navigateTo('library') si tu veux rediriger ailleurs
+                    const redirect = form.dataset.redirect || previousPage;  // Utilise data-redirect si défini
+                    navigateTo(redirect); // Recharge la page courante proprement
                 } else {
                     alert(json.message); // À remplacer par une vraie UI d'erreur
                 }
