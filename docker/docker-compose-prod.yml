@@ -31,10 +31,10 @@ services:
       - proxy-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nas.rule=Host(`unison.pi5.ovh`)"
-      - "traefik.http.routers.nas.entrypoints=websecure"
-      - "traefik.http.routers.nas.tls.certresolver=letsencrypt"
-      - "traefik.http.services.nas.loadbalancer.server.port=80"
+      - "traefik.http.routers.unison.rule=Host(`unison.pi5.ovh`)"
+      - "traefik.http.routers.unison.entrypoints=websecure"
+      - "traefik.http.routers.unison.tls.certresolver=letsencrypt"
+      - "traefik.http.services.unison.loadbalancer.server.port=80"
 
   db: # DataBase
     image: mariadb:12
