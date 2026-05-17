@@ -58,10 +58,11 @@ function bindForms(container) {
                 // Réponse JSON → action serveur (import, save, delete...)
                 const json = await res.json();
                 if (json.success) {
-                    navigateTo(previousPage); // Recharge la page courante proprement
-                    // Ou navigateTo('library') si tu veux rediriger ailleurs
+                    const redirect = form.dataset.redirect || previousPage;  // Utilise data-redirect si défini
+                    showToast(json.message || 'Action réussie');
+                    navigateTo(redirect); // Recharge la page courante proprement
                 } else {
-                    alert(json.message); // À remplacer par une vraie UI d'erreur
+                    showToast(json.message || 'Une erreur est survenue', 'error');
                 }
             } else {
                 // Réponse HTML → affichage dans mainContent (comme import-form)
@@ -169,3 +170,38 @@ window.addEventListener('popstate', (e) => {
 // Charge la bonne page au démarrage
 const startPage = new URLSearchParams(location.search).get('page') || 'home';
 navigateTo(startPage);
+
+// Popup de notification
+window.showToast = function(message, type = 'success', duration = 60000) {
+    const container = document.getElementById('toast-container');
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" aria-label="Fermer">✕</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Déclenche l'animation d'entrée (besoin d'un frame pour la transition CSS)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
+    // Fonction de fermeture réutilisée par le timer et la croix
+    function dismiss() {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }
+
+    // Fermeture auto après `duration` ms
+    const timer = setTimeout(dismiss, duration);
+
+    // Fermeture manuelle via la croix
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+        clearTimeout(timer);
+        dismiss();
+    });
+}

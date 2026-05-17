@@ -25,23 +25,31 @@ if ($lien === null || $lien === false) {
             !isset($_POST['token'], $_SESSION['token']) ||
             $_POST['token'] !== $_SESSION['token']
     ) {
-        die('Token invalide');
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Token invalide']);
+        exit;
     }
+
+    unset($_SESSION['token']);
+    $_SESSION['token'] = bin2hex(random_bytes(32));
+    $token = $_SESSION['token'];
 
     $cmd = "yt-dlp --skip-download --no-playlist --dump-json ".escapeshellarg($lien);
     $lien = null;
 
     $json = shell_exec($cmd);
     if (is_null($json)) {
-        die("Le lien n'est pas valide, aucune musique trouvée");
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => "Lien invalide, aucune musique trouvée"]);
+        exit;
     }
     $data = json_decode($json, true);
 
-    $title = $data['track'] ?? "Aucun titre";
-    $artist = $data['artist'] ?? "Aucun artist";
-    $album = $data['album'] ?? "Aucun album";
-    $duration = $data['duration'] ?? "Aucune information";
-    $thumb = $data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? null;
+    $title    = htmlspecialchars($data['track']    ?? "Aucun titre",        ENT_QUOTES, 'UTF-8');
+    $artist   = htmlspecialchars($data['artist']   ?? "Aucun artiste",      ENT_QUOTES, 'UTF-8');
+    $album    = htmlspecialchars($data['album']    ?? "Aucun album",        ENT_QUOTES, 'UTF-8');
+    $duration = htmlspecialchars($data['duration'] ?? "Aucune information", ENT_QUOTES, 'UTF-8');
+    $thumb    = htmlspecialchars($data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '', ENT_QUOTES, 'UTF-8');
 
 
     include_once "../includes/config.php";
@@ -77,7 +85,7 @@ if ($lien === null || $lien === false) {
 
             <input type="hidden" value="<?php echo $thumb ?>" name="miniature">
             <input type="hidden" value="<?php echo filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL); ?>" name="url">
-            <input type="hidden" name="token" value="<?= filter_input(INPUT_POST, 'token', FILTER_DEFAULT); ?>">
+            <input type="hidden" name="token" value="<?= $token; ?>">
 
             <div id="import-section_buttons">
                 <label>Des modifications ? :
@@ -87,7 +95,15 @@ if ($lien === null || $lien === false) {
             </div>
         </form>
     <?php } else {
-        echo "<i>".$title."</i> existe déjà dans la base de donnée";
+        ?>
+        <article class="containers">
+            <div class="body-bar">
+                <div class="content">
+                    <em><?= $title ?></em>&nbsp; existe déjà dans la bibliothèque.
+                </div>
+            </div>
+        </article>
+        <?php
     }
 } ?>
 

@@ -1,7 +1,9 @@
 <?php
 session_start();
 
-$_SESSION['token'] = bin2hex(random_bytes(32));
+if (empty($_SESSION['token'])) {
+    $_SESSION['token'] = bin2hex(random_bytes(32));
+}
 
 ?>
 

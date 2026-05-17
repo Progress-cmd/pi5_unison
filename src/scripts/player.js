@@ -191,15 +191,20 @@
             const trackId = currentTrackId;
             // Récupère l'id depuis l'URL audio — adapte si tu stockes l'id autrement
             if (!trackId) return;
-            const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
-            const text = await res.text();
-            const data = JSON.parse(text);
-
-            if (data.success) {
-                const active = data.liked;
-                btn.classList.toggle('active', active);
-                btn.style.color = active ? '#C8593A' : '';
-                btn.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+            try {
+                const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
+                const data = await res.json();
+                if (data.success) {
+                    const active = data.liked;
+                    btn.classList.toggle('active', active);
+                    btn.style.color = active ? '#C8593A' : '';
+                    btn.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+                }
+                if (data.message) {
+                    window.showToast(data.message, data.success ? 'success' : 'error');
+                }
+            } catch {
+                window.showToast('Erreur réseau', 'error');
             }
         });
     });
