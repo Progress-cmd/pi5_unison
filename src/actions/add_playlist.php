@@ -24,5 +24,5 @@ $req->bindParam(':user', $_SESSION['user']['id']);
 $req->execute();
 
 header('Content-Type: application/json');
-echo json_encode(['success' => true]);
+echo json_encode(['success' => true, 'message' => 'Playlist <em>'.$name.'</em> créée !']);
 exit;

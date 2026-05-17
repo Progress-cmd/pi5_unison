@@ -1,4 +1,5 @@
 <?php
+session_start();
 include_once "../includes/config.php";
 
 header('Content-Type: application/json');
@@ -19,7 +20,7 @@ $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE track_id = :tra
 $req->execute([':track' => $track_id, ':playlist' => $playlist_id]);
 
 if ($req->fetchColumn() > 0) {
-    echo json_encode(['error' => 'Déjà dans la playlist']);
+    echo json_encode(['success' => true, 'message' => "Déjà dans la playlist"]);
     exit;
 }
 
@@ -32,3 +33,4 @@ $req = $pdo->prepare("INSERT INTO track__playlist (track_id, playlist_id, positi
 $req->execute([':track' => $track_id, ':playlist' => $playlist_id, ':position' => $position]);
 
 echo json_encode(['success' => true, 'message' => 'Ajouté avec succès']);
+exit;

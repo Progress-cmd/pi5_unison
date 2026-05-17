@@ -48,6 +48,7 @@
                 afficherResultats(data);
             } catch (err) {
                 resultsDiv.innerHTML = '<p>Erreur lors de la recherche.</p>';
+                window.showToast('Erreur lors de la recherche', 'error');
             }
         }, 300);
     });
@@ -104,10 +105,20 @@
             .then(data => {
                 if (data.success) {
                     btn.textContent = '✓';
+                    btn.classList.add('already-added');
                 } else {
                     btn.textContent = '✗';
                     btn.disabled = false;
                 }
+                if (data.message) {
+                    window.showToast(data.message, data.success ? 'success' : 'error');
+                }
             })
+            .catch(() => {
+                // Gère le cas où le fetch lui-même échoue (réseau, serveur down...)
+                btn.textContent = '✗';
+                btn.disabled = false;
+                window.showToast("Erreur réseau", 'error');
+            });
     });
 })();

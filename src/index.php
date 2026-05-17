@@ -49,6 +49,8 @@ if (!isset($_SESSION['user'])) {
         </section>
     </header>
 
+    <div id="toast-container"></div>
+
     <!-- Le contenu non statique de la page -->
     <main id="main-content"></main>
 
