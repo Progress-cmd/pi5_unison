@@ -106,7 +106,7 @@ button {
 
 /* ===== LAYOUT PRINCIPAL ===== */
 html {
-    height: 100%;
+    height: 100dvh;
 }
 
 body {
@@ -115,7 +115,7 @@ body {
     overflow: hidden;
     color: var(--text-dark);
     font-family: var(--sans);
-    height: 100%;
+    height: 100dvh;
     background-color: var(--light-beige);
 }
 
@@ -347,7 +347,7 @@ footer > #player {
         top: 0;
         left: 0;
         width: 100vw;
-        height: 100vh;
+        height: 100dvh;
         z-index: 2;
         padding: 30px;
         transform: translateY(100%);
