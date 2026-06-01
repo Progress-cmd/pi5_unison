@@ -591,12 +591,17 @@ footer > #navbar {
     flex: 1;
 }
 
-.mini-song > img {
+.mini-song img {
     border-radius: 10px;
     height: 40px;
     width: 40px;
     margin-right: 10px;
     object-fit: cover;
+}
+
+.mini-song button {
+    background: none;
+    border: none;
 }
 
 .mini-song .song-title {
@@ -629,7 +634,7 @@ footer > #navbar {
     align-items: center;
 }
 
-.mini-artist > img {
+.mini-artist img {
     border-radius: 50%;
     height: 60px;
     width: 60px;
@@ -654,11 +659,17 @@ footer > #navbar {
 .mini-playlist {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 8px;
     box-sizing: border-box;
     border-bottom: var(--dark-beige) solid 1px;
     border-radius: 5px;
     cursor: pointer;
+}
+
+.mini-playlist div:first-child {
+    display: flex;
+    justify-content: space-between;
 }
 
 .playlists-bar .playlist-1, #playlists-list .playlist-1 {
@@ -669,7 +680,7 @@ footer > #navbar {
     border-left: var(--blue) solid 3px;
 }
 
-.mini-playlist > img {
+.mini-playlist img {
     border-radius: 10px;
     height: 40px;
     width: 40px;
