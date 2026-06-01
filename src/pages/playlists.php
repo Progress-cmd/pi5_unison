@@ -31,12 +31,17 @@
             $time = $req->fetchColumn();
             ?>
             <div class="content playlist-<?= $playlist['user_id'] ?> mini-playlist" data-id="<?php echo $playlist['id']; ?>">
-                <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
-                <div class="playlist-infos">
-                    <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
-                    <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
+                <div>
+                    <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
+                    <div class="playlist-infos">
+                        <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
+                        <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
+                    </div>
                 </div>
-                <button class="material-symbols-outlined buttons">play_arrow</button>
+                <div class="playlist-controls">
+                    <button class="material-symbols-outlined buttons">play_arrow</button>
+                    <button class="buttons material-symbols-outlined">more_vert</button>
+                </div>
             </div>
             <?php
         }

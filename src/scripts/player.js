@@ -196,9 +196,12 @@
                 const data = await res.json();
                 if (data.success) {
                     const active = data.liked;
-                    btn.classList.toggle('active', active);
-                    btn.style.color = active ? '#C8593A' : '';
-                    btn.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+                    // Met à jour tous les boutons favorite (mini + grand player)
+                    document.querySelectorAll('.favorite-button').forEach(b => {
+                        b.classList.toggle('active', active);
+                        b.style.color = active ? '#C8593A' : '';
+                        b.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+                    });
                 }
                 if (data.message) {
                     window.showToast(data.message, data.success ? 'success' : 'error');

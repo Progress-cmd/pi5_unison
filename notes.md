@@ -2,12 +2,12 @@
 - [x] 1 : L'environnement de développement
 - [ ] 2 : Le front end
   - [x] A : Balisage
-  - [ ] B : Version mobile
+  - [x] B : Version mobile
   - [ ] C : Version responsive
   - [ ] D : Dynamisme JavaScript
-- [ ] 3 : Le back end
+- [x] 3 : Le back end
     - [x] A : Initialisation de session
-    - [ ] B : Formulaires et base de donnée
+    - [x] B : Formulaires et base de donnée
     - [x] C : Interactions API
 - [x] 4 : La mise en place
 - [ ] 5 : La maintenance

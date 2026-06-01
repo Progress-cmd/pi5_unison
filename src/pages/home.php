@@ -20,7 +20,7 @@
 
     foreach ($listTracks as $listTrack)
     {
-        echo '<button class="proposition buttons" onclick="loadTrack('.$listTrack['id'].')">
+        echo '<button class="proposition buttons" onclick="window.currentIndex = -1; loadTrack('.$listTrack['id'].')">
                   <img src="'.htmlspecialchars($listTrack['img']).'" class="proposition-img" alt="'.htmlspecialchars($listTrack['title']).' - '.htmlspecialchars($listTrack['artists_names']).'">
                   <div class="proposition-infos">
                       <div class="title-info">'.htmlspecialchars($listTrack['title']).'</div>
@@ -52,10 +52,11 @@
             $titres = $req->fetchAll();
 
             $select = "selected";
+            $i = 0;
 
             foreach ($titres as $titre) {
                 echo '
-                <div class="content mini-song '.$select.'" onclick="loadTrack('.$titre['id'].')">
+                <div class="content mini-song '.$select.'" onclick="window.currentIndex = '.$i.'; loadTrack('.$titre['id'].')">
                     <img src="'.$titre['img'].'" class="song-img" alt="image">
                       <div class="song-infos">
                           <div class="song-title">'.$titre['title'].'</div>
@@ -65,6 +66,7 @@
                     <button class="buttons material-symbols-outlined">more_vert</button>
                 </div>';
                 $select = "";
+                $i++;
             }
             ?>
         </div>
@@ -107,13 +109,17 @@
                 $time = $req->fetchColumn();
                 ?>
                 <div class="content playlist-<?= $playlist['user_id'] ?> mini-playlist" data-id="<?php echo $playlist['id']; ?>">
-                    <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
-                    <div class="playlist-infos">
-                        <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
-                        <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
+                    <div>
+                        <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
+                        <div class="playlist-infos">
+                            <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
+                            <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
+                        </div>
                     </div>
-                    <button class="material-symbols-outlined buttons">play_arrow</button>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
+                    <div class="playlist-controls">
+                        <button class="material-symbols-outlined buttons">play_arrow</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
+                    </div>
                 </div>
                 <?php
             }
