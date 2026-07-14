@@ -20,7 +20,7 @@
 
     foreach ($listTracks as $listTrack)
     {
-        echo '<button class="proposition buttons" onclick="window.currentIndex = -1; loadTrack('.$listTrack['id'].')">
+        echo '<button class="proposition buttons" onclick="addToQueueAndPlay('.$listTrack['id'].')">
                   <img src="'.htmlspecialchars($listTrack['img']).'" class="proposition-img" alt="'.htmlspecialchars($listTrack['title']).' - '.htmlspecialchars($listTrack['artists_names']).'">
                   <div class="proposition-infos">
                       <div class="title-info">'.htmlspecialchars($listTrack['title']).'</div>
@@ -127,6 +127,53 @@
             ?>
         </div>
     </article>
+    <script>
+        async function addToQueueAndPlay(trackId) {
+            const playlistId = <?= json_encode($playlist_wait_id) ?>;
+            
+            try {
+                const res = await fetch('actions/clear_queue_and_add.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `track_id=${trackId}&playlist_id=${playlistId}`
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Met à jour la queue en temps réel
+                    window.waitPlaylist = data.queue;
+                    
+                    // Remet à jour le DOM
+                    const queueBody = document.querySelector('#queue-bar .body-bar');
+                    if (queueBody) {
+                        queueBody.innerHTML = '';
+                        data.queue.forEach((track, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'content mini-song' + (idx === 0 ? ' selected' : '');
+                            div.setAttribute('data-track-id', track.id);
+                            div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
+                            div.innerHTML = `
+                                <img src="${track.img}" class="song-img" alt="image">
+                                <div class="song-infos">
+                                    <div class="song-title">${track.title}</div>
+                                    <div class="song-artist">${track.artists_names}</div>
+                                </div>
+                                <div class="running badge">EN COURS</div>
+                                <button class="buttons material-symbols-outlined">more_vert</button>
+                            `;
+                            queueBody.appendChild(div);
+                        });
+                    }
+                    
+                    // Joue la musique
+                    window.currentIndex = 0;
+                    loadTrack(trackId);
+                }
+            } catch (e) {
+                console.error('Erreur:', e);
+            }
+        }
+    </script>
 </section>
 
 <script src="../scripts/dragdrop.js"></script>
