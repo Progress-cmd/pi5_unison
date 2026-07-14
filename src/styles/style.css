@@ -961,3 +961,11 @@ footer > #navbar {
     overflow-y: auto;
     overflow-x: hidden;
 }
+
+#account-version {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-gray);
+    margin-top: 10px;
+    bottom: 0;
+}
