@@ -150,6 +150,26 @@ footer {
     height: 135px;
 }
 
+/* Drag and drop styles */
+[draggable="true"] {
+    cursor: grab;
+    user-select: none;
+}
+
+[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.mini-song.dragging {
+    opacity: 0.5;
+    background-color: rgba(100, 100, 100, 0.2);
+}
+
+.mini-song.drag-over {
+    border-top: 3px solid var(--text-orange);
+    padding-top: calc(1rem - 3px);
+}
+
 /* ----- HEADER ----- */
 header {
     #headline {
@@ -935,4 +955,9 @@ footer > #navbar {
 
 #account-infos .content {
     gap: 5px;
+}
+#main-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
 }

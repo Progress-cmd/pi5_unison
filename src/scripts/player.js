@@ -15,10 +15,8 @@
 
         if (!track) return;
 
-        // Met à jour l'audio
         audio.src = track.src;
 
-        // Met à jour l'UI du player
         document.querySelector('#retract .title-info').textContent = track.title;
         document.querySelector('#retract  .artist-info').textContent = track.artist;
         document.querySelector('#extend .title-info').textContent = track.title;
@@ -26,12 +24,10 @@
         document.getElementById('player-img').src = track.img;
         document.getElementById('player-img').alt = `${track.title} - ${track.artist}`;
 
-        // Reset barres de progression
         document.querySelector('.player-progress_current').style.width = '0%';
         document.querySelector('.time-current').textContent = '0:00';
         document.querySelector('.time-total').textContent = formatTime(track.duration);
 
-        // Charge et lit l'audio
         audio.load();
         if (autoplay) {
             audio.addEventListener('canplay', () => {
@@ -41,30 +37,24 @@
         updateSelected();
     }
 
-    // --- Expose globalement pour appel depuis les pages ---
     window.loadTrack = loadTrack;
 
-    // Charge le premier titre de la playlist au démarrage
     window.addEventListener('playlistReady', (e) => {
         const playlist = e.detail.playlist;
         if (!playlist || playlist.length === 0) return;
 
-        // Met à jour la playlist globale pour next/prev
         window.waitPlaylist = playlist;
 
-        // Ne recharge la piste que si rien n'est en cours de lecture
         if (!currentTrackId) {
             loadTrack(playlist[0]['id'], false);
             window.currentIndex = 0;
         } else {
-            // Retrouve l'index de la piste en cours dans la nouvelle playlist
             const idx = playlist.findIndex(t => t.id == currentTrackId);
             window.currentIndex = idx !== -1 ? idx : 0;
             updateSelected();
         }
     });
 
-    // --- Expand / Collapse ---
     player.addEventListener('click', function(e) {
         if (e.target.closest('button, .player-progress_bar')) return;
         extend.style.visibility = '';
@@ -76,7 +66,7 @@
         e.stopPropagation();
         extend.classList.remove('expanded');
         extend.classList.add('closing');
-        extend.addEventListener('animationend', () => { // Attend que l'animation soit finie avant de disparaitre
+        extend.addEventListener('animationend', () => {
             extend.classList.remove('closing');
             extend.style.visibility = 'hidden';
         }, { once: true });
@@ -99,20 +89,16 @@
     audio.addEventListener('play', updatePlayBtns);
     audio.addEventListener('pause', updatePlayBtns);
 
-    // --- Progress bars ---
     audio.addEventListener('timeupdate', () => {
         if (!audio.duration) return;
         const pct = (audio.currentTime / audio.duration) * 100;
 
-        // Mini player
         const miniBar = document.querySelector('#retract .player-progress_current');
         if (miniBar) miniBar.style.width = pct + '%';
 
-        // Expanded player
         const expBar = document.querySelector('#extend .player-progress_current');
         if (expBar) expBar.style.width = pct + '%';
 
-        // Temps affiché
         document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
         document.querySelector('.time-total').textContent = formatTime(audio.duration);
     });
@@ -124,7 +110,6 @@
         return `${m}:${sec}`;
     }
 
-    // --- Clic sur la barre de progression ---
     document.querySelectorAll('.player-progress_bar').forEach(bar => {
         bar.addEventListener('click', function(e) {
             if (!audio.duration) return;
@@ -134,7 +119,6 @@
         });
     });
 
-    // --- Next / Prev ---
     document.querySelectorAll('.next-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -157,9 +141,20 @@
         });
     });
 
-    // Passe automatiquement au suivant en fin de piste
+    // --- Fin de piste avec gestion du repeat ---
+    let repeatMode = 0;
     audio.addEventListener('ended', () => {
-        if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
+        if (repeatMode === 1) {
+            // Rejoue la même piste une fois
+            audio.currentTime = 0;
+            audio.play();
+            repeatMode = 0;
+            document.getElementById('repeat-button').textContent = 'repeat';
+            document.getElementById('repeat-button').style.color = '';
+        } else if (repeatMode === 2) {
+            // Boucle infinie - audio.loop gère ça
+            return;
+        } else if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
             window.currentIndex++;
             loadTrack(window.waitPlaylist[window.currentIndex].id);
             updateSelected();
@@ -168,7 +163,6 @@
         }
     });
 
-    // --- Met à jour la div "selected" dans la liste d'attente ---
     function updateSelected() {
         const items = document.querySelectorAll('.mini-song');
         items.forEach((el, i) => {
@@ -176,27 +170,23 @@
         });
         getFavorite(currentTrackId);
 
-        // Scroll vers le titre en cours
         const selected = document.querySelector('.mini-song.selected');
         if (selected) {
             selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 
-    // --- Like / Favorite ---
     document.querySelectorAll('.favorite-button').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
 
             const trackId = currentTrackId;
-            // Récupère l'id depuis l'URL audio — adapte si tu stockes l'id autrement
             if (!trackId) return;
             try {
                 const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
                 const data = await res.json();
                 if (data.success) {
                     const active = data.liked;
-                    // Met à jour tous les boutons favorite (mini + grand player)
                     document.querySelectorAll('.favorite-button').forEach(b => {
                         b.classList.toggle('active', active);
                         b.style.color = active ? '#C8593A' : '';
@@ -212,37 +202,140 @@
         });
     });
 
-    // --- Shuffle ---
+    // ========== BOUTONS DU PLAYER ==========
+
+    // --- SHUFFLE - Mélanger la queue ---
     document.getElementById('rand-button').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
-        btn.classList.toggle('active');
-        btn.style.color = btn.classList.contains('active') ? '#C8593A' : '';
+
+        if (!window.waitPlaylist || window.waitPlaylist.length < 2) {
+            window.showToast('Queue trop courte pour mélanger', 'error');
+            return;
+        }
+
+        const current = window.waitPlaylist[0];
+        const rest = window.waitPlaylist.slice(1);
+
+        for (let i = rest.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rest[i], rest[j]] = [rest[j], rest[i]];
+        }
+
+        window.waitPlaylist = [current, ...rest];
+
+        // Met à jour le DOM de la queue
+        const queueBody = document.querySelector('#queue-bar .body-bar');
+        if (queueBody) {
+            queueBody.innerHTML = '';
+            window.waitPlaylist.forEach((track, idx) => {
+                const div = document.createElement('div');
+                div.className = 'content mini-song' + (idx === window.currentIndex ? ' selected' : '');
+                div.setAttribute('data-track-id', track.id);
+                div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
+                div.innerHTML = `
+                    <img src="${track.img}" class="song-img" alt="image">
+                    <div class="song-infos">
+                        <div class="song-title">${track.title}</div>
+                        <div class="song-artist">${track.artists_names}</div>
+                    </div>
+                    <div class="running badge">EN COURS</div>
+                    <button class="buttons material-symbols-outlined">more_vert</button>
+                `;
+                queueBody.appendChild(div);
+            });
+        }
+
+        btn.classList.add('active');
+        btn.style.color = '#C8593A';
+        window.showToast('Queue mélangée! 🔀');
     });
 
-    // --- Repeat ---
+    // --- REPEAT - 3 modes: OFF → 1x → INFINI ---
     document.getElementById('repeat-button').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
-        btn.classList.toggle('active');
-        audio.loop = btn.classList.contains('active');
-        btn.style.color = audio.loop ? '#C8593A' : '';
+
+        repeatMode = (repeatMode + 1) % 3;
+
+        const displays = ['OFF', '1x', '∞'];
+        const colors = ['', '#C8593A', '#C8593A'];
+
+        btn.textContent = displays[repeatMode];
+        btn.style.color = colors[repeatMode];
+        btn.classList.toggle('active', repeatMode > 0);
+
+        audio.loop = (repeatMode === 2);
+
     });
 
-    // --- Volume ---
+    // --- VOLUME - 3 niveaux: 0% → 50% → 100% ---
+    let volumeLevel = 2;
     document.getElementById('volume-button').addEventListener('click', (e) => {
         e.stopPropagation();
-        audio.muted = !audio.muted;
-        const icon = e.currentTarget.querySelector('.material-symbols-outlined');
-        icon.textContent = audio.muted ? 'volume_off' : 'volume_up';
+        const btn = e.currentTarget;
+
+        volumeLevel = (volumeLevel + 1) % 3;
+        const volumes = [0, 0.5, 1];
+        const icons = ['volume_off', 'volume_down', 'volume_up'];
+
+        audio.volume = volumes[volumeLevel];
+        btn.textContent = icons[volumeLevel];
     });
 
-    // --- Fin de piste ---
-    audio.addEventListener('ended', () => {
-        updatePlayBtns();
-        document.querySelector('#retract .player-progress_current').style.width = '0%';
-        document.querySelector('#extend .player-progress_current').style.width = '0%';
+    // --- ADD - Ajouter à une playlist ---
+    document.getElementById('add-button').addEventListener('click', async (e) => {
+        e.stopPropagation();
+
+        if (!currentTrackId) {
+            window.showToast('Aucune chanson en cours', 'error');
+            return;
+        }
+
+        const playlistName = prompt('Ajouter à quelle playlist?');
+        if (!playlistName) return;
+
+        try {
+            const res = await fetch('actions/add_to_playlist.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `track_id=${currentTrackId}&playlist_id=1`
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.showToast(`Ajouté à "${playlistName}" ✓`);
+            } else {
+                window.showToast('Erreur lors de l\'ajout', 'error');
+            }
+        } catch (e) {
+            window.showToast('Erreur: ' + e.message, 'error');
+        }
     });
+
+    // --- MORE - Menu d'actions supplémentaires ---
+    document.getElementById('more-button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        alert('Actions disponibles:\n\n• Partager 📤\n• Télécharger 📥\n• Signaler ⚠️\n• À propos');
+    });
+
+    // --- QUEUE - Fermer le player et naviguer ---
+    const queueBtn = document.getElementById('queue-button');
+    if (queueBtn) {
+        queueBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Ferme le player extended
+            extend.classList.remove('expanded');
+            extend.classList.add('closing');
+            extend.addEventListener('animationend', () => {
+                extend.classList.remove('closing');
+                extend.style.visibility = 'hidden';
+                // Navigue après la fermeture du player
+                navigateTo('player/queue');
+            }, { once: true });
+        });
+    }
 
     // --- Cherche si dans Favorite ---
     async function getFavorite(trackId) {
@@ -260,34 +353,3 @@
         }
     }
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

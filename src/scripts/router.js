@@ -11,6 +11,7 @@ const routes = {
     'library/playlists/add_playlist': 'pages/add_playlist.php',
     'library/playlist': 'pages/playlist.php',
     'search':   'pages/search.php',
+    'player/queue': 'pages/queue.php',
     'import':      'pages/import.php',
     'account':  'pages/account.php',
     'account/infos': 'pages/infos.php',

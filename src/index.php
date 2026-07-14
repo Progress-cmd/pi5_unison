@@ -140,14 +140,14 @@ if (!isset($_SESSION['user'])) {
                 </div>
 
                 <div class="player-controls">
-                    <button class="buttons material-symbols-outlined" id="queue-button">
+                    <a href="#" class="buttons material-symbols-outlined" id="queue-button" data-page="player/queue">
                         queue_music
-                    </button>
+                    </a>
                     <button class="buttons material-symbols-outlined" id="volume-button">
                         volume_up <!--volume_down volume_off -->
                     </button>
                     <button class="buttons material-symbols-outlined" id="menu-button">
-                        menu <!-- instant_mix -->
+                        instant_mix
                     </button>
                 </div>
             </div>

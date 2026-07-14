@@ -20,7 +20,7 @@
 
     foreach ($listTracks as $listTrack)
     {
-        echo '<button class="proposition buttons" onclick="window.currentIndex = -1; loadTrack('.$listTrack['id'].')">
+        echo '<button class="proposition buttons" onclick="addToQueueAndPlay('.$listTrack['id'].')">
                   <img src="'.htmlspecialchars($listTrack['img']).'" class="proposition-img" alt="'.htmlspecialchars($listTrack['title']).' - '.htmlspecialchars($listTrack['artists_names']).'">
                   <div class="proposition-infos">
                       <div class="title-info">'.htmlspecialchars($listTrack['title']).'</div>
@@ -33,11 +33,11 @@
 
 <section>
     <article id="queue-bar" class="containers">
-        <div class="head-bar">Liste d'attente<a href="?page=home/queue" class="redirect more-bar" data-page="home/queue">Modifier</a></div>
+        <div class="head-bar">Liste d'attente</div>
         <div class="body-bar">
             <?php
             $req = $pdo->prepare("
-                    SELECT tracks.id, tracks.img, tracks.title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                    SELECT tracks.id, tracks.img, tracks.title, playlists.id as playlist_id, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
                     FROM playlists
                     LEFT JOIN track__playlist ON playlist_id = playlists.id
                     LEFT JOIN tracks ON track_id = tracks.id
@@ -50,13 +50,14 @@
             $req->execute([':user_id' => $_SESSION['user']['id']]);
 
             $titres = $req->fetchAll();
+            $playlist_wait_id = $titres[0]['playlist_id'] ?? null;
 
             $select = "selected";
             $i = 0;
 
             foreach ($titres as $titre) {
                 echo '
-                <div class="content mini-song '.$select.'" onclick="window.currentIndex = '.$i.'; loadTrack('.$titre['id'].')">
+                <div class="content mini-song '.$select.'" data-track-id="'.$titre['id'].'" onclick="window.currentIndex = '.$i.'; loadTrack('.$titre['id'].')">
                     <img src="'.$titre['img'].'" class="song-img" alt="image">
                       <div class="song-infos">
                           <div class="song-title">'.$titre['title'].'</div>
@@ -71,8 +72,8 @@
             ?>
         </div>
     </article>
+
     <script>
-        // Notifie le player que la playlist est prête
         window.waitPlaylist = <?= json_encode($titres) ?>;
         window.dispatchEvent(new CustomEvent('playlistReady', {
             detail: { playlist: window.waitPlaylist }
@@ -126,11 +127,70 @@
             ?>
         </div>
     </article>
+    <script>
+        async function addToQueueAndPlay(trackId) {
+            const playlistId = <?= json_encode($playlist_wait_id) ?>;
+            
+            try {
+                const res = await fetch('actions/clear_queue_and_add.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `track_id=${trackId}&playlist_id=${playlistId}`
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    window.waitPlaylist = data.queue;
+                    
+                    const queueBody = document.querySelector('#queue-bar .body-bar');
+                    if (queueBody) {
+                        queueBody.innerHTML = '';
+                        data.queue.forEach((track, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'content mini-song' + (idx === 0 ? ' selected' : '');
+                            div.setAttribute('data-track-id', track.id);
+                            div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
+                            div.innerHTML = `
+                                <img src="${track.img}" class="song-img" alt="image">
+                                <div class="song-infos">
+                                    <div class="song-title">${track.title}</div>
+                                    <div class="song-artist">${track.artists_names}</div>
+                                </div>
+                                <div class="running badge">EN COURS</div>
+                                <button class="buttons material-symbols-outlined">more_vert</button>
+                            `;
+                            queueBody.appendChild(div);
+                        });
+                        
+                        // RÉACTIVE LE DRAGDROP
+                        queueBody.parentElement.setAttribute('data-playlist-id', playlistId);
+                        window.enableDragDrop(queueBody, playlistId);
+                    }
+                    
+                    window.currentIndex = 0;
+                    loadTrack(trackId);
+                }
+            } catch (e) {
+                console.error('Erreur:', e);
+            }
+        }
+    </script>
 </section>
+
+<script src="../scripts/dragdrop.js"></script>
+<script>
+    setTimeout(() => {
+        const queueContainer = document.querySelector('#queue-bar .body-bar');
+        if (queueContainer) {
+            const playlistId = <?= json_encode($playlist_wait_id) ?>;
+            queueContainer.parentElement.setAttribute('data-playlist-id', playlistId);
+            window.enableDragDrop(queueContainer, playlistId);
+        }
+    }, 100);
+</script>
 
 <script>
     (function() {
-        // Délègue le clic sur tous les .content qui ont un data-id
         const body = document.querySelector('.playlists-bar');
         if (!body) return;
 
@@ -139,11 +199,7 @@
             if (!card) return;
 
             const id = card.dataset.id;
-
-            // Stocke l'id pour que la page playlist.php puisse le récupérer
             sessionStorage.setItem('playlist_id', id);
-
-            // Navigue via le routeur existant
             navigateTo('library/playlist');
         });
     })();

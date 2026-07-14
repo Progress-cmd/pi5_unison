@@ -43,7 +43,7 @@ $tracks = $req->fetchAll(PDO::FETCH_ASSOC);
     </div>
     <div class="body-bar">
         <?php foreach ($tracks as $track): ?>
-            <div class="content mini-song" onclick="loadTrack(<?= $track['id'] ?>)">
+            <div class="content mini-song" data-track-id="<?= $track['id'] ?>" onclick="loadTrack(<?= $track['id'] ?>)">
                 <img src="<?= htmlspecialchars($track['img']) ?>" class="song-img" alt="<?= htmlspecialchars($track['title']) ?>">
                 <div class="song-infos">
                     <div class="song-title"><?= htmlspecialchars($track['title']) ?></div>
@@ -54,3 +54,15 @@ $tracks = $req->fetchAll(PDO::FETCH_ASSOC);
         <?php endforeach; ?>
     </div>
 </article>
+
+<script src="../scripts/dragdrop.js"></script>
+<script>
+    setTimeout(() => {
+        const container = document.querySelector("#playlist-content .body-bar");
+        if (container) {
+            const playlistId = document.querySelector("[data-id]")?.getAttribute("data-id") || 1;
+            container.parentElement.setAttribute("data-playlist-id", playlistId);
+            enableDragDrop(container, playlistId);
+        }
+    }, 100);
+</script>

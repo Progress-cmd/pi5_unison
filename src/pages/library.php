@@ -30,13 +30,17 @@
         ?>
     </div>
 </article>
+<?php
+include_once "../includes/config.php";
+$pdo = Config::getConnection();
+?>
 
 <article id="favorite-bar" class="containers">
     <div class="head-bar">Favorite Tracks</div>
     <div class="body-bar">
         <?php
         $req = $pdo->prepare("
-                SELECT tracks.id, tracks.img, tracks.title, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
+                SELECT tracks.id, tracks.img, tracks.title, playlists.id as playlist_id, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
                 FROM playlists
                 LEFT JOIN track__playlist ON playlist_id = playlists.id
                 LEFT JOIN tracks ON track_id = tracks.id
@@ -50,9 +54,10 @@
 
         $titres = $req->fetchAll();
         if ($titres[0]["id"] === NULL) { $titres = []; }
+        $playlist_favorite_id = $titres[0]['playlist_id'] ?? null;
 
         foreach ($titres as $titre) {
-            echo '<div class="content mini-song" onclick="loadTrack('.$titre["id"].')">
+            echo '<div class="content mini-song" data-track-id="'.$titre['id'].'" onclick="loadTrack('.$titre["id"].')">
                       <img src="'.$titre["img"].'" class="song-img" alt=" ">
                       <div class="song-infos">
                           <div class="song-title">'.$titre["title"].'</div>
@@ -62,6 +67,8 @@
                   </div>';
         }
         ?>
+    </div>
+</article>
     </div>
 </article>
 
@@ -131,4 +138,17 @@
             navigateTo('library/playlist');
         });
     })();
+</script>
+<script src="../scripts/dragdrop.js"></script>
+<script>
+    setTimeout(() => {
+        const favoriteContainer = document.querySelector('#favorite-bar .body-bar');
+        if (favoriteContainer) {
+            const playlistId = <?= json_encode($playlist_favorite_id ?? null) ?>;
+            if (playlistId) {
+                favoriteContainer.parentElement.setAttribute('data-playlist-id', playlistId);
+                window.enableDragDrop(favoriteContainer, playlistId);
+            }
+        }
+    }, 100);
 </script>
