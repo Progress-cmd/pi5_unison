@@ -166,7 +166,7 @@ footer {
 }
 
 .mini-song.drag-over {
-    border-top: 3px solid #6366f1;
+    border-top: 3px solid var(--text-orange);
     padding-top: calc(1rem - 3px);
 }
 

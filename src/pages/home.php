@@ -140,10 +140,8 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    // Met à jour la queue en temps réel
                     window.waitPlaylist = data.queue;
                     
-                    // Remet à jour le DOM
                     const queueBody = document.querySelector('#queue-bar .body-bar');
                     if (queueBody) {
                         queueBody.innerHTML = '';
@@ -163,9 +161,12 @@
                             `;
                             queueBody.appendChild(div);
                         });
+                        
+                        // RÉACTIVE LE DRAGDROP
+                        queueBody.parentElement.setAttribute('data-playlist-id', playlistId);
+                        window.enableDragDrop(queueBody, playlistId);
                     }
                     
-                    // Joue la musique
                     window.currentIndex = 0;
                     loadTrack(trackId);
                 }
