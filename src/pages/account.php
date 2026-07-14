@@ -52,3 +52,7 @@
     </div>
 </article>
 
+<article id="account-version">
+    Unison - Version 1.0.0
+</article>
+

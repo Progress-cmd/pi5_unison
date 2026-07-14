@@ -251,14 +251,14 @@
         window.showToast('Queue mélangée! 🔀');
     });
 
-    // --- REPEAT - 3 modes: OFF → 1x → INFINI ---
+    // --- REPEAT - 3 modes: repeat → repeat_one → all_inclusive ---
     document.getElementById('repeat-button').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
 
         repeatMode = (repeatMode + 1) % 3;
 
-        const displays = ['OFF', '1x', '∞'];
+        const displays = ['repeat', 'repeat_one', 'all_inclusive'];
         const colors = ['', '#C8593A', '#C8593A'];
 
         btn.textContent = displays[repeatMode];
