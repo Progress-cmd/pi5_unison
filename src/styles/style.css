@@ -956,3 +956,8 @@ footer > #navbar {
 #account-infos .content {
     gap: 5px;
 }
+#main-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
