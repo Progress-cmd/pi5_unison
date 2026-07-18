@@ -118,7 +118,7 @@
                         </div>
                     </div>
                     <div class="playlist-controls">
-                        <button class="material-symbols-outlined buttons">play_arrow</button>
+                        <button class="material-symbols-outlined buttons play-playlist-btn">play_arrow</button>
                         <button class="buttons material-symbols-outlined">more_vert</button>
                     </div>
                 </div>
@@ -199,13 +199,75 @@
         const body = document.querySelector('.playlists-bar');
         if (!body) return;
 
-        body.addEventListener('click', (e) => {
+        body.addEventListener('click', async (e) => {
+            const playBtn = e.target.closest('button.play-playlist-btn');
             const card = e.target.closest('.content[data-id]');
+
             if (!card) return;
 
             const id = card.dataset.id;
-            sessionStorage.setItem('playlist_id', id);
-            navigateTo('library/playlist');
+
+            // Si c'est le bouton play
+            if (playBtn) {
+                e.stopPropagation();
+                try {
+                    const res = await fetch('actions/load_playlist_to_queue.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `playlist_id=${id}`
+                    });
+                    const data = await res.json();
+
+                    if (data.success && data.tracks.length > 0) {
+                        // Met à jour la queue du player
+                        window.waitPlaylist = data.tracks;
+                        window.currentIndex = 0;
+
+                        // Rafraîchit l'affichage de la queue sur le home
+                        const queueBody = document.querySelector('#queue-bar .body-bar');
+                        if (queueBody) {
+                            queueBody.innerHTML = '';
+                            data.tracks.forEach((track, idx) => {
+                                const div = document.createElement('div');
+                                div.className = 'content mini-song' + (idx === 0 ? ' selected' : '');
+                                div.setAttribute('data-track-id', track.id);
+                                div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
+                                div.innerHTML = `
+                                    <img src="${track.img}" class="song-img" alt="image">
+                                    <div class="song-infos">
+                                        <div class="song-title">${track.title}</div>
+                                        <div class="song-artist">${track.artists_names}</div>
+                                    </div>
+                                    <div class="running badge">EN COURS</div>
+                                    <button class="buttons material-symbols-outlined">more_vert</button>
+                                `;
+                                queueBody.appendChild(div);
+                            });
+                        }
+
+                        // Charge et joue la première chanson
+                        loadTrack(data.tracks[0].id, true);
+
+                        // Initialise le menu contextuel si nécessaire
+                        if (window.initializeTrackContextMenus) {
+                            window.initializeTrackContextMenus();
+                        }
+
+                        window.showToast('Lecture de la playlist...', 'success');
+                    } else {
+                        window.showToast('Playlist vide', 'error');
+                    }
+                } catch (err) {
+                    window.showToast('Erreur chargement playlist', 'error');
+                }
+                return;
+            }
+
+            // Si c'est un clic normal sur la carte (pas sur un bouton)
+            if (!e.target.closest('button')) {
+                sessionStorage.setItem('playlist_id', id);
+                navigateTo('library/playlist');
+            }
         });
     })();
 </script>

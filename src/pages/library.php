@@ -109,7 +109,7 @@ $pdo = Config::getConnection();
                     </div>
                 </div>
                 <div class="playlist-controls">
-                    <button class="material-symbols-outlined buttons">play_arrow</button>
+                    <button class="material-symbols-outlined buttons play-playlist-btn">play_arrow</button>
                         <button class="buttons material-symbols-outlined">more_vert</button>
                 </div>
             </div>
@@ -125,17 +125,56 @@ $pdo = Config::getConnection();
         const body = document.querySelector('.playlists-bar');
         if (!body) return;
 
-        body.addEventListener('click', (e) => {
+        body.addEventListener('click', async (e) => {
+            const playBtn = e.target.closest('button.play-playlist-btn');
             const card = e.target.closest('.content[data-id]');
+
             if (!card) return;
 
             const id = card.dataset.id;
 
-            // Stocke l'id pour que la page playlist.php puisse le récupérer
-            sessionStorage.setItem('playlist_id', id);
+            // Si c'est le bouton play
+            if (playBtn) {
+                e.stopPropagation();
+                try {
+                    const res = await fetch('actions/load_playlist_to_queue.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `playlist_id=${id}`
+                    });
+                    const data = await res.json();
 
-            // Navigue via le routeur existant
-            navigateTo('library/playlist');
+                    if (data.success && data.tracks.length > 0) {
+                        // Met à jour la queue du player
+                        window.waitPlaylist = data.tracks;
+                        window.currentIndex = 0;
+
+                        // Charge et joue la première chanson
+                        loadTrack(data.tracks[0].id, true);
+
+                        // Initialise le menu contextuel si nécessaire
+                        if (window.initializeTrackContextMenus) {
+                            window.initializeTrackContextMenus();
+                        }
+
+                        window.showToast('Lecture de la playlist...', 'success');
+                    } else {
+                        window.showToast('Playlist vide', 'error');
+                    }
+                } catch (err) {
+                    window.showToast('Erreur chargement playlist', 'error');
+                }
+                return;
+            }
+
+            // Si c'est un clic normal sur la carte (pas sur un bouton)
+            if (!e.target.closest('button')) {
+                // Stocke l'id pour que la page playlist.php puisse le récupérer
+                sessionStorage.setItem('playlist_id', id);
+
+                // Navigue via le routeur existant
+                navigateTo('library/playlist');
+            }
         });
     })();
 </script>
