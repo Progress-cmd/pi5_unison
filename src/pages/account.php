@@ -53,6 +53,6 @@
 </article>
 
 <article id="account-version">
-    Unison - Version 1.0.2
+    Unison - Version 1.0.3
 </article>
 
