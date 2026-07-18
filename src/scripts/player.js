@@ -7,6 +7,13 @@
     // --- Audio setup ---
     const audio = new Audio();
 
+    // Demande la permission d'accès aux appareils audio une seule fois au démarrage
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        stream.getTracks().forEach(track => track.stop());
+    }).catch(err => {
+        console.error('Permission audio refusée:', err);
+    });
+
     // --- Charge une piste par ID et met à jour le player ---
     async function loadTrack(id, autoplay = true) {
         currentTrackId = id;
@@ -290,22 +297,90 @@
     });
 
     // --- ADD - Ajouter à une playlist ---
-    document.getElementById('add-button').addEventListener('click', async (e) => {
-        e.stopPropagation();
-
+    async function showPlaylistModal() {
         if (!currentTrackId) {
             window.showToast('Aucune chanson en cours', 'error');
             return;
         }
 
-        const playlistName = prompt('Ajouter à quelle playlist?');
-        if (!playlistName) return;
+        try {
+            const res = await fetch('actions/get_playlists.php');
+            const data = await res.json();
 
+            if (!data.success || !data.playlists.length) {
+                window.showToast('Aucune playlist disponible', 'error');
+                return;
+            }
+
+            // Crée le modal
+            const modal = document.createElement('div');
+            modal.id = 'playlist-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                width: 90%;
+                max-width: 400px;
+                max-height: 60vh;
+                overflow-y: auto;
+            `;
+
+            content.innerHTML = `
+                <h2 style="margin-top: 0; margin-bottom: 20px;">Ajouter à une playlist</h2>
+                <div id="playlist-list"></div>
+            `;
+
+            const playlistList = content.querySelector('#playlist-list');
+            data.playlists.forEach(playlist => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding: 12px;
+                    margin-bottom: 8px;
+                    background: #f5f5f5;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                `;
+                item.textContent = playlist.name;
+                item.onmouseover = () => item.style.background = '#e0e0e0';
+                item.onmouseout = () => item.style.background = '#f5f5f5';
+                item.onclick = async () => {
+                    await addToPlaylist(currentTrackId, playlist.id, playlist.name);
+                    modal.remove();
+                };
+                playlistList.appendChild(item);
+            });
+
+            modal.appendChild(content);
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+            document.body.appendChild(modal);
+        } catch (e) {
+            window.showToast('Erreur: ' + e.message, 'error');
+        }
+    }
+
+    async function addToPlaylist(trackId, playlistId, playlistName) {
         try {
             const res = await fetch('actions/add_to_playlist.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `track_id=${currentTrackId}&playlist_id=1`
+                body: `track_id=${trackId}&playlist_id=${playlistId}`
             });
             const data = await res.json();
             if (data.success) {
@@ -316,12 +391,132 @@
         } catch (e) {
             window.showToast('Erreur: ' + e.message, 'error');
         }
+    }
+
+    document.getElementById('add-button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPlaylistModal();
     });
 
     // --- MORE - Menu d'actions supplémentaires ---
-    document.getElementById('more-button').addEventListener('click', (e) => {
+    async function showSettingsModal() {
+        const modal = document.createElement('div');
+        modal.id = 'settings-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        `;
+
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+        `;
+
+        content.innerHTML = `
+            <h2 style="margin-top: 0; margin-bottom: 20px;">Paramètres audio</h2>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Volume: <span id="volume-value">100</span>%</label>
+                <input type="range" id="volume-slider" min="0" max="100" value="100" style="width: 100%; cursor: pointer;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Sortie audio:</label>
+                <select id="audio-device-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="">Détection en cours...</option>
+                </select>
+            </div>
+            <button id="close-settings" style="width: 100%; padding: 10px; background: #C8593A; color: white; border: none; border-radius: 4px; cursor: pointer;">Fermer</button>
+        `;
+
+        const slider = content.querySelector('#volume-slider');
+        const volumeValue = content.querySelector('#volume-value');
+        const deviceSelect = content.querySelector('#audio-device-select');
+        const closeBtn = content.querySelector('#close-settings');
+
+        // Initialise le slider avec le volume actuel
+        slider.value = Math.round(audio.volume * 100);
+        volumeValue.textContent = slider.value;
+
+        // Mise à jour du volume
+        slider.oninput = () => {
+            audio.volume = slider.value / 100;
+            volumeValue.textContent = slider.value;
+        };
+
+        // Fonction pour énumérer les appareils
+        async function enumerateAudioDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioDevices = devices.filter(device => device.kind === 'audiooutput');
+
+                if (audioDevices.length > 0) {
+                    deviceSelect.innerHTML = '';
+                    audioDevices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.textContent = device.label || `Appareil audio ${device.deviceId.substring(0, 8)}`;
+                        deviceSelect.appendChild(option);
+                    });
+
+                    // Pré-sélectionne l'appareil actuellement utilisé
+                    deviceSelect.value = audio.sinkId || '';
+
+                    // Si aucun sinkId, sélectionne le premier
+                    if (!audio.sinkId && audioDevices.length > 0) {
+                        deviceSelect.value = audioDevices[0].deviceId;
+                    }
+                } else {
+                    deviceSelect.innerHTML = '<option>Aucun appareil détecté</option>';
+                }
+            } catch (err) {
+                console.error('Erreur énumération appareils:', err);
+                deviceSelect.innerHTML = '<option>Erreur énumération appareils</option>';
+            }
+        }
+
+        // Change l'appareil audio quand on sélectionne
+        deviceSelect.onchange = async () => {
+            if (deviceSelect.value) {
+                try {
+                    if (audio.setSinkId) {
+                        await audio.setSinkId(deviceSelect.value);
+                        window.showToast('Appareil audio changé', 'success');
+                    } else {
+                        window.showToast('setSinkId non supporté', 'error');
+                    }
+                } catch (err) {
+                    console.error('Erreur setSinkId:', err);
+                    window.showToast('Erreur: ' + err.message, 'error');
+                }
+            }
+        };
+
+        // Énumère les appareils
+        await enumerateAudioDevices();
+
+        closeBtn.onclick = () => modal.remove();
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById('menu-button').addEventListener('click', (e) => {
         e.stopPropagation();
-        alert('Actions disponibles:\n\n• Partager 📤\n• Télécharger 📥\n• Signaler ⚠️\n• À propos');
+        showSettingsModal();
     });
 
     // --- QUEUE - Fermer le player et naviguer ---
