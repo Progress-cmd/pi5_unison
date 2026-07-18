@@ -15,6 +15,7 @@ const routes = {
     'import':      'pages/import.php',
     'account':  'pages/account.php',
     'account/infos': 'pages/infos.php',
+    'library/edit-playlist': 'pages/edit_playlist.php',
 };
 
 
@@ -114,6 +115,11 @@ async function navigateTo(page) {
         if (playlistId) extraParams.set('id', playlistId);
     }
 
+    if (page === 'library/edit-playlist') {
+        const playlistId = sessionStorage.getItem('edit_playlist_id');
+        if (playlistId) extraParams.set('id', playlistId);
+    }
+
     const fetchUrl = extraParams.toString() ? `${url}?${extraParams}` : url;
 
     // Récupère le code source et le renvoi dans la page active
@@ -129,6 +135,8 @@ async function navigateTo(page) {
     bindForms(mainContent);
     bindDataPageLinks(mainContent);
     bindPlaylistAddLink(mainContent);
+    if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
+    if (window.initializePlaylistEditor) window.initializePlaylistEditor();
 
     // Met à jour l'URL dans la barre d'adresse
     history.pushState({ page }, '', `?page=${page}`);

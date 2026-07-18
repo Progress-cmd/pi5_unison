@@ -57,13 +57,13 @@ $pdo = Config::getConnection();
         $playlist_favorite_id = $titres[0]['playlist_id'] ?? null;
 
         foreach ($titres as $titre) {
-            echo '<div class="content mini-song" data-track-id="'.$titre['id'].'" onclick="loadTrack('.$titre["id"].')">
+            echo '<div class="content mini-song favorite-playlist-song" data-track-id="'.$titre['id'].'" onclick="loadTrack('.$titre["id"].')">
                       <img src="'.$titre["img"].'" class="song-img" alt=" ">
                       <div class="song-infos">
                           <div class="song-title">'.$titre["title"].'</div>
                           <div class="song-artist">'.$titre["artists_names"].'</div>
                       </div>
-                      <button class="buttons material-symbols-outlined">more_vert</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
                   </div>';
         }
         ?>
@@ -110,7 +110,7 @@ $pdo = Config::getConnection();
                 </div>
                 <div class="playlist-controls">
                     <button class="material-symbols-outlined buttons">play_arrow</button>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
                 </div>
             </div>
             <?php

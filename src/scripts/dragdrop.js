@@ -2,6 +2,9 @@
     let draggedElement = null;
     let draggedTrackId = null;
     let touchStartY = 0;
+    let touchStartX = 0;
+    let isDragging = false;
+    const DRAG_THRESHOLD = 10;
 
     window.enableDragDrop = function(container, playlistId) {
         if (!container) return;
@@ -92,20 +95,32 @@
         draggedElement = this;
         draggedTrackId = this.dataset.trackId;
         touchStartY = e.touches[0].clientY;
-
-        this.style.opacity = '0.5';
-        this.classList.add('dragging');
+        touchStartX = e.touches[0].clientX;
+        isDragging = false;
     }
 
     function handleTouchMove(e) {
         if (!draggedElement) return;
-        
-        e.preventDefault();
-        
+
         const touch = e.touches[0];
+        const distX = Math.abs(touch.clientX - touchStartX);
+        const distY = Math.abs(touch.clientY - touchStartY);
+
+        if (!isDragging && distX < DRAG_THRESHOLD && distY < DRAG_THRESHOLD) {
+            return;
+        }
+
+        if (!isDragging) {
+            isDragging = true;
+            draggedElement.style.opacity = '0.5';
+            draggedElement.classList.add('dragging');
+        }
+
+        e.preventDefault();
+
         const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
         const targetItem = elementBelow?.closest('[data-track-id]');
-        
+
         if (targetItem && targetItem !== draggedElement) {
             targetItem.classList.add('drag-over');
         } else {
@@ -117,36 +132,39 @@
 
     function handleTouchEnd(e) {
         if (!draggedElement) return;
-        
+
         draggedElement.style.opacity = '';
         draggedElement.classList.remove('dragging');
-        
-        const touch = e.changedTouches[0];
-        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-        const targetItem = elementBelow?.closest('[data-track-id]');
-        
-        if (targetItem && targetItem !== draggedElement) {
-            const container = targetItem.closest('[data-playlist-id]');
-            const playlistId = container.dataset.playlistId;
 
-            const items = container.querySelectorAll('[data-track-id]');
-            const draggedIndex = Array.from(items).indexOf(draggedElement);
-            const dropIndex = Array.from(items).indexOf(targetItem);
+        if (isDragging) {
+            const touch = e.changedTouches[0];
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            const targetItem = elementBelow?.closest('[data-track-id]');
 
-            if (draggedIndex < dropIndex) {
-                targetItem.parentNode.insertBefore(draggedElement, targetItem.nextSibling);
-            } else {
-                targetItem.parentNode.insertBefore(draggedElement, targetItem);
+            if (targetItem && targetItem !== draggedElement) {
+                const container = targetItem.closest('[data-playlist-id]');
+                const playlistId = container.dataset.playlistId;
+
+                const items = container.querySelectorAll('[data-track-id]');
+                const draggedIndex = Array.from(items).indexOf(draggedElement);
+                const dropIndex = Array.from(items).indexOf(targetItem);
+
+                if (draggedIndex < dropIndex) {
+                    targetItem.parentNode.insertBefore(draggedElement, targetItem.nextSibling);
+                } else {
+                    targetItem.parentNode.insertBefore(draggedElement, targetItem);
+                }
+
+                updatePositionsInDB(container, playlistId);
             }
-
-            updatePositionsInDB(container, playlistId);
         }
-        
+
         document.querySelectorAll('.drag-over').forEach(el => {
             el.classList.remove('drag-over');
         });
-        
+
         draggedElement = null;
+        isDragging = false;
     }
 
     // ===== MISE À JOUR BDD =====

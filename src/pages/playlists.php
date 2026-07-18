@@ -40,7 +40,7 @@
                 </div>
                 <div class="playlist-controls">
                     <button class="material-symbols-outlined buttons">play_arrow</button>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
                 </div>
             </div>
             <?php

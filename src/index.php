@@ -154,6 +154,8 @@ if (!isset($_SESSION['user'])) {
         </section>
 
         <script src="scripts/player.js"></script>
+        <script src="scripts/track-context-menu.js"></script>
+        <script src="scripts/playlist-editor.js"></script>
 
         <!-- Le menu de navigation -->
         <nav id="navbar">
