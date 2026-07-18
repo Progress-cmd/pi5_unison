@@ -192,6 +192,12 @@
                         b.style.color = active ? '#C8593A' : '';
                         b.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
                     });
+
+                    // Recharge la page si on est sur la bibliothèque
+                    const mainContent = document.querySelector('#main-content');
+                    if (mainContent && mainContent.innerHTML.includes('favorite-bar')) {
+                        setTimeout(() => location.reload(), 500);
+                    }
                 }
                 if (data.message) {
                     window.showToast(data.message, data.success ? 'success' : 'error');
@@ -352,4 +358,6 @@
             });
         }
     }
+
+    window.getFavorite = getFavorite;
 })();

@@ -34,14 +34,65 @@ $req = $pdo->prepare("
 $req->bindParam(':id', $id, PDO::PARAM_INT);
 $req->execute();
 $tracks = $req->fetchAll(PDO::FETCH_ASSOC);
+
+// Récupère les tags
+$req = $pdo->prepare("
+    SELECT tags.id, tags.name
+    FROM tags
+    LEFT JOIN tag__playlist ON tags.id = tag__playlist.tag_id
+    WHERE tag__playlist.playlist_id = :id
+");
+$req->execute([':id' => $id]);
+$tags = $req->fetchAll(PDO::FETCH_ASSOC);
+
+// Récupère les notes
+$req = $pdo->prepare("
+    SELECT notes.id, notes.text, notes.`created-at`, users.username
+    FROM notes
+    LEFT JOIN note__playlist ON notes.id = note__playlist.note_id
+    LEFT JOIN users ON notes.`created-by_id` = users.id
+    WHERE note__playlist.playlist_id = :id
+    ORDER BY notes.`created-at` DESC
+");
+$req->execute([':id' => $id]);
+$notes = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <article id="playlist-content" class="containers">
     <div class="head-bar">
         <?= htmlspecialchars($playlist['name']) ?>
-        <a href="#" class="more-bar" data-page="search" data-playlist-id="<?= $id ?>" data-playlist-name="<?= htmlspecialchars($playlist['name']) ?>">+</a>
+        <div style="display: flex; gap: 10px;">
+            <a href="#" class="more-bar" data-page="search" data-playlist-id="<?= $id ?>" data-playlist-name="<?= htmlspecialchars($playlist['name']) ?>">+</a>
+            <button class="buttons material-symbols-outlined edit-playlist-inline" data-playlist-id="<?= $id ?>" style="background: none; border: none; cursor: pointer; color: inherit; font-size: inherit;">more_vert</button>
+        </div>
     </div>
     <div class="body-bar">
+        <!-- Tags -->
+        <?php if (!empty($tags)): ?>
+            <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 8px;">
+                <?php foreach ($tags as $tag): ?>
+                    <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #666;">
+                        <?= htmlspecialchars($tag['name']) ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Notes -->
+        <?php if (!empty($notes)): ?>
+            <div style="margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 8px; border-left: 3px solid #C8593A;">
+                <strong>Notes:</strong>
+                <?php foreach ($notes as $note): ?>
+                    <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-size: 12px;">
+                        <strong><?= htmlspecialchars($note['username'] ?? 'Anonyme') ?></strong>
+                        <span style="color: #999; font-size: 11px;"><?= date('d/m/Y', strtotime($note['created-at'])) ?></span>
+                        <p style="margin: 4px 0; color: #333;"><?= nl2br(htmlspecialchars($note['text'])) ?></p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Chansons -->
         <?php foreach ($tracks as $track): ?>
             <div class="content mini-song" data-track-id="<?= $track['id'] ?>" onclick="loadTrack(<?= $track['id'] ?>)">
                 <img src="<?= htmlspecialchars($track['img']) ?>" class="song-img" alt="<?= htmlspecialchars($track['title']) ?>">
@@ -57,12 +108,41 @@ $tracks = $req->fetchAll(PDO::FETCH_ASSOC);
 
 <script src="../scripts/dragdrop.js"></script>
 <script>
+    const playlistId = <?= $id ?>;
     setTimeout(() => {
         const container = document.querySelector("#playlist-content .body-bar");
         if (container) {
-            const playlistId = document.querySelector("[data-id]")?.getAttribute("data-id") || 1;
             container.parentElement.setAttribute("data-playlist-id", playlistId);
             enableDragDrop(container, playlistId);
+        }
+
+        // Réaffiche le bouton favorite du player
+        document.querySelectorAll("#extend .favorite-button, #retract .favorite-button").forEach(btn => {
+            btn.style.display = '';
+        });
+
+        // Marque la playlist si c'est Favorite Tracks pour modifier le menu contextuel
+        const playlistName = "<?= htmlspecialchars($playlist['name']) ?>";
+        if (playlistName === "Favorite Tracks") {
+            // Marque les chansons pour modifier le menu contextuel
+            document.querySelectorAll("#playlist-content .mini-song").forEach(song => {
+                song.classList.add("favorite-playlist-song");
+            });
+        }
+
+        if (playlistName !== "Favorite Tracks") {
+            // Charge la première chanson et met à jour l'état du bouton favorite
+            try {
+                const firstTrack = document.querySelector("#playlist-content .mini-song");
+                if (firstTrack) {
+                    const trackId = firstTrack.dataset.trackId;
+                    if (trackId && typeof window.getFavorite === 'function') {
+                        setTimeout(() => window.getFavorite(trackId), 200);
+                    }
+                }
+            } catch (e) {
+                console.error('Erreur getFavorite:', e);
+            }
         }
     }, 100);
 </script>

@@ -64,7 +64,7 @@
                           <div class="song-artist">'.$titre['artists_names'].'</div>
                       </div>
                     <div class="running badge">EN COURS</div>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
                 </div>';
                 $select = "";
                 $i++;
@@ -157,16 +157,21 @@
                                     <div class="song-artist">${track.artists_names}</div>
                                 </div>
                                 <div class="running badge">EN COURS</div>
-                                <button class="buttons material-symbols-outlined">more_vert</button>
+                        <button class="buttons material-symbols-outlined">more_vert</button>
                             `;
                             queueBody.appendChild(div);
                         });
                         
-                        // RÉACTIVE LE DRAGDROP
+                        // RÉACTIVE LE DRAGDROP ET LE MENU CONTEXTUEL
                         queueBody.parentElement.setAttribute('data-playlist-id', playlistId);
                         window.enableDragDrop(queueBody, playlistId);
+
+                        // Réinitialise les menus contextuels des chansons
+                        if (window.initializeTrackContextMenus) {
+                            setTimeout(() => window.initializeTrackContextMenus(), 50);
+                        }
                     }
-                    
+
                     window.currentIndex = 0;
                     loadTrack(trackId);
                 }
