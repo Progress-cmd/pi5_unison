@@ -52,7 +52,11 @@ if (!isset($_SESSION['user'])) {
     <div id="toast-container"></div>
 
     <!-- Le contenu non statique de la page -->
-    <main id="main-content"></main>
+    <div id="content-row">
+        <main id="main-content"></main>
+        <!-- Colonne du player sur bureau (remplie par router.js, sauf sur l'accueil) -->
+        <aside id="player-aside"></aside>
+    </div>
 
     <!-- Le lecteur audio -->
     <footer>
@@ -159,6 +163,9 @@ if (!isset($_SESSION['user'])) {
 
         <!-- Le menu de navigation -->
         <nav id="navbar">
+            <!-- Logo affiché uniquement sur la version bureau (voir style.css) -->
+            <div id="nav-brand">Unison</div>
+
             <a href="?page=home" data-page="home">
                 <div class="icons material-symbols-outlined">home</div>
                 Accueil

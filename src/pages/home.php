@@ -32,6 +32,7 @@
 </article>
 
 <section>
+    <div class="home-col">
     <article id="queue-bar" class="containers">
         <div class="head-bar">Liste d'attente</div>
         <div class="body-bar">
@@ -81,6 +82,45 @@
         window.currentIndex = 0;
     </script>
 
+    <article id="history-bar" class="containers">
+        <div class="head-bar">Historique</div>
+        <div class="body-bar">
+            <?php
+            $req = $pdo->prepare("
+                    SELECT historical.`listened-at`, tracks.id, tracks.img, tracks.title,
+                           GROUP_CONCAT(DISTINCT artists.name SEPARATOR ', ') AS artists_names
+                    FROM historical
+                    JOIN tracks ON tracks.id = historical.track_id
+                    LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+                    LEFT JOIN artists ON artists.id = artist__track.artist_id
+                    WHERE historical.`listened-by_id` = :user_id
+                    GROUP BY historical.`listened-at`, tracks.id, tracks.title, tracks.img
+                    ORDER BY historical.`listened-at` DESC
+                    LIMIT 8
+                ");
+            $req->execute([':user_id' => $_SESSION['user']['id']]);
+            $historique = $req->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!$historique) {
+                echo '<div class="content">Aucune écoute pour le moment</div>';
+            }
+
+            foreach ($historique as $ecoute) {
+                echo '<div class="content mini-song" data-track-id="'.$ecoute['id'].'" onclick="loadTrack('.$ecoute['id'].')">
+                          <img src="'.htmlspecialchars($ecoute['img']).'" class="song-img" alt=" ">
+                          <div class="song-infos">
+                              <div class="song-title">'.htmlspecialchars($ecoute['title']).'</div>
+                              <div class="song-artist">'.htmlspecialchars($ecoute['artists_names']).' - '.date('d/m H:i', strtotime($ecoute['listened-at'])).'</div>
+                          </div>
+                          <button class="buttons material-symbols-outlined">more_vert</button>
+                      </div>';
+            }
+            ?>
+        </div>
+    </article>
+    </div>
+
+    <div class="home-col">
     <article class="containers playlists-bar">
         <div class="head-bar">Playlists<a href="?page=library/playlists" class="redirect more-bar" data-page="library/playlists">Voir tout</a></div>
         <div class="body-bar">
@@ -127,6 +167,11 @@
             ?>
         </div>
     </article>
+
+    <!-- Emplacement du player sur la version bureau (rempli par router.js) -->
+    <div id="player-dock"></div>
+    </div>
+
     <script>
         async function addToQueueAndPlay(trackId) {
             const playlistId = <?= json_encode($playlist_wait_id) ?>;

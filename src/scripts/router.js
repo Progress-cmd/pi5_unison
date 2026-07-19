@@ -21,6 +21,23 @@ const routes = {
 };
 
 
+// Ancre le player sur bureau : dans l'emplacement de la page s'il existe
+// (dock du home), sinon dans la colonne globale de droite. Sur mobile,
+// il retourne dans le footer.
+function updatePlayerDock() {
+    const player = document.getElementById('player');
+    if (!player) return;
+
+    const dock = document.getElementById('player-dock') || document.getElementById('player-aside');
+    if (dock && window.matchMedia('(min-width: 1024px)').matches) {
+        dock.appendChild(player);
+    } else if (!player.closest('footer')) {
+        document.querySelector('footer').insertBefore(player, document.getElementById('navbar'));
+    }
+}
+window.addEventListener('resize', updatePlayerDock);
+updatePlayerDock();
+
 // Factorise la ré-exécution des scripts
 function reinjectScripts(container) {
     container.querySelectorAll('script').forEach(oldScript => {
@@ -142,6 +159,14 @@ async function navigateTo(page) {
     if (contentType.includes('application/json')) return;
 
     const html = await res.text();
+
+    // Si le player est ancré dans la page courante, on le remet dans le
+    // footer avant d'écraser le contenu pour ne pas le détruire
+    const playerEl = document.getElementById('player');
+    if (playerEl && mainContent.contains(playerEl)) {
+        document.querySelector('footer').insertBefore(playerEl, document.getElementById('navbar'));
+    }
+
     mainContent.innerHTML = html;
 
     reinjectScripts(mainContent);
@@ -150,6 +175,7 @@ async function navigateTo(page) {
     bindPlaylistAddLink(mainContent);
     if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
     if (window.initializePlaylistEditor) window.initializePlaylistEditor();
+    updatePlayerDock();
 
     // Met à jour l'URL dans la barre d'adresse
     history.pushState({ page }, '', `?page=${page}`);
