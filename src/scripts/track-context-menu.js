@@ -12,6 +12,10 @@
         contextMenu = document.createElement('div');
         contextMenu.id = 'track-context-menu';
         contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="voir-titre">
+                <span class="material-symbols-outlined">info</span>
+                Voir le titre
+            </div>
             <div class="context-menu-item" data-action="remove-track">
                 <span class="material-symbols-outlined">delete</span>
                 Supprimer de la playlist
@@ -107,6 +111,10 @@
         hideContextMenu();
 
         switch (action) {
+            case 'voir-titre':
+                sessionStorage.setItem('titre_id', currentTrackId);
+                navigateTo('library/titre');
+                break;
             case 'remove-track':
                 if (currentPlaylistId) {
                     await removeTrackFromPlaylist(currentTrackId, currentPlaylistId);

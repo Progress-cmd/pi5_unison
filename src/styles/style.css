@@ -279,7 +279,9 @@ header {
 .toast-close:hover { opacity: 1; }
 
 /* ----- FOOTER ----- */
-footer > #player {
+/* #player peut vivre dans le footer (mobile) ou être ancré dans la page
+   d'accueil sur bureau (voir updatePlayerDock dans router.js) */
+#player {
     #retract {
         display: flex;
         align-items: center;
@@ -488,6 +490,11 @@ footer > #navbar {
     position: fixed;
     transition: opacity 0.6s ease, visibility 0.3s ease;
 
+    /* Le logo n'apparaît que sur la version bureau */
+    #nav-brand {
+        display: none;
+    }
+
     a {
         display: flex;
         flex-direction: column;
@@ -574,6 +581,24 @@ footer > #navbar {
     height: 275px;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+#history-bar {
+    max-height: 275px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Les emplacements du player n'occupent pas de place tant qu'ils sont vides */
+#player-dock:empty,
+#player-aside:empty {
+    display: none;
+}
+
+/* Le wrapper main + colonne player est transparent sur mobile ;
+   il devient une rangée flex sur bureau */
+#content-row {
+    display: contents;
 }
 
 .running {
@@ -1002,4 +1027,375 @@ footer > #navbar {
 
 .context-menu-item .material-symbols-outlined {
     font-size: 18px;
+}
+
+
+/* ===== VERSION BUREAU (>= 1024px) ===== */
+/* La navbar devient une barre latérale gauche, le player une barre en bas
+   de page et le contenu est centré avec une largeur maximale. */
+@media (min-width: 1024px) {
+    :root {
+        --sidebar-width: 240px;
+        --player-width: 340px;
+        /* Centre le contenu avec une largeur maximale de 1100px */
+        --content-padding: max(30px, calc((100% - 1100px) / 2));
+    }
+
+    /* --- Layout global --- */
+    body {
+        padding-left: var(--sidebar-width);
+    }
+
+    /* Rangée contenu + colonne player : elle porte les gouttières
+       latérales pour que l'alignement soit identique sur toutes
+       les pages (avec ou sans colonne player) */
+    #content-row {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        padding: 0 var(--content-padding);
+    }
+
+    #content-row > main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #player-aside {
+        display: flex;
+        flex-direction: column;
+        width: var(--player-width);
+        flex-shrink: 0;
+        /* Mêmes marges verticales que le contenu, même écart (10px)
+           que la grille de l'accueil */
+        margin: 15px 0 20px 10px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    /* La carte du player s'aligne en bas de la colonne */
+    #player-aside #player {
+        margin-top: auto;
+    }
+
+
+    header {
+        padding: 20px var(--content-padding) 5px;
+    }
+
+    /* Salutation sur une seule ligne pour gagner de la hauteur */
+    header #headline br {
+        display: none;
+    }
+
+    /* Les gouttières latérales sont portées par #content-row */
+    main {
+        padding: 15px 0 20px;
+    }
+
+    header #persons {
+        margin: 20px var(--content-padding);
+    }
+
+    /* Le dégradé de bas de page est un artefact mobile */
+    main::after {
+        display: none;
+    }
+
+    footer {
+        height: 0;
+    }
+
+    /* --- Navbar : barre latérale gauche --- */
+    footer > #navbar {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        gap: 6px;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: auto;
+        width: var(--sidebar-width);
+        height: auto;
+        padding: 30px 15px;
+        border-top: none;
+        border-right: 1px solid var(--dark-beige);
+
+        #nav-brand {
+            display: block;
+            font-family: var(--serif);
+            font-size: 30px;
+            font-weight: 500;
+            padding: 0 12px;
+            margin-bottom: 30px;
+        }
+
+        a {
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+            gap: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        a > div {
+            font-size: 24px;
+        }
+
+        a:hover {
+            background-color: var(--text-orange-light);
+            color: var(--text-orange);
+        }
+
+        a:hover > div {
+            color: var(--text-orange);
+        }
+    }
+
+    /* --- Player : carte compacte --- */
+    /* Le mini-player disparaît ; le player étendu devient une carte,
+       flottante à droite ou ancrée dans le home via #player-dock. */
+    #player #retract {
+        display: none;
+    }
+
+    #player #extend {
+        width: var(--player-width);
+        height: auto;
+        border-radius: 20px;
+        padding: 22px;
+        gap: 16px;
+        box-sizing: border-box;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+        /* Neutralise les animations d'ouverture/fermeture du mobile,
+           y compris le style inline posé par player.js */
+        transform: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        animation: none !important;
+
+        /* Le bouton de fermeture n'a pas de sens en panneau fixe */
+        #close-button {
+            display: none;
+        }
+
+        > .player-controls:first-child {
+            justify-content: flex-end;
+        }
+
+        #player-img {
+            width: 100%;
+            max-width: 200px;
+            height: auto;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .title-info {
+            font-size: 19px;
+        }
+
+        .artist-info {
+            font-size: 15px;
+            color: var(--text-gray);
+        }
+
+        .buttons {
+            font-size: 26px;
+        }
+
+        .buttons:hover {
+            opacity: 0.7;
+        }
+
+        /* Bouton lecture mis en avant, comme un vrai player */
+        .play-button {
+            background-color: var(--text-orange);
+            border-radius: 50%;
+            padding: 12px;
+            font-size: 30px;
+            box-shadow: 0 4px 14px rgba(200, 89, 58, 0.45);
+        }
+
+        .play-button:hover {
+            opacity: 0.85;
+        }
+    }
+
+    /* Version flottante à droite (pages sans emplacement dédié) */
+    footer > #player #extend {
+        top: 20px;
+        bottom: auto;
+        left: auto;
+        right: 20px;
+        max-height: calc(100dvh - 40px);
+        overflow-y: auto;
+    }
+
+    /* Sur l'accueil, la carte se cale en bas de sa colonne,
+       comme sur les autres pages */
+    #player-dock {
+        margin-top: auto;
+    }
+
+    /* Carte ancrée dans la mise en page : plus de position fixe */
+    :is(#player-dock, #player-aside) #extend {
+        position: static;
+        width: 100%;
+    }
+
+    /* --- Popups : coin supérieur droit --- */
+    /* Le haut de la colonne player est vide (carte calée en bas),
+       les toasts peuvent s'y superposer sans gêne */
+    #toast-container {
+        left: auto;
+        right: 1.5rem;
+        width: 340px;
+    }
+
+    .toast {
+        /* Démarre hors écran à droite sur bureau */
+        transform: translateX(calc(100% + 2rem));
+    }
+
+    .toast.show {
+        transform: translateX(0);
+    }
+
+    /* --- Curseur et survols pour la souris --- */
+    .mini-song,
+    .mini-artist,
+    .mini-playlist {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+
+    .mini-song:hover,
+    .mini-playlist:hover {
+        background-color: var(--light-beige);
+    }
+
+    .mini-song.selected:hover {
+        background-color: var(--text-orange-light);
+    }
+
+    .proposition {
+        transition: box-shadow 0.15s ease;
+    }
+
+    .proposition:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .buttons:hover {
+        opacity: 0.85;
+    }
+
+    /* --- Home --- */
+    #propositions-bar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        max-height: none;
+        margin-bottom: 10px;
+    }
+
+    /* Vignettes plus compactes pour gagner de la hauteur */
+    .proposition-img {
+        width: 50px;
+        height: 50px;
+    }
+
+    /* Liste d'attente et playlists côte à côte, en remplissant
+       la hauteur restante de la fenêtre */
+    main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Les pages plus hautes que la fenêtre doivent défiler,
+       pas être compressées par le flex */
+    main > * {
+        flex-shrink: 0;
+    }
+
+    main > section {
+        display: grid;
+        /* La colonne de droite a la largeur du player, comme sur
+           les autres pages */
+        grid-template-columns: 1fr var(--player-width);
+        grid-template-rows: minmax(0, 1fr);
+        gap: 0 10px;
+        flex: 1;
+        /* En dessous de cette hauteur, la page défile au lieu d'écraser
+           les cartes ; au-dessus, tout tient sans défilement */
+        min-height: 620px;
+    }
+
+    /* Chaque colonne de l'accueil empile ses cartes indépendamment */
+    .home-col {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    /* La liste d'attente prend la hauteur restante de sa colonne
+       et défile à l'intérieur */
+    #queue-bar {
+        height: auto;
+        flex: 1;
+        min-height: 160px;
+    }
+
+    /* L'historique peut se compresser (il défile en interne) */
+    #history-bar {
+        flex-shrink: 1;
+        min-height: 130px;
+    }
+
+    /* Les playlists se compressent aussi si la place manque */
+    .home-col > .playlists-bar {
+        min-height: 140px;
+        overflow-y: auto;
+    }
+
+    /* Ascenseurs discrets dans les listes internes */
+    #queue-bar,
+    #history-bar,
+    #favorite-bar,
+    .home-col > .playlists-bar {
+        scrollbar-width: thin;
+    }
+
+    /* --- Bibliothèque : tout tient sans défilement de page --- */
+    /* Les Favorite Tracks absorbent la hauteur restante et défilent
+       en interne ; les playlists se compressent si besoin */
+    #favorite-bar {
+        height: auto;
+        flex: 1;
+        min-height: 150px;
+    }
+
+    main > .playlists-bar {
+        flex-shrink: 1;
+        min-height: 140px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    /* --- Bibliothèque / Artistes --- */
+    #artist-bar .body-bar,
+    #artist-list > .body-bar {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 15px;
+    }
+
+    .mini-artist img {
+        height: 80px;
+        width: 80px;
+    }
 }

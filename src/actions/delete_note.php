@@ -33,6 +33,9 @@ try {
     $req = $pdo->prepare("DELETE FROM note__playlist WHERE note_id = :id");
     $req->execute([':id' => $noteId]);
 
+    $req = $pdo->prepare("DELETE FROM note__track WHERE note_id = :id");
+    $req->execute([':id' => $noteId]);
+
     echo json_encode(['success' => true, 'message' => 'Note supprimée']);
 } catch (Exception $e) {
     http_response_code(500);
