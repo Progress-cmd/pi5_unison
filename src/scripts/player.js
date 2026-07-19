@@ -4,8 +4,33 @@
     const extend = document.getElementById('extend');
     let currentTrackId = null;
 
+    // --- Suivi d'écoute ---
+    let tempsLectureTitre = 0;   // secondes réelles écoutées sur le titre courant (seuil d'écoute)
+    let secondesAFlusher = 0;    // secondes accumulées pas encore envoyées au serveur
+    let ecouteComptee = false;   // une seule écoute comptée par chargement / tour de boucle
+    let dernierTemps = 0;        // dernier currentTime vu au timeupdate
+    window.sourcePlaylistId = null; // playlist d'origine de la queue (null = hors playlist)
+
     // --- Audio setup ---
     const audio = new Audio();
+
+    // Envoie les secondes réellement écoutées au serveur (par lots)
+    function flusherTemps(avecBeacon = false) {
+        const s = Math.floor(secondesAFlusher);
+        if (s < 1) return;
+        secondesAFlusher -= s;
+        const corps = new URLSearchParams({ secondes: s });
+        if (avecBeacon && navigator.sendBeacon) {
+            navigator.sendBeacon('actions/ajouter_temps_ecoute.php', corps);
+        } else {
+            fetch('actions/ajouter_temps_ecoute.php', { method: 'POST', body: corps, keepalive: true }).catch(() => {});
+        }
+    }
+
+    window.addEventListener('pagehide', () => flusherTemps(true));
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flusherTemps(true);
+    });
 
     // Demande la permission d'accès aux appareils audio une seule fois au démarrage
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -16,6 +41,10 @@
 
     // --- Charge une piste par ID et met à jour le player ---
     async function loadTrack(id, autoplay = true) {
+        flusherTemps();
+        tempsLectureTitre = 0;
+        ecouteComptee = false;
+        dernierTemps = 0;
         currentTrackId = id;
         const res = await fetch(`actions/getTrack.php?id=${id}`);
         const track = await res.json();
@@ -95,9 +124,43 @@
 
     audio.addEventListener('play', updatePlayBtns);
     audio.addEventListener('pause', updatePlayBtns);
+    audio.addEventListener('pause', () => flusherTemps());
+
+    // Verrouille la base de mesure après tout déplacement (manuel ou bouclage)
+    audio.addEventListener('seeking', () => {
+        if (audio.loop && audio.currentTime < 2 && dernierTemps > audio.duration - 2) {
+            // Bouclage de fin (repeat infini) : chaque tour compte comme une nouvelle écoute
+            tempsLectureTitre = 0;
+            ecouteComptee = false;
+        }
+        dernierTemps = audio.currentTime;
+    });
 
     audio.addEventListener('timeupdate', () => {
         if (!audio.duration) return;
+
+        // --- Comptage des secondes réellement écoutées ---
+        const delta = audio.currentTime - dernierTemps;
+        if (delta > 0 && delta <= 2) {
+            // Delta plausible (~4 timeupdate/s) ; un saut > 2 s = seek, ignoré
+            tempsLectureTitre += delta;
+            secondesAFlusher += delta;
+        }
+        dernierTemps = audio.currentTime;
+
+        // Une écoute compte après 30 s réelles (80 % de la durée pour les titres courts)
+        const seuil = audio.duration < 30 ? audio.duration * 0.8 : 30;
+        if (!ecouteComptee && tempsLectureTitre >= seuil && currentTrackId) {
+            ecouteComptee = true;
+            fetch('actions/compter_ecoute.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `track_id=${currentTrackId}&playlist_id=${window.sourcePlaylistId ?? ''}`
+            }).catch(() => {});
+        }
+
+        if (secondesAFlusher >= 30) flusherTemps();
+
         const pct = (audio.currentTime / audio.duration) * 100;
 
         const miniBar = document.querySelector('#retract .player-progress_current');
@@ -151,10 +214,14 @@
     // --- Fin de piste avec gestion du repeat ---
     let repeatMode = 0;
     audio.addEventListener('ended', () => {
+        flusherTemps();
         if (repeatMode === 1) {
-            // Rejoue la même piste une fois
+            // Rejoue la même piste une fois : la relecture compte comme une nouvelle écoute
             audio.currentTime = 0;
             audio.play();
+            tempsLectureTitre = 0;
+            ecouteComptee = false;
+            dernierTemps = 0;
             repeatMode = 0;
             document.getElementById('repeat-button').textContent = 'repeat';
             document.getElementById('repeat-button').style.color = '';

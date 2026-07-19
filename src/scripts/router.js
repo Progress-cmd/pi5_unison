@@ -16,6 +16,8 @@ const routes = {
     'account':  'pages/account.php',
     'account/infos': 'pages/infos.php',
     'library/edit-playlist': 'pages/edit_playlist.php',
+    'library/titre': 'pages/titre.php',
+    'library/artiste': 'pages/artiste.php',
 };
 
 
@@ -118,6 +120,17 @@ async function navigateTo(page) {
     if (page === 'library/edit-playlist') {
         const playlistId = sessionStorage.getItem('edit_playlist_id');
         if (playlistId) extraParams.set('id', playlistId);
+    }
+
+    // Injecte l'id du titre ou de l'artiste pour les pages de détail
+    if (page === 'library/titre') {
+        const titreId = sessionStorage.getItem('titre_id');
+        if (titreId) extraParams.set('id', titreId);
+    }
+
+    if (page === 'library/artiste') {
+        const artisteId = sessionStorage.getItem('artiste_id');
+        if (artisteId) extraParams.set('id', artisteId);
     }
 
     const fetchUrl = extraParams.toString() ? `${url}?${extraParams}` : url;

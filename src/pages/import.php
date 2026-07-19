@@ -51,6 +51,11 @@ if ($lien === null || $lien === false) {
     $duration = htmlspecialchars($data['duration'] ?? "Aucune information", ENT_QUOTES, 'UTF-8');
     $thumb    = htmlspecialchars($data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '', ENT_QUOTES, 'UTF-8');
 
+    // Le genre est parfois fourni par yt-dlp (tableau "genres" ou chaîne "genre")
+    $genreBrut = $data['genres'] ?? $data['genre'] ?? '';
+    if (is_array($genreBrut)) { $genreBrut = implode(', ', $genreBrut); }
+    $genre = htmlspecialchars($genreBrut, ENT_QUOTES, 'UTF-8');
+
 
     include_once "../includes/config.php";
     $pdo = Config::getConnection();
@@ -75,6 +80,11 @@ if ($lien === null || $lien === false) {
 
             <label>Album :
                 <input type="text" class="alterable" value="<?php echo $album ?>" name="album" readonly>
+            </label>
+            <br>
+
+            <label>Genre :
+                <input type="text" class="alterable" value="<?php echo $genre ?>" name="genre" placeholder="Genre inconnu" readonly>
             </label>
             <br>
 

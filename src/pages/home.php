@@ -141,7 +141,8 @@
                 
                 if (data.success) {
                     window.waitPlaylist = data.queue;
-                    
+                    window.sourcePlaylistId = null;
+
                     const queueBody = document.querySelector('#queue-bar .body-bar');
                     if (queueBody) {
                         queueBody.innerHTML = '';
@@ -184,14 +185,19 @@
 
 <script src="../scripts/dragdrop.js"></script>
 <script>
-    setTimeout(() => {
+    function initDragDrop() {
         const queueContainer = document.querySelector('#queue-bar .body-bar');
-        if (queueContainer) {
+        if (queueContainer && typeof window.enableDragDrop === 'function') {
             const playlistId = <?= json_encode($playlist_wait_id) ?>;
             queueContainer.parentElement.setAttribute('data-playlist-id', playlistId);
             window.enableDragDrop(queueContainer, playlistId);
+        } else if (queueContainer) {
+            // Réessaie si enableDragDrop n'est pas encore disponible
+            setTimeout(initDragDrop, 100);
         }
-    }, 100);
+    }
+
+    setTimeout(initDragDrop, 100);
 </script>
 
 <script>
@@ -221,6 +227,7 @@
                     if (data.success && data.tracks.length > 0) {
                         // Met à jour la queue du player
                         window.waitPlaylist = data.tracks;
+                        window.sourcePlaylistId = parseInt(id);
                         window.currentIndex = 0;
 
                         // Rafraîchit l'affichage de la queue sur le home

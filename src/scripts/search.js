@@ -67,7 +67,7 @@
             <div class="result-section">
                 <h3>${titre}</h3>
                 ${hits.map(hit => `
-                    <div class="result-item">
+                    <div class="result-item" data-${isMusic ? 'titre' : 'artiste'}-id="${isMusic ? hit.id_music : hit.id_artist}" style="cursor: pointer;">
                         <span>${escape(isMusic ? hit.title_music : hit.name_artist)}</span>
                         ${playlistId && isMusic
                      ? `<button class="add-btn ${hit.in_playlist ? 'already-added' : ''}" 
@@ -90,7 +90,21 @@
 
     resultsDiv.addEventListener('click', e => {
         const btn = e.target.closest('.add-btn');
-        if (!btn) return;
+
+        // Clic sur la ligne (hors bouton +) : ouvre la page de détail
+        if (!btn) {
+            const item = e.target.closest('.result-item');
+            if (!item) return;
+
+            if (item.dataset.titreId) {
+                sessionStorage.setItem('titre_id', item.dataset.titreId);
+                navigateTo('library/titre');
+            } else if (item.dataset.artisteId) {
+                sessionStorage.setItem('artiste_id', item.dataset.artisteId);
+                navigateTo('library/artiste');
+            }
+            return;
+        }
 
         const trackId = btn.dataset.trackId;
         const playlistId = btn.dataset.playlistId;

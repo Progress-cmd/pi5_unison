@@ -25,6 +25,7 @@ $artist    = trim(filter_input(INPUT_POST, 'artist',    FILTER_DEFAULT));
 $duration  = trim(filter_input(INPUT_POST, 'duration',  FILTER_DEFAULT));
 $url       = filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL);
 $miniature = filter_input(INPUT_POST, 'miniature', FILTER_VALIDATE_URL);
+$genre     = trim(filter_input(INPUT_POST, 'genre', FILTER_DEFAULT) ?? '');
 
 log_msg("Input: title=$title | artist=$artist | url=$url");
 
@@ -115,6 +116,7 @@ try {
     }
 
     $artists = explode(",", $artist);
+    $artistIds = [];
     foreach ($artists as $art) {
         $art = trim($art);
         if (empty($art)) continue;
@@ -140,6 +142,8 @@ try {
             $artist_id = intval($artistData['id']);
         }
 
+        $artistIds[] = $artist_id;
+
         $req = $pdo->prepare("SELECT COUNT(*) FROM artist__track WHERE artist_id = :artist AND track_id = :track");
         $req->execute([':artist' => $artist_id, ':track' => $track_id]);
         if ($req->fetchColumn() == 0) {
@@ -150,6 +154,50 @@ try {
 } catch (\Exception $e) {
     log_msg("Meili error: " . $e->getMessage());
     error_log('Meilisearch error: ' . $e->getMessage());
+}
+
+// Genres du titre (fournis par yt-dlp ou saisis dans le formulaire)
+try {
+    if ($genre !== '') {
+        foreach (explode(",", $genre) as $g) {
+            $g = mb_substr(trim($g), 0, 50);
+            if ($g === '') continue;
+
+            log_msg("Genre: $g");
+
+            $req = $pdo->prepare("SELECT id FROM genres WHERE name = :name");
+            $req->execute([':name' => $g]);
+            $genreData = $req->fetch(PDO::FETCH_ASSOC);
+
+            if ($genreData === false) {
+                $req = $pdo->prepare("INSERT INTO genres (name) VALUES (:name)");
+                $req->execute([':name' => $g]);
+                $genre_id = intval($pdo->lastInsertId());
+            } else {
+                $genre_id = intval($genreData['id']);
+            }
+
+            $req = $pdo->prepare("SELECT COUNT(*) FROM track__genre WHERE track_id = :track AND genre_id = :genre");
+            $req->execute([':track' => $track_id, ':genre' => $genre_id]);
+            if ($req->fetchColumn() == 0) {
+                $req = $pdo->prepare("INSERT INTO track__genre (track_id, genre_id) VALUES (:track_id, :genre_id)");
+                $req->execute([':track_id' => $track_id, ':genre_id' => $genre_id]);
+            }
+
+            // Propagation vers les artistes du titre
+            foreach ($artistIds as $artist_id) {
+                $req = $pdo->prepare("SELECT COUNT(*) FROM artist__genre WHERE artist_id = :artist AND genre_id = :genre");
+                $req->execute([':artist' => $artist_id, ':genre' => $genre_id]);
+                if ($req->fetchColumn() == 0) {
+                    $req = $pdo->prepare("INSERT INTO artist__genre (artist_id, genre_id) VALUES (:artist_id, :genre_id)");
+                    $req->execute([':artist_id' => $artist_id, ':genre_id' => $genre_id]);
+                }
+            }
+        }
+    }
+} catch (\Exception $e) {
+    log_msg("Genre error: " . $e->getMessage());
+    error_log('Genre error: ' . $e->getMessage());
 }
 
 log_msg("=== SUCCESS ===");
