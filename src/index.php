@@ -43,7 +43,12 @@ if (!isset($_SESSION['user'])) {
             <em><?= $_SESSION['user']['username'] ?></em>
             <p id="headline-sub">Que voulez-vous écouter <?= $moment ?> ?</p>
         </div>
-        <section id="persons">
+        <?php $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal'); ?>
+        <!-- Les deux cercles servent aussi de bascule d'affichage :
+             les deux allumés = contenu commun, seul le mien = contenu perso -->
+        <section id="persons" class="<?= $isPersonal ? 'is-personal' : 'is-mixed' ?>"
+                 role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
+                 title="Afficher le contenu commun ou seulement le mien">
             <div class="first-person user-<?= $_SESSION['user']['id'] ?>">OO</div>
             <div class="second-person user-<?= 3-$_SESSION['user']['id'] ?>">OO</div>
         </section>

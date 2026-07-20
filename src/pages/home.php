@@ -3,6 +3,7 @@
     session_start();
 
     include_once "../includes/config.php";
+    include_once "../includes/viewMode.php";
     $pdo = Config::getConnection();
 
     $req = $pdo->prepare("
@@ -125,14 +126,17 @@
         <div class="head-bar">Playlists<a href="?page=library/playlists" class="redirect more-bar" data-page="library/playlists">Voir tout</a></div>
         <div class="body-bar">
             <?php
+            $onlyMine = isPersonalView();
+            $filtreProprio = $onlyMine ? " AND playlists.`created-by_id` = :uid" : "";
             $req = $pdo->prepare("
                     SELECT playlists.id, name, users.id AS user_id
                     FROM playlists
                     LEFT JOIN users ON playlists.`created-by_id` = users.id
-                    WHERE name != 'Wait Tracks'
+                    WHERE name != 'Wait Tracks'" . $filtreProprio . "
                     ORDER BY name
                     LIMIT 4
                 ");
+            if ($onlyMine) { $req->bindValue(':uid', $_SESSION['user']['id'], PDO::PARAM_INT); }
             $req->execute();
 
             $playlists = $req->fetchAll();

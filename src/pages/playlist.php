@@ -1,5 +1,7 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 include_once "../includes/config.php";
+include_once "../includes/viewMode.php";
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
@@ -21,14 +23,14 @@ if (!$playlist) {
 }
 
 $req = $pdo->prepare("
-    SELECT tracks.id, title, duration, img,
+    SELECT tracks.id, title, duration, tracks.img,
            GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
     FROM tracks
     RIGHT JOIN track__playlist ON track_id = tracks.id
     LEFT JOIN artist__track ON artist__track.track_id = tracks.id
     LEFT JOIN artists ON artists.id = artist__track.artist_id
     WHERE playlist_id = :id
-    GROUP BY tracks.id, title, duration, img
+    GROUP BY tracks.id, title, duration, tracks.img
     ORDER BY position
 ");
 $req->bindParam(':id', $id, PDO::PARAM_INT);
@@ -45,16 +47,20 @@ $req = $pdo->prepare("
 $req->execute([':id' => $id]);
 $tags = $req->fetchAll(PDO::FETCH_ASSOC);
 
-// Récupère les notes
+// Récupère les notes (filtrées selon le mode d'affichage)
+$onlyMine = isPersonalView();
+$filtreNote = $onlyMine ? " AND notes.`created-by_id` = :uid" : "";
 $req = $pdo->prepare("
     SELECT notes.id, notes.text, notes.`created-at`, users.username
     FROM notes
     LEFT JOIN note__playlist ON notes.id = note__playlist.note_id
     LEFT JOIN users ON notes.`created-by_id` = users.id
-    WHERE note__playlist.playlist_id = :id
+    WHERE note__playlist.playlist_id = :id" . $filtreNote . "
     ORDER BY notes.`created-at` DESC
 ");
-$req->execute([':id' => $id]);
+$req->bindValue(':id', $id, PDO::PARAM_INT);
+if ($onlyMine) { $req->bindValue(':uid', $_SESSION['user']['id'] ?? 0, PDO::PARAM_INT); }
+$req->execute();
 $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 

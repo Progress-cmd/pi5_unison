@@ -14,7 +14,7 @@ $password = filter_input(INPUT_POST, 'password', FILTER_DEFAULT);
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
 
-$req = $pdo->prepare("SELECT id, username, email, `password-hash` FROM users WHERE username = :username");
+$req = $pdo->prepare("SELECT id, username, email, `password-hash`, view_mode FROM users WHERE username = :username");
 $req->bindValue(':username', $username);
 $req->execute();
 
@@ -24,7 +24,12 @@ $user = $req->fetch();
 if ($user != NULL && password_verify($password, $user['password-hash']) && $user['password-hash'] != NULL) {
     session_regenerate_id(true);
 
-    $_SESSION['user'] = ['id' => $user['id'], 'username' => $user['username'], 'email' => $user['email']];
+    $_SESSION['user'] = [
+        'id'        => $user['id'],
+        'username'  => $user['username'],
+        'email'     => $user['email'],
+        'view_mode' => $user['view_mode'] ?? 'mixed',
+    ];
     header("Location: ../index.php");
 }
 else {

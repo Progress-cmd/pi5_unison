@@ -191,6 +191,8 @@ header {
         justify-content: space-between;
         top: 0;
         right: 0;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
     }
 
     #persons > div {
@@ -201,6 +203,7 @@ header {
         height: 40px;
         width: 40px;
         background-color: var(--light-beige);
+        transition: opacity 0.25s ease, filter 0.25s ease, border-color 0.25s ease;
     }
 
     #persons > div + div {
@@ -215,6 +218,14 @@ header {
 
     .user-2 {
         border: 2px solid var(--blue);
+    }
+
+    /* En mode perso, l'autre utilisateur (second-person) est estompé
+       pour signaler que seul mon contenu est affiché */
+    #persons.is-personal .second-person {
+        opacity: 0.4;
+        filter: grayscale(1);
+        border-color: var(--dark-beige);
     }
 }
 
@@ -962,6 +973,102 @@ footer > #navbar {
     align-items: center;
     font-size: 18px;
     gap: 20px;
+}
+
+/* ----- IMPORT MULTIPLE ----- */
+#import-multiple .body-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#bulk-urls {
+    width: 100%;
+    min-height: 90px;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 12px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text-dark);
+    background: var(--light-beige);
+    resize: vertical;
+}
+
+#bulk-urls:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+#bulk-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#bulk-hint {
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+#bulk-import-btn {
+    background: var(--text-orange);
+    color: var(--white);
+    border: none;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+#bulk-import-btn:hover { opacity: 0.9; }
+#bulk-import-btn:disabled { opacity: 0.6; cursor: default; }
+
+#bulk-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bulk-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--light-beige);
+}
+
+.bulk-item .bulk-status {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+.bulk-item .bulk-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* États : icône et couleur */
+.bulk-pending .bulk-status::before { content: 'schedule'; color: var(--text-gray); }
+.bulk-pending { color: var(--text-gray); }
+
+.bulk-loading .bulk-status::before { content: 'progress_activity'; color: var(--text-orange); animation: bulk-spin 1s linear infinite; }
+
+.bulk-done .bulk-status::before { content: 'check_circle'; color: var(--light-success); }
+
+.bulk-error .bulk-status::before { content: 'error'; color: var(--light-error); }
+.bulk-error { color: var(--light-error); }
+
+@keyframes bulk-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* ----- ACCOUNT ----- */
