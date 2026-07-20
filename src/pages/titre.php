@@ -61,16 +61,21 @@ $currentTagIds = array_column($currentTags, 'id');
 $req = $pdo->query("SELECT id, name FROM tags ORDER BY name");
 $allTags = $req->fetchAll(PDO::FETCH_ASSOC);
 
-// Notes du titre
+// Notes du titre (filtrées selon le mode d'affichage)
+include_once "../includes/viewMode.php";
+$onlyMine = isPersonalView();
+$filtreNote = $onlyMine ? " AND notes.`created-by_id` = :uid" : "";
 $req = $pdo->prepare("
     SELECT notes.id, notes.text, notes.`created-at`, users.username
     FROM notes
     LEFT JOIN note__track ON notes.id = note__track.note_id
     LEFT JOIN users ON notes.`created-by_id` = users.id
-    WHERE note__track.track_id = :id
+    WHERE note__track.track_id = :id" . $filtreNote . "
     ORDER BY notes.`created-at` DESC
 ");
-$req->execute([':id' => $id]);
+$req->bindValue(':id', $id, PDO::PARAM_INT);
+if ($onlyMine) { $req->bindValue(':uid', $userId, PDO::PARAM_INT); }
+$req->execute();
 $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 
 // Statistiques d'écoute

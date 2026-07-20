@@ -29,7 +29,8 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `artists` (
   `id` int(11) NOT NULL,
-  `name` varchar(50) NOT NULL
+  `name` varchar(50) NOT NULL,
+  `img` varchar(500) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -234,6 +235,7 @@ CREATE TABLE `users` (
   `email` varchar(50) DEFAULT NULL,
   `password-hash` varchar(250) DEFAULT NULL,
   `time-listened` int(11) NOT NULL DEFAULT 0,
+  `view_mode` varchar(10) NOT NULL DEFAULT 'mixed',
   `reset_token` varchar(250) DEFAULT NULL,
   `reset_token_expires` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

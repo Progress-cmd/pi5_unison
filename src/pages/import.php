@@ -16,10 +16,65 @@ if ($lien === null || $lien === false) {
     <article class="containers">
         <div class="body-bar">
             <div class="content">
-                Que souhaitez-vous importer ?
+                Importez un titre pour l'ajouter et ajuster ses informations,
+                ou collez plusieurs liens ci-dessous pour un import en masse.
             </div>
         </div>
     </article>
+
+    <!-- Import multiple : plusieurs liens ou une playlist YouTube -->
+    <article class="containers" id="import-multiple">
+        <div class="head-bar">Import multiple</div>
+        <div class="body-bar">
+            <textarea id="bulk-urls" placeholder="Collez un lien YouTube par ligne&#10;ou un lien de playlist à importer en entier..."></textarea>
+            <div id="bulk-actions">
+                <span id="bulk-hint">Playlists développées automatiquement</span>
+                <button type="button" id="bulk-import-btn" class="buttons">Importer tout</button>
+            </div>
+            <div id="bulk-progress"></div>
+        </div>
+    </article>
+
+    <script>
+    // Connecteur vers le module global window.BulkImport (scripts/bulk-import.js).
+    // L'orchestration vit hors de la page : l'import continue même si l'on
+    // navigue ailleurs, et l'état est ré-affiché quand on revient ici.
+    (function () {
+        const btn = document.getElementById('bulk-import-btn');
+        const textarea = document.getElementById('bulk-urls');
+        const progress = document.getElementById('bulk-progress');
+        if (!btn || !textarea || !window.BulkImport) return;
+
+        function render(state) {
+            progress.innerHTML = '';
+            state.items.forEach(it => {
+                const div = document.createElement('div');
+                div.className = 'bulk-item bulk-' + it.status;
+                div.innerHTML = '<span class="bulk-status material-symbols-outlined"></span><span class="bulk-label"></span>';
+                div.querySelector('.bulk-label').textContent = it.title;
+                progress.appendChild(div);
+            });
+            btn.disabled = state.running;
+            btn.textContent = state.running
+                ? (state.items.length
+                    ? `Import ${state.items.filter(i => i.status === 'done' || i.status === 'error').length}/${state.items.length}`
+                    : 'Analyse...')
+                : 'Importer tout';
+        }
+
+        // Ré-affiche l'état courant si un import tourne déjà (retour sur la page)
+        render(window.BulkImport.state);
+
+        // Un seul écouteur, même si la page est réinjectée plusieurs fois
+        if (window._bulkPageHandler) {
+            window.removeEventListener('bulkimport:update', window._bulkPageHandler);
+        }
+        window._bulkPageHandler = (e) => render(e.detail);
+        window.addEventListener('bulkimport:update', window._bulkPageHandler);
+
+        btn.addEventListener('click', () => window.BulkImport.start(textarea.value));
+    })();
+    </script>
 <?php } else {
     if (
             !isset($_POST['token'], $_SESSION['token']) ||
@@ -45,8 +100,44 @@ if ($lien === null || $lien === false) {
     }
     $data = json_decode($json, true);
 
-    $title    = htmlspecialchars($data['track']    ?? "Aucun titre",        ENT_QUOTES, 'UTF-8');
-    $artist   = htmlspecialchars($data['artist']   ?? "Aucun artiste",      ENT_QUOTES, 'UTF-8');
+    // yt-dlp ne renseigne 'track'/'artist' que pour de rares vidéos disposant
+    // d'un encart Content ID ; pour l'immense majorité des imports (y compris
+    // depuis music.youtube.com), ces champs sont vides. On retombe alors sur
+    // la convention de titre "Artiste - Titre" puis sur le nom de la chaîne.
+    $trackTitle  = $data['track'] ?? null;
+    $trackArtist = $data['artist'] ?? null;
+    if (!$trackArtist && !empty($data['artists']) && is_array($data['artists'])) {
+        $trackArtist = implode(', ', $data['artists']);
+    }
+    if (!$trackArtist && !empty($data['creators']) && is_array($data['creators'])) {
+        $trackArtist = implode(', ', $data['creators']);
+    }
+
+    if (!$trackTitle || !$trackArtist) {
+        $videoTitle = $data['fulltitle'] ?? $data['title'] ?? '';
+        // Retire les mentions parasites du type "(Official Video)", "[Lyrics]", "(4K Remaster)"
+        $cleanTitle = preg_replace(
+            '/\s*[\(\[][^\)\]]*(official|lyric|audio|video|visualizer|mv|remaster|hd|4k)[^\)\]]*[\)\]]\s*/i',
+            ' ',
+            $videoTitle
+        );
+        $cleanTitle = trim(preg_replace('/\s+/', ' ', $cleanTitle));
+
+        if (preg_match('/^(.+?)\s+[-–—]\s+(.+)$/', $cleanTitle, $m)) {
+            if (!$trackArtist) { $trackArtist = trim($m[1]); }
+            if (!$trackTitle)  { $trackTitle  = trim($m[2]); }
+        } elseif (!$trackTitle) {
+            $trackTitle = $cleanTitle;
+        }
+    }
+
+    if (!$trackArtist) {
+        $channelName = $data['channel'] ?? $data['uploader'] ?? '';
+        $trackArtist = preg_replace('/\s*-\s*Topic$/i', '', $channelName) ?: null;
+    }
+
+    $title    = htmlspecialchars($trackTitle       ?: "Aucun titre",        ENT_QUOTES, 'UTF-8');
+    $artist   = htmlspecialchars($trackArtist       ?: "Aucun artiste",      ENT_QUOTES, 'UTF-8');
     $album    = htmlspecialchars($data['album']    ?? "Aucun album",        ENT_QUOTES, 'UTF-8');
     $duration = htmlspecialchars($data['duration'] ?? "Aucune information", ENT_QUOTES, 'UTF-8');
     $thumb    = htmlspecialchars($data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '', ENT_QUOTES, 'UTF-8');

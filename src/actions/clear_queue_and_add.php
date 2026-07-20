@@ -30,7 +30,7 @@ try {
         SELECT id FROM tracks 
         WHERE id != :track_id
         ORDER BY RAND() 
-        LIMIT 7
+        LIMIT 49
     ");
     $req->execute([':track_id' => $track_id]);
     $randomTracks = $req->fetchAll(PDO::FETCH_ASSOC);

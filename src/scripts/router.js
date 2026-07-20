@@ -210,6 +210,33 @@ document.querySelectorAll('.redirect').forEach(a => {
     });
 });
 
+// Bascule du mode d'affichage via les deux cercles du header :
+// les deux allumés = contenu commun, seul le mien = contenu perso
+const personsSwitch = document.getElementById('persons');
+if (personsSwitch) {
+    personsSwitch.addEventListener('click', async () => {
+        const nextMode = personsSwitch.classList.contains('is-personal') ? 'mixed' : 'personal';
+
+        // Bascule visuelle immédiate
+        personsSwitch.classList.toggle('is-personal', nextMode === 'personal');
+        personsSwitch.classList.toggle('is-mixed', nextMode === 'mixed');
+        personsSwitch.setAttribute('aria-checked', nextMode === 'personal' ? 'true' : 'false');
+
+        try {
+            await fetch('actions/set_view_mode.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'mode=' + nextMode
+            });
+        } catch (e) {
+            // En cas d'échec réseau, on recharge quand même la page courante
+        }
+
+        // Recharge la page courante pour appliquer le filtrage serveur
+        navigateTo(previousPage || 'home');
+    });
+}
+
 // Gère le bouton Retour du navigateur
 window.addEventListener('popstate', (e) => {
     if (e.state?.page) navigateTo(e.state.page);

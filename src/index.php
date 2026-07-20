@@ -43,13 +43,28 @@ if (!isset($_SESSION['user'])) {
             <em><?= $_SESSION['user']['username'] ?></em>
             <p id="headline-sub">Que voulez-vous écouter <?= $moment ?> ?</p>
         </div>
-        <section id="persons">
+        <?php $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal'); ?>
+        <!-- Les deux cercles servent aussi de bascule d'affichage :
+             les deux allumés = contenu commun, seul le mien = contenu perso -->
+        <section id="persons" class="<?= $isPersonal ? 'is-personal' : 'is-mixed' ?>"
+                 role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
+                 title="Afficher le contenu commun ou seulement le mien">
             <div class="first-person user-<?= $_SESSION['user']['id'] ?>">OO</div>
             <div class="second-person user-<?= 3-$_SESSION['user']['id'] ?>">OO</div>
         </section>
     </header>
 
     <div id="toast-container"></div>
+
+    <!-- Indicateur d'import en arrière-plan (persiste entre les pages) -->
+    <div id="import-indicator" title="Voir l'import en cours">
+        <span class="imp-spinner material-symbols-outlined">progress_activity</span>
+        <div class="imp-info">
+            <div class="imp-head"><span class="imp-label">Import</span><span class="imp-count"></span></div>
+            <div class="imp-title"></div>
+            <div class="imp-bar"><div class="imp-bar-fill"></div></div>
+        </div>
+    </div>
 
     <!-- Le contenu non statique de la page -->
     <div id="content-row">
@@ -194,6 +209,7 @@ if (!isset($_SESSION['user'])) {
     </footer>
 
     <script src="scripts/router.js"></script>
+    <script src="scripts/bulk-import.js"></script>
 
 </body>
 </html>

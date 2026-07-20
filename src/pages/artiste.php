@@ -10,9 +10,10 @@ if (!$id) {
 
 $pdo = Config::getConnection();
 
-$req = $pdo->prepare("SELECT id, name FROM artists WHERE id = :id");
+$req = $pdo->prepare("SELECT id, name, img FROM artists WHERE id = :id");
 $req->execute([':id' => $id]);
 $artiste = $req->fetch(PDO::FETCH_ASSOC);
+$defaultArtistImg = 'https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop';
 
 if (!$artiste) {
     http_response_code(404);
@@ -60,7 +61,7 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
     <div class="head-bar"><?= htmlspecialchars($artiste['name']) ?></div>
     <div class="body-bar">
         <div class="artiste-entete">
-            <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="artist-img" alt="Cover">
+            <img src="<?= htmlspecialchars($artiste['img'] ?: $defaultArtistImg) ?>" class="artist-img" alt="Cover">
             <div class="artiste-infos">
                 <div class="artiste-nom"><?= htmlspecialchars($artiste['name']) ?></div>
                 <?php if (!empty($genres)): ?>

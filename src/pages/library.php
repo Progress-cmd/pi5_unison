@@ -6,24 +6,25 @@
     $pdo = Config::getConnection();
 
     $req = $pdo->prepare("
-            SELECT artists.id, artists.name, COUNT(tracks.id) AS track_count
+            SELECT artists.id, artists.name, artists.img, COUNT(tracks.id) AS track_count
             FROM artists
             LEFT JOIN artist__track ON artist__track.artist_id = artists.id
             LEFT JOIN tracks ON tracks.id = artist__track.track_id
-            GROUP BY artists.id, artists.name
+            GROUP BY artists.id, artists.name, artists.img
             ORDER BY track_count DESC, artists.name ASC
             LIMIT 6
         ");
     $req->execute();
 
     $listArtists = $req->fetchAll();
+    $defaultArtistImg = 'https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop';
     ?>
     <div class="head-bar">Artistes<a href="?page=library/artists" class="redirect more-bar" data-page="library/artists">Voir tout</a></div>
     <div class="body-bar">
         <?php
         foreach ($listArtists as $artist) {
             echo '<div class="mini-artist" data-artiste-id="'.$artist['id'].'">
-                      <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="artist-img" alt="Cover">
+                      <img src="'.htmlspecialchars($artist['img'] ?: $defaultArtistImg).'" class="artist-img" alt="Cover">
                       <div class="artist-name">'.htmlspecialchars($artist["name"]).'</div>
                   </div>';
         }
@@ -46,6 +47,7 @@
 </script>
 <?php
 include_once "../includes/config.php";
+include_once "../includes/viewMode.php";
 $pdo = Config::getConnection();
 ?>
 
@@ -90,14 +92,17 @@ $pdo = Config::getConnection();
     <div class="head-bar">Playlists<a href="?page=library/playlists" class="more-bar" data-page="library/playlists">Voir tout</a></div>
     <div class="body-bar">
         <?php
+        $onlyMine = isPersonalView();
+        $filtreProprio = $onlyMine ? " AND playlists.`created-by_id` = :uid" : "";
         $req = $pdo->prepare("
                 SELECT playlists.id, name, users.id AS user_id
                 FROM playlists
                 LEFT JOIN users ON playlists.`created-by_id` = users.id
-                WHERE name != 'Wait Tracks'
+                WHERE name != 'Wait Tracks'" . $filtreProprio . "
                 ORDER BY name
                 LIMIT 4
             ");
+        if ($onlyMine) { $req->bindValue(':uid', $_SESSION['user']['id'], PDO::PARAM_INT); }
         $req->execute();
 
         $playlists = $req->fetchAll();
