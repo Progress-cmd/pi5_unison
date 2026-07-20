@@ -21,6 +21,12 @@ if (
 }
 unset($_SESSION['token']);
 
+// On capture l'utilisateur puis on libère le verrou de session : le
+// téléchargement qui suit est long et ne doit pas bloquer la navigation
+// ni la lecture audio dans les autres onglets/requêtes.
+$currentUserId = (int) ($_SESSION['user']['id'] ?? 0);
+session_write_close();
+
 $title     = trim(filter_input(INPUT_POST, 'title',     FILTER_DEFAULT));
 $artist    = trim(filter_input(INPUT_POST, 'artist',    FILTER_DEFAULT));
 $duration  = trim(filter_input(INPUT_POST, 'duration',  FILTER_DEFAULT));
@@ -98,7 +104,7 @@ if ($existing) {
 } else {
     log_msg("Inserting new track");
     $req = $pdo->prepare("INSERT INTO tracks (title, duration, file, url, img, `added-by_id`) VALUES (:title, :duration, :file, :url, :img, :user)");
-    $req->execute([':title' => $title, ':duration' => $duration, ':file' => $file, ':url' => $url, ':img' => $miniature, ':user' => $_SESSION['user']['id']]);
+    $req->execute([':title' => $title, ':duration' => $duration, ':file' => $file, ':url' => $url, ':img' => $miniature, ':user' => $currentUserId]);
     $track_id = intval($pdo->lastInsertId());
     $is_new = true;
     log_msg("Track inserted: id=$track_id");

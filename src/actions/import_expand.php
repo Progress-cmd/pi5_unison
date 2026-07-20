@@ -15,6 +15,10 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+// L'analyse des liens (yt-dlp) peut prendre plusieurs secondes ; on libère
+// le verrou de session pour ne pas bloquer la navigation ni la lecture.
+session_write_close();
+
 @set_time_limit(120);
 
 $text = filter_input(INPUT_POST, 'text', FILTER_DEFAULT) ?? '';

@@ -1071,6 +1071,76 @@ footer > #navbar {
     to { transform: rotate(360deg); }
 }
 
+/* ----- INDICATEUR D'IMPORT EN ARRIÈRE-PLAN ----- */
+/* Persiste entre les pages ; masqué tant qu'aucun import n'est en cours */
+#import-indicator {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    bottom: 145px; /* au-dessus du player + navbar sur mobile */
+    z-index: 9998;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background-color: var(--black);
+    color: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+
+#import-indicator.visible {
+    display: flex;
+}
+
+#import-indicator .imp-spinner {
+    font-size: 26px;
+    color: var(--text-orange);
+    animation: bulk-spin 1s linear infinite;
+    flex-shrink: 0;
+}
+
+#import-indicator .imp-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#import-indicator .imp-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+#import-indicator .imp-count {
+    color: var(--text-orange);
+}
+
+#import-indicator .imp-title {
+    font-size: 12px;
+    color: var(--text-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+}
+
+#import-indicator .imp-bar {
+    height: 3px;
+    background-color: var(--text-gray);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#import-indicator .imp-bar-fill {
+    height: 100%;
+    width: 0;
+    background-color: var(--text-orange);
+    transition: width 0.3s ease;
+}
+
 /* ----- ACCOUNT ----- */
 #account-boutons .content {
     display: flex;
@@ -1364,6 +1434,14 @@ footer > #navbar {
         left: auto;
         right: 1.5rem;
         width: 340px;
+    }
+
+    /* Indicateur d'import : coin inférieur gauche, largeur fixe */
+    #import-indicator {
+        left: calc(var(--sidebar-width) + 20px);
+        right: auto;
+        bottom: 20px;
+        width: 320px;
     }
 
     .toast {

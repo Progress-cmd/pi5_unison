@@ -56,6 +56,16 @@ if (!isset($_SESSION['user'])) {
 
     <div id="toast-container"></div>
 
+    <!-- Indicateur d'import en arrière-plan (persiste entre les pages) -->
+    <div id="import-indicator" title="Voir l'import en cours">
+        <span class="imp-spinner material-symbols-outlined">progress_activity</span>
+        <div class="imp-info">
+            <div class="imp-head"><span class="imp-label">Import</span><span class="imp-count"></span></div>
+            <div class="imp-title"></div>
+            <div class="imp-bar"><div class="imp-bar-fill"></div></div>
+        </div>
+    </div>
+
     <!-- Le contenu non statique de la page -->
     <div id="content-row">
         <main id="main-content"></main>
@@ -199,6 +209,7 @@ if (!isset($_SESSION['user'])) {
     </footer>
 
     <script src="scripts/router.js"></script>
+    <script src="scripts/bulk-import.js"></script>
 
 </body>
 </html>

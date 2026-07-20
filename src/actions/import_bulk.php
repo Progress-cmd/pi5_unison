@@ -15,6 +15,12 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+// L'import est long (téléchargement + conversion WAV). On lit l'utilisateur
+// puis on libère immédiatement le verrou de session, sinon toutes les autres
+// requêtes (navigation, lecture audio) resteraient bloquées jusqu'à la fin.
+$userId = (int) $_SESSION['user']['id'];
+session_write_close();
+
 require '../../vendor/autoload.php';
 require_once '../includes/ytImport.php';
 include_once '../includes/config.php';
@@ -34,7 +40,7 @@ if ($meta === null) {
 }
 
 $pdo = Config::getConnection();
-$res = importTrackFromUrl($pdo, $url, $meta, (int) $_SESSION['user']['id']);
+$res = importTrackFromUrl($pdo, $url, $meta, $userId);
 
 echo json_encode([
     'success' => $res['success'],
