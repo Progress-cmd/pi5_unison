@@ -2,6 +2,7 @@
 session_start();
 
 require '../../vendor/autoload.php';
+require_once '../includes/artistImage.php';
 use Meilisearch\Client;
 
 $log_file = '/tmp/import_debug.log';
@@ -131,6 +132,13 @@ try {
             $req = $pdo->prepare("INSERT INTO artists (name) VALUES (:name)");
             $req->execute([':name' => $art]);
             $artist_id = intval($pdo->lastInsertId());
+
+            // Récupère une vraie photo d'artiste (API Deezer, sans clé)
+            $artistImg = fetchArtistImage($art);
+            if ($artistImg) {
+                $req = $pdo->prepare("UPDATE artists SET img = :img WHERE id = :id");
+                $req->execute([':img' => $artistImg, ':id' => $artist_id]);
+            }
 
             if ($is_new) {
                 $client->index('artists')->addDocuments([[

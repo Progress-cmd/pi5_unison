@@ -45,8 +45,44 @@ if ($lien === null || $lien === false) {
     }
     $data = json_decode($json, true);
 
-    $title    = htmlspecialchars($data['track']    ?? "Aucun titre",        ENT_QUOTES, 'UTF-8');
-    $artist   = htmlspecialchars($data['artist']   ?? "Aucun artiste",      ENT_QUOTES, 'UTF-8');
+    // yt-dlp ne renseigne 'track'/'artist' que pour de rares vidéos disposant
+    // d'un encart Content ID ; pour l'immense majorité des imports (y compris
+    // depuis music.youtube.com), ces champs sont vides. On retombe alors sur
+    // la convention de titre "Artiste - Titre" puis sur le nom de la chaîne.
+    $trackTitle  = $data['track'] ?? null;
+    $trackArtist = $data['artist'] ?? null;
+    if (!$trackArtist && !empty($data['artists']) && is_array($data['artists'])) {
+        $trackArtist = implode(', ', $data['artists']);
+    }
+    if (!$trackArtist && !empty($data['creators']) && is_array($data['creators'])) {
+        $trackArtist = implode(', ', $data['creators']);
+    }
+
+    if (!$trackTitle || !$trackArtist) {
+        $videoTitle = $data['fulltitle'] ?? $data['title'] ?? '';
+        // Retire les mentions parasites du type "(Official Video)", "[Lyrics]", "(4K Remaster)"
+        $cleanTitle = preg_replace(
+            '/\s*[\(\[][^\)\]]*(official|lyric|audio|video|visualizer|mv|remaster|hd|4k)[^\)\]]*[\)\]]\s*/i',
+            ' ',
+            $videoTitle
+        );
+        $cleanTitle = trim(preg_replace('/\s+/', ' ', $cleanTitle));
+
+        if (preg_match('/^(.+?)\s+[-–—]\s+(.+)$/', $cleanTitle, $m)) {
+            if (!$trackArtist) { $trackArtist = trim($m[1]); }
+            if (!$trackTitle)  { $trackTitle  = trim($m[2]); }
+        } elseif (!$trackTitle) {
+            $trackTitle = $cleanTitle;
+        }
+    }
+
+    if (!$trackArtist) {
+        $channelName = $data['channel'] ?? $data['uploader'] ?? '';
+        $trackArtist = preg_replace('/\s*-\s*Topic$/i', '', $channelName) ?: null;
+    }
+
+    $title    = htmlspecialchars($trackTitle       ?: "Aucun titre",        ENT_QUOTES, 'UTF-8');
+    $artist   = htmlspecialchars($trackArtist       ?: "Aucun artiste",      ENT_QUOTES, 'UTF-8');
     $album    = htmlspecialchars($data['album']    ?? "Aucun album",        ENT_QUOTES, 'UTF-8');
     $duration = htmlspecialchars($data['duration'] ?? "Aucune information", ENT_QUOTES, 'UTF-8');
     $thumb    = htmlspecialchars($data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '', ENT_QUOTES, 'UTF-8');
