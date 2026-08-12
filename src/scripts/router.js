@@ -20,6 +20,40 @@ const routes = {
     'library/artiste': 'pages/artiste.php',
 };
 
+/*
+ * Filet de sécurité sur les images : pochettes et photos d'artistes viennent
+ * de services externes (YouTube, Deezer) et peuvent manquer, expirer ou ne pas
+ * répondre. Sans ça le navigateur affiche une icône cassée.
+ *
+ * Un seul écouteur en phase de capture — l'événement `error` d'une image ne
+ * remonte pas — donc valable aussi pour les pages injectées par le routeur.
+ */
+window.POCHETTE_DEFAUT =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E"
+    + "%3Crect width='64' height='64' fill='%23dfcbc0'/%3E"
+    + "%3Cpath d='M40 18v18a6 6 0 1 1-4-5.7V24l-12 3v15a6 6 0 1 1-4-5.7V24z' fill='%237A736C'/%3E%3C/svg%3E";
+
+document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+
+    // `dataset.replie` empêche la boucle si le remplacement échoue lui aussi.
+    if (img.dataset.replie) return;
+    img.dataset.replie = '1';
+    img.src = window.POCHETTE_DEFAUT;
+}, true);
+
+// Une source vide ne déclenche pas d'erreur : on la traite à l'injection.
+window.corrigerImagesVides = function (racine = document) {
+    racine.querySelectorAll('img:not([data-replie])').forEach(img => {
+        const src = img.getAttribute('src');
+        if (!src || src === 'null' || src === 'undefined') {
+            img.dataset.replie = '1';
+            img.src = window.POCHETTE_DEFAUT;
+        }
+    });
+};
+
 
 // Ancre le player sur bureau : dans l'emplacement de la page s'il existe
 // (dock du home), sinon dans la colonne globale de droite. Sur mobile,
@@ -88,6 +122,7 @@ function bindForms(container) {
             } else {
                 // Réponse HTML → affichage dans mainContent (comme import-form)
                 mainContent.innerHTML = await res.text();
+                window.corrigerImagesVides(mainContent);
                 reinjectScripts(mainContent);
                 bindForms(mainContent);
                 bindDataPageLinks(mainContent);
@@ -168,6 +203,7 @@ async function navigateTo(page) {
     }
 
     mainContent.innerHTML = html;
+    window.corrigerImagesVides(mainContent);
 
     reinjectScripts(mainContent);
     bindForms(mainContent);

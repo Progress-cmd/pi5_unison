@@ -87,6 +87,51 @@ function traduireErreurYtDlp(string $erreurs): string
 }
 
 /**
+ * Choisit la miniature à enregistrer parmi celles que propose yt-dlp.
+ *
+ * On prenait aveuglément la dernière (la plus grande). Deux écueils : elle
+ * n'existe pas pour toutes les vidéos, et son URL peut dépasser les 250
+ * caractères de la colonne `tracks.img`, où elle serait tronquée. Dans les
+ * deux cas le résultat est une image cassée dans l'interface.
+ *
+ * On descend donc de la meilleure à la moins bonne jusqu'à en trouver une qui
+ * tienne dans la colonne et qui réponde réellement.
+ */
+function choisirMiniature(array $data, int $maxEssais = 3): string
+{
+    $candidates = [];
+
+    if (!empty($data['thumbnails']) && is_array($data['thumbnails'])) {
+        // yt-dlp classe de la moins bonne à la meilleure : on inverse.
+        foreach (array_reverse($data['thumbnails']) as $t) {
+            if (!empty($t['url'])) {
+                $candidates[] = $t['url'];
+            }
+        }
+    }
+
+    // Repli garanti : hqdefault existe pour toute vidéo YouTube.
+    if (!empty($data['id'])) {
+        $candidates[] = 'https://i.ytimg.com/vi/' . $data['id'] . '/hqdefault.jpg';
+    }
+
+    $essais = 0;
+    foreach ($candidates as $url) {
+        if (mb_strlen($url) > 250) {
+            continue; // serait tronquée en base
+        }
+        if (++$essais > $maxEssais) {
+            break;
+        }
+        if (urlImageValide($url)) {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+/**
  * Récupère les métadonnées d'une vidéo YouTube via yt-dlp.
  * Renvoie null si l'extraction échoue, sinon un tableau associatif :
  * [title, artist, album, genre, duration, miniature].
@@ -148,10 +193,7 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
     $genreBrut = $data['genres'] ?? $data['genre'] ?? '';
     if (is_array($genreBrut)) { $genreBrut = implode(', ', $genreBrut); }
 
-    $thumb = '';
-    if (!empty($data['thumbnails']) && is_array($data['thumbnails'])) {
-        $thumb = $data['thumbnails'][count($data['thumbnails']) - 1]['url'] ?? '';
-    }
+    $thumb = choisirMiniature($data);
 
     return [
         'title'     => mb_substr($trackTitle  ?: 'Aucun titre',   0, 50),
