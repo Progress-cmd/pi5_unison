@@ -21,7 +21,7 @@ $nbEcoutes = (int) $pdo->query("SELECT COUNT(*) FROM historical")->fetchColumn()
 <article class="containers admin-entete">
     <div class="head-bar">
         Administration
-        <span class="admin-badge">accès technique</span>
+        <span class="admin-badge"><?= versionUnison(false) ?></span>
     </div>
     <div class="body-bar">
         <p class="admin-intro">

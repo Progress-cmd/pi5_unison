@@ -8,6 +8,10 @@
  * lecture seule même si quelqu'un appelle l'endpoint à la main.
  */
 
+// Version de l'application. Inclus ici parce que tout passe par auth.php :
+// la constante est ainsi disponible partout sans include supplémentaire.
+require_once __DIR__ . '/version.php';
+
 /**
  * Compte utilisé par les sessions de démonstration.
  *

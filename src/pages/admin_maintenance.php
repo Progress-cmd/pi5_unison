@@ -59,8 +59,13 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
                 </span>
             </div>
 
+            <div class="admin-note">
+                Version de l'application : <code><?= versionUnison(false) ?></code>
+                <span style="opacity:.7">(définie dans <code>src/includes/version.php</code>)</span>
+            </div>
+
             <div class="admin-note" id="maj-details">
-                <?php if ($etat['version']): ?>Version déployée : <code><?= $e($etat['version']) ?></code><br><?php endif; ?>
+                <?php if ($etat['version']): ?>Commit déployé : <code><?= $e($etat['version']) ?></code><br><?php endif; ?>
                 <?php if ($etat['depuis']): ?>Dernier passage : <?= $e($etat['depuis']) ?><?php endif; ?>
             </div>
 
