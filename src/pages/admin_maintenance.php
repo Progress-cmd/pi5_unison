@@ -35,13 +35,12 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
 <article class="containers">
     <div class="head-bar">Conteneurs</div>
     <div class="body-bar">
-        <?php if (!$disponible): ?>
+        <?php if (!$disponible): $etat = majEtatInstallation(); ?>
             <div class="admin-note attention">
-                Mécanisme non installé : le dossier <code><?= $e(MAJ_DOSSIER) ?></code>
-                n'existe pas ou n'est pas accessible en écriture. Montez le volume
-                dans le fichier compose et vérifiez que <code>www-data</code> peut
-                y écrire.
+                <b>Mécanisme non installé.</b><br>
+                <?= $e($etat['message']) ?>
             </div>
+            <pre class="admin-note"><?= $e($etat['correctif']) ?></pre>
         <?php else: ?>
             <div class="admin-note">
                 Unison n'a aucun accès à Docker. Ces boutons déposent une demande

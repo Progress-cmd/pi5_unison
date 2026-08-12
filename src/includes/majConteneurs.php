@@ -44,7 +44,55 @@ function majActions(): array
 /** Le mécanisme est-il installé ? (volume monté et accessible en écriture) */
 function majDisponible(): bool
 {
-    return is_dir(MAJ_DOSSIER) && is_writable(MAJ_DOSSIER);
+    return majEtatInstallation()['ok'];
+}
+
+/**
+ * Détaille pourquoi le mécanisme n'est pas utilisable.
+ *
+ * Deux causes très différentes se cachaient derrière un simple « indisponible » :
+ * le volume n'est pas monté du tout, ou il l'est mais appartient à l'utilisateur
+ * de l'hôte alors qu'Apache tourne en www-data. Elles ne se corrigent pas de la
+ * même façon, l'interface doit donc les distinguer.
+ *
+ * @return array{ok:bool, cause:string, message:string, correctif:string}
+ */
+function majEtatInstallation(): array
+{
+    $uid = function_exists('posix_getuid') ? posix_getuid() : null;
+
+    if (!is_dir(MAJ_DOSSIER)) {
+        return [
+            'ok'      => false,
+            'cause'   => 'volume',
+            'message' => 'Le dossier ' . MAJ_DOSSIER . " n'existe pas : le volume n'est pas monté.",
+            'correctif' => "Créez le dossier sur l'hôte, puis appliquez le fichier compose "
+                         . "(un rechargement gracieux ne suffit pas, il faut « up -d ») :\n"
+                         . "  mkdir -p /home/Francis/apps/pi5_unison/maj\n"
+                         . "  sudo chown 33:33 /home/Francis/apps/pi5_unison/maj\n"
+                         . "  docker compose -f docker/docker-compose-prod.yml --env-file docker/.env up -d",
+        ];
+    }
+
+    if (!is_writable(MAJ_DOSSIER)) {
+        $proprietaire = @fileowner(MAJ_DOSSIER);
+        $droits = substr(sprintf('%o', @fileperms(MAJ_DOSSIER)), -4);
+
+        return [
+            'ok'      => false,
+            'cause'   => 'droits',
+            'message' => sprintf(
+                'Le dossier est bien monté, mais PHP (uid %s) ne peut pas y écrire. '
+                . 'Il appartient à uid %s, permissions %s.',
+                $uid ?? '?', $proprietaire === false ? '?' : $proprietaire, $droits
+            ),
+            'correctif' => "Donnez-le à l'utilisateur du conteneur :\n"
+                         . '  sudo chown ' . ($uid ?? 33) . ':' . ($uid ?? 33)
+                         . " /home/Francis/apps/pi5_unison/maj",
+        ];
+    }
+
+    return ['ok' => true, 'cause' => '', 'message' => '', 'correctif' => ''];
 }
 
 /**
