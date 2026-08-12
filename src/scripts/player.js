@@ -75,8 +75,7 @@
 
     window.loadTrack = loadTrack;
 
-    window.addEventListener('playlistReady', (e) => {
-        const playlist = e.detail.playlist;
+    function appliquerFileAttente(playlist) {
         if (!playlist || playlist.length === 0) return;
 
         window.waitPlaylist = playlist;
@@ -89,7 +88,37 @@
             window.currentIndex = idx !== -1 ? idx : 0;
             updateSelected();
         }
-    });
+    }
+
+    // La page d'accueil injecte la file directement dans la page.
+    window.addEventListener('playlistReady', (e) => appliquerFileAttente(e.detail.playlist));
+
+    /*
+     * Ouverture de l'application ailleurs qu'à l'accueil : personne n'a alors
+     * fourni la file d'attente, et le player n'avait aucun titre à lancer.
+     * Il va donc la chercher lui-même.
+     *
+     * Si la page d'accueil répond entre-temps, c'est elle qui gagne : on
+     * n'applique le résultat que si la file est toujours vide à l'arrivée de
+     * la réponse. L'ordre des deux sources n'a donc pas d'importance.
+     */
+    (async function chargerFileInitiale() {
+        try {
+            const res = await fetch('actions/get_queue.php');
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!window.waitPlaylist || window.waitPlaylist.length === 0) {
+                appliquerFileAttente(data.tracks);
+                // Prévient les pages déjà affichées qui dépendent de la file
+                // (la page « Liste d'attente », ouverte directement).
+                window.dispatchEvent(new CustomEvent('queueReady'));
+            }
+        } catch (e) {
+            // Sans file d'attente le player reste inerte, comme avant :
+            // ce n'est pas la peine d'alerter l'utilisateur.
+        }
+    })();
 
     player.addEventListener('click', function(e) {
         if (e.target.closest('button, .player-progress_bar')) return;
