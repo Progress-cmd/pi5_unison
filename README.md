@@ -16,32 +16,22 @@ Une application web d'écoute et de partage interne de musique.
 - Connexion internet fiable
 
 ## Installation
-git clone https://github.com/Progress-cmd/pi5_unison.git \
-cd pi5_unison/docker \
-nano .env
-```Bash
-# --- ENVIRONNEMENT ---
-DOCKER_TARGET=production
+```bash
+git clone https://github.com/Progress-cmd/pi5_unison.git
+cd pi5_unison
 
-# --- BASE DE DONNÉES ---
-DB_ROOTPASS=password
-DB_NAME=unison
-DB_USER=user
-DB_PASS=password
+# Le .env n'est pas versionné : partir du modèle, qui liste TOUTES
+# les variables attendues et explique à quoi chacune sert.
+cp docker/.env.exemple docker/.env
+nano docker/.env
 
-# --- MEILISEARCH ---
-MS_PASS=password
-
-# --- MAIL ---
-MAIL_HOST=hôte
-MAIL_PORT=port
-MAIL_USER=user
-MAIL_PASS=APIkey
-
-# --- RESEAU ---
-PORT_EXPOSE=8082`
+docker compose -f docker/docker-compose-prod.yml --env-file docker/.env up -d
 ```
-docker compose -f docker-compose-prod.yml up -d
+
+> Une variable oubliée se signale au démarrage par
+> `WARN The "X" variable is not set. Defaulting to a blank string.`
+> Quand une variable est ajoutée au code, elle doit l'être dans
+> `docker/.env.exemple` — c'est la seule liste de référence.
 
 ## Utilisation
 ### Accès à l'application en local
@@ -58,6 +48,7 @@ docker compose -f docker-compose-prod.yml up -d
 |---------------|-----------------|---------------------------------------|
 | DOCKER_TARGET | production      | Définition du mode de mise en place   |
 | PORT_EXPOSE   | 8082            | Port d'exposition de l'application    |
+| APP_URL       | —               | URL publique, pour les liens envoyés par mail |
 | DB_ROOTPASS   | —               | Mot de passe root de la database      |
 | DB_NAME       | —               | Nom de la database                    |
 | DB_USER       | —               | Nom d'utilisateur de la database      |
@@ -89,7 +80,11 @@ conteneurs.
 
 ```bash
 # 1. Ajouter la colonne de rôle (base existante uniquement)
-cd docker && set -a && . ./.env && set +a && cd ..
+# Ne PAS sourcer le .env : un mot de passe contenant une espace ou un $
+# serait interprété par le shell. On lit les valeurs telles quelles.
+DB_ROOTPASS=$(sed -n 's/^DB_ROOTPASS=//p' docker/.env | head -1)
+DB_NAME=$(sed -n 's/^DB_NAME=//p' docker/.env | head -1)
+
 docker compose -f docker/docker-compose-dev.yml exec -T db \
     mariadb -u root -p"$DB_ROOTPASS" "$DB_NAME" < mysql_init/migrations/001_role_admin.sql
 

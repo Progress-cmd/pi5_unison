@@ -22,10 +22,40 @@ DUREE=42
 
 cd "$RACINE"
 
-set -a
-# shellcheck disable=SC1091
-. docker/.env
-set +a
+ENVFILE=docker/.env
+
+if [ ! -r "$ENVFILE" ]; then
+    echo "Abandon : $ENVFILE introuvable ou illisible." >&2
+    exit 1
+fi
+
+# Lecture d'une variable du .env SANS passer par le shell.
+#
+# Sourcer ce fichier (« . docker/.env ») le fait interpréter comme un script :
+# un mot de passe contenant une espace devient « VAR=début reste-du-mdp », et
+# le shell tente d'exécuter « reste-du-mdp » comme une commande. Une valeur
+# contenant $, ` ou " serait pire encore — elle serait évaluée.
+# Docker Compose, lui, lit ce fichier comme de simples paires clé=valeur ;
+# ce script doit faire de même.
+lire_env() {
+    # Une variable déjà présente dans l'environnement l'emporte sur le fichier,
+    # comme le fait docker compose. C'est ce qui permet de surcharger
+    # ponctuellement, par exemple DB_NAME_DEMO=... ./installer.sh
+    local depuisEnv
+    depuisEnv=$(printenv "$1" 2>/dev/null || true)
+    if [ -n "$depuisEnv" ]; then
+        printf '%s\n' "$depuisEnv"
+        return
+    fi
+
+    sed -n "s/^[[:space:]]*$1=//p" "$ENVFILE" | head -n 1 \
+        | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/"
+}
+
+DB_NAME=$(lire_env DB_NAME)
+DB_USER=$(lire_env DB_USER)
+DB_ROOTPASS=$(lire_env DB_ROOTPASS)
+DB_NAME_DEMO=$(lire_env DB_NAME_DEMO)
 
 DB_DEMO="${DB_NAME_DEMO:-${DB_NAME}_demo}"
 
