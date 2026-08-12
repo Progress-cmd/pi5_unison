@@ -7,7 +7,9 @@
  * Entrée POST : url
  * Sortie JSON : { success, message, title, artist, is_new }
  */
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user'])) {

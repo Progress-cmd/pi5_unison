@@ -1,11 +1,14 @@
 <?php
 // Vérification de la connexion utilisateur
-session_start();
+include_once "includes/auth.php";
+demarrerSession();
 
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
     exit;
 }
+
+$demo = estDemo();
 ?>
 <!doctype html>
 <html lang="fr">
@@ -17,7 +20,18 @@ if (!isset($_SESSION['user'])) {
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"> <!-- Ajout de deux polices d'écritures -->
     <title>Unison</title>
 </head>
-<body>
+<body class="<?= $demo ? 'is-demo' : '' ?>">
+    <?php if ($demo): ?>
+    <!-- Bandeau permanent : rappelle que la session est en lecture seule -->
+    <div id="demo-banner">
+        <span class="material-symbols-outlined">visibility</span>
+        <span id="demo-banner-text">
+            <b>Mode démonstration</b> — vous explorez Unison en lecture seule.
+        </span>
+        <a href="actions/logout.php" id="demo-banner-exit">Quitter</a>
+    </div>
+    <?php endif; ?>
+
     <!-- La politesse avant tout -->
     <header>
         <?php
@@ -40,7 +54,7 @@ if (!isset($_SESSION['user'])) {
         }
         ?>
         <div id="headline"><?= $salutation ?>,<br>
-            <em><?= $_SESSION['user']['username'] ?></em>
+            <em><?= htmlspecialchars($_SESSION['user']['username'], ENT_QUOTES) ?></em>
             <p id="headline-sub">Que voulez-vous écouter <?= $moment ?> ?</p>
         </div>
         <?php $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal'); ?>
@@ -208,8 +222,11 @@ if (!isset($_SESSION['user'])) {
         </nav>
     </footer>
 
+    <!-- Le front adapte l'affichage ; le blocage réel reste côté serveur -->
+    <script>window.UNISON_DEMO = <?= $demo ? 'true' : 'false' ?>;</script>
     <script src="scripts/router.js"></script>
     <script src="scripts/bulk-import.js"></script>
+    <?php if ($demo): ?><script src="scripts/demo.js"></script><?php endif; ?>
 
 </body>
 </html>

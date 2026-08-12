@@ -1584,3 +1584,59 @@ footer > #navbar {
         width: 80px;
     }
 }
+
+/* ----- MODE DÉMONSTRATION ----- */
+/* Bandeau en tête de page : il pousse le contenu au lieu de le recouvrir,
+   pour ne pas masquer le header collant. */
+#demo-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    background: var(--text-orange, #C8593A);
+    color: white;
+    font-family: var(--sans, 'DM Sans', sans-serif);
+    font-size: 13px;
+}
+
+#demo-banner .material-symbols-outlined {
+    font-size: 20px;
+}
+
+#demo-banner-text {
+    flex: 1;
+    min-width: 0;
+}
+
+#demo-banner-exit {
+    flex: 0 0 auto;
+    padding: 4px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    color: white;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#demo-banner-exit:hover {
+    background: white;
+    color: var(--text-orange, #C8593A);
+}
+
+/* Les commandes désactivées restent visibles : la démo doit montrer
+   l'interface complète, pas une version amputée. */
+body.is-demo .demo-bloque {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 500px) {
+    #demo-banner {
+        font-size: 12px;
+    }
+
+    #demo-banner-text b::after {
+        content: "";
+    }
+}

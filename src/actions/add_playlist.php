@@ -1,6 +1,7 @@
 <?php
-session_start();
-
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 if (
     !isset($_POST['token'], $_SESSION['token']) ||
     $_POST['token'] !== $_SESSION['token']

@@ -1,5 +1,8 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+include_once "../includes/rateLimit.php";
+
+demarrerSession();
 
 require_once '../../vendor/autoload.php';
 
@@ -7,18 +10,25 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $selectedUser = $_POST['selectedUser'] ?? null;
-    $token = $_POST['token'] ?? null;
+    // Même convention que le login : le client n'envoie qu'une clé de compte.
+    $selectedUser = usernameDepuisCle($_POST['selectedUser'] ?? null);
 
     // Vérifier le token CSRF
-    if (!isset($_SESSION['token']) || $token !== $_SESSION['token']) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'message' => 'Token invalide']);
+    verifierCsrf(true);
+
+    // Sans limite, l'endpoint sert de générateur de spam vers une vraie adresse.
+    if (($attente = rlBloque('forgot', 3, 900)) > 0) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Trop de demandes. Réessayez dans ' . ceil($attente / 60) . ' minutes.',
+        ]);
         exit;
     }
+    rlEchec('forgot');
 
     if (!$selectedUser) {
-        echo json_encode(['success' => false, 'message' => 'Aucun utilisateur sélectionné']);
+        echo json_encode(['success' => true, 'message' => 'Si un compte existe, un email a été envoyé']);
         exit;
     }
 
@@ -55,10 +65,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':id' => $user['id']
         ]);
 
-        // Construire le lien dynamiquement
-        $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $reset_link = "$scheme://$host/reset_password.php?id=" . urlencode($user['id']) . "&token=" . urlencode($reset_token);
+        /*
+         * L'URL de base vient de la configuration, jamais de l'en-tête Host :
+         * celui-ci est contrôlé par le client, et un Host falsifié enverrait
+         * dans la vraie boîte mail un lien pointant chez l'attaquant.
+         */
+        $base = getenv('APP_URL');
+        if (!$base) {
+            $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
+            $base = $scheme . '://' . ($_SERVER['SERVER_NAME'] ?? 'localhost');
+        }
+        $reset_link = rtrim($base, '/') . "/reset_password.php?id=" . urlencode($user['id']) . "&token=" . urlencode($reset_token);
 
         // Préparer l'email
         $subject = "Réinitialiser votre mot de passe";
@@ -92,17 +109,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Envoyer
             $mail->send();
 
-            echo json_encode([
-                'success' => true,
-                'message' => 'Email envoyé avec succès'
-            ]);
+            // Même message que pour un compte inconnu : la réponse ne doit
+            // pas permettre de savoir quels comptes existent.
+            echo json_encode(['success' => true, 'message' => 'Si un compte existe, un email a été envoyé']);
 
         } catch (Exception $e) {
-            $errorMsg = $mail->ErrorInfo;
-            error_log("Erreur PHPMailer: " . $errorMsg);
+            // Le détail SMTP part dans les logs, jamais vers le client :
+            // il révèle le fournisseur, les identifiants et la topologie.
+            error_log("Erreur PHPMailer: " . $mail->ErrorInfo);
             echo json_encode([
                 'success' => false,
-                'message' => $errorMsg
+                'message' => "L'envoi a échoué. Réessayez plus tard."
             ]);
         }
 

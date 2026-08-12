@@ -1,6 +1,7 @@
 <?php
-session_start();
-
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 require '../../vendor/autoload.php';
 require_once '../includes/artistImage.php';
 use Meilisearch\Client;

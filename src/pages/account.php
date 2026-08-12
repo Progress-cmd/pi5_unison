@@ -1,3 +1,7 @@
+<?php
+include_once "../includes/auth.php";
+exigerConnexion(false);
+?>
 <article class="containers" id="account-dashboard">
     <div class="head-bar">Dashboard</div>
     <div class="body-bar">
@@ -5,8 +9,6 @@
             <div class="dasboard-title"><b>Total Morceaux : </b></div>
             <div class="dashboard-value">
                 <?php
-                session_start();
-
                 include_once "../includes/config.php";
                 $pdo = Config::getConnection();
 
@@ -70,10 +72,10 @@
         foreach ($topTitres as $topTitre) {
             $nbLibelle = $topTitre['nb'] > 1 ? $topTitre['nb'].' écoutes' : $topTitre['nb'].' écoute';
             echo '<div class="content mini-song" data-track-id="'.$topTitre['id'].'" onclick="loadTrack('.$topTitre['id'].')">
-                      <img src="'.htmlspecialchars($topTitre['img']).'" class="song-img" alt=" ">
+                      <img src="'.htmlspecialchars($topTitre['img'] ?? '').'" class="song-img" alt=" ">
                       <div class="song-infos">
-                          <div class="song-title">'.htmlspecialchars($topTitre['title']).'</div>
-                          <div class="song-artist">'.htmlspecialchars($topTitre['artists_names']).' - '.$nbLibelle.'</div>
+                          <div class="song-title">'.htmlspecialchars($topTitre['title'] ?? '').'</div>
+                          <div class="song-artist">'.htmlspecialchars($topTitre['artists_names'] ?? '').' - '.$nbLibelle.'</div>
                       </div>
                       <button class="buttons material-symbols-outlined">more_vert</button>
                   </div>';
@@ -107,10 +109,10 @@
 
         foreach ($ecoutes as $ecoute) {
             echo '<div class="content mini-song" data-track-id="'.$ecoute['id'].'" onclick="loadTrack('.$ecoute['id'].')">
-                      <img src="'.htmlspecialchars($ecoute['img']).'" class="song-img" alt=" ">
+                      <img src="'.htmlspecialchars($ecoute['img'] ?? '').'" class="song-img" alt=" ">
                       <div class="song-infos">
-                          <div class="song-title">'.htmlspecialchars($ecoute['title']).'</div>
-                          <div class="song-artist">'.htmlspecialchars($ecoute['artists_names']).' - '.date('d/m/Y H:i', strtotime($ecoute['listened-at'])).'</div>
+                          <div class="song-title">'.htmlspecialchars($ecoute['title'] ?? '').'</div>
+                          <div class="song-artist">'.htmlspecialchars($ecoute['artists_names'] ?? '').' - '.date('d/m/Y H:i', strtotime($ecoute['listened-at'])).'</div>
                       </div>
                       <button class="buttons material-symbols-outlined">more_vert</button>
                   </div>';

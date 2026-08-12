@@ -1,4 +1,6 @@
 <?php
+include_once "../includes/auth.php";
+exigerConnexion(true);
 require '../../vendor/autoload.php';
 use Meilisearch\Client;
 use Meilisearch\Contracts\DocumentsQuery;
@@ -11,16 +13,18 @@ if (empty($q)) {
     exit;
 }
 
+include_once "../includes/config.php";
+
 $meiliKey = getenv('MS_PASS') ?? null;
 $client = new Client('http://ms:7700', $meiliKey);
 
-// Requête à Meilisearch sur les musiques et les artists
-$resultatsMusiques = $client->index('musiques')->search($q)->getHits();
-$resultatsArtists  = $client->index('artists')->search($q)->getHits();
+// Index dédiés en démonstration : la recherche ne doit pas non plus laisser
+// filtrer un titre ou un artiste du catalogue personnel.
+$resultatsMusiques = $client->index(Config::indexMeili('musiques'))->search($q)->getHits();
+$resultatsArtists  = $client->index(Config::indexMeili('artists'))->search($q)->getHits();
 
 // Si un playlist_id est fourni, vérifie quelles tracks sont déjà dedans
 if ($playlist_id) {
-    include_once "../includes/config.php";
     $pdo = Config::getConnection();
 
     // Récupère tous les track_id déjà dans la playlist en une seule requête

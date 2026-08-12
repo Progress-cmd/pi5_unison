@@ -71,11 +71,43 @@ docker compose -f docker-compose-prod.yml up -d
 ├── docker/                 # Création du conteneur \
 ├── meilisearch_init/       # Initialisation de l'outil de recherche avancé \
 ├── mysqlinit/              # Initialisation de la base de donnée \
+├── demo_data/              # Environnement de démonstration (base et contenu fictifs) \
 ├── src/                    # Fichiers sources \
 ├── .*ignore                # Fichier d'exclusion de partie \
 ├── composer.*              # Fichier d'initialisation des dépendances via `composeur` \
 ├── notes.md                # Avancée du projet
 └── README.md               # Ce fichier ici présent
+
+## Mode démonstration
+
+Un bouton « Découvrir la démo » sur la page de connexion ouvre une session de
+présentation, pensée pour un portfolio.
+
+```bash
+./demo_data/installer.sh          # conteneur de développement
+COMPOSE=docker/docker-compose-prod.yml ./demo_data/installer.sh
+```
+
+Le script est rejouable : le relancer remet la démonstration à son état
+d'origine, ce qui est la façon prévue de la nettoyer après une présentation.
+
+Cette session est **isolée de l'application**, à trois niveaux :
+
+| Ressource | Application | Démonstration |
+|---|---|---|
+| Base de données | `$DB_NAME` | `$DB_NAME_demo` |
+| Fichiers audio | `music_data/` | `music_data/demo/` |
+| Index de recherche | `musiques`, `artists` | `musiques_demo`, `artists_demo` |
+
+L'aiguillage se fait dans `Config` (`src/includes/config.php`) et vaut pour
+toutes les requêtes : aucune donnée personnelle n'est atteignable depuis la
+démonstration, même en cas d'oubli de filtre dans une requête.
+
+La session est en outre en **lecture seule** — `refuserSiDemo()` refuse toute
+écriture côté serveur — et le catalogue de démonstration est entièrement
+fictif, avec des fichiers audio générés à la synthèse. Rien de ce qui y est
+diffusé n'appartient à un tiers, ce qui rend la démonstration publiable sans
+question de droits d'auteur.
 
 ## Contribuer
 Pas de contribution demandée, ce n'est qu'un projet personnel

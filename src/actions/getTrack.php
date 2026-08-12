@@ -1,4 +1,6 @@
 <?php
+include_once "../includes/auth.php";
+exigerConnexion(true);
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
 

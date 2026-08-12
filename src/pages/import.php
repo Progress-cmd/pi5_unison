@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 $lien = filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL);
 
 if ($lien === null || $lien === false) {

@@ -22,10 +22,10 @@
     foreach ($listTracks as $listTrack)
     {
         echo '<button class="proposition buttons" onclick="addToQueueAndPlay('.$listTrack['id'].')">
-                  <img src="'.htmlspecialchars($listTrack['img']).'" class="proposition-img" alt="'.htmlspecialchars($listTrack['title']).' - '.htmlspecialchars($listTrack['artists_names']).'">
+                  <img src="'.htmlspecialchars($listTrack['img'] ?? '').'" class="proposition-img" alt="'.htmlspecialchars($listTrack['title'] ?? '').' - '.htmlspecialchars($listTrack['artists_names'] ?? '').'">
                   <div class="proposition-infos">
-                      <div class="title-info">'.htmlspecialchars($listTrack['title']).'</div>
-                      <div class="artist-info">'.htmlspecialchars($listTrack['artists_names']).'</div>
+                      <div class="title-info">'.htmlspecialchars($listTrack['title'] ?? '').'</div>
+                      <div class="artist-info">'.htmlspecialchars($listTrack['artists_names'] ?? '').'</div>
                   </div>
               </button>';
     }
@@ -108,10 +108,10 @@
 
             foreach ($historique as $ecoute) {
                 echo '<div class="content mini-song" data-track-id="'.$ecoute['id'].'" onclick="loadTrack('.$ecoute['id'].')">
-                          <img src="'.htmlspecialchars($ecoute['img']).'" class="song-img" alt=" ">
+                          <img src="'.htmlspecialchars($ecoute['img'] ?? '').'" class="song-img" alt=" ">
                           <div class="song-infos">
-                              <div class="song-title">'.htmlspecialchars($ecoute['title']).'</div>
-                              <div class="song-artist">'.htmlspecialchars($ecoute['artists_names']).' - '.date('d/m H:i', strtotime($ecoute['listened-at'])).'</div>
+                              <div class="song-title">'.htmlspecialchars($ecoute['title'] ?? '').'</div>
+                              <div class="song-artist">'.htmlspecialchars($ecoute['artists_names'] ?? '').' - '.date('d/m H:i', strtotime($ecoute['listened-at'])).'</div>
                           </div>
                           <button class="buttons material-symbols-outlined">more_vert</button>
                       </div>';

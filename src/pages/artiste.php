@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 include_once "../includes/config.php";
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -58,16 +59,16 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <article id="artiste-detail" class="containers">
-    <div class="head-bar"><?= htmlspecialchars($artiste['name']) ?></div>
+    <div class="head-bar"><?= htmlspecialchars($artiste['name'] ?? '') ?></div>
     <div class="body-bar">
         <div class="artiste-entete">
             <img src="<?= htmlspecialchars($artiste['img'] ?: $defaultArtistImg) ?>" class="artist-img" alt="Cover">
             <div class="artiste-infos">
-                <div class="artiste-nom"><?= htmlspecialchars($artiste['name']) ?></div>
+                <div class="artiste-nom"><?= htmlspecialchars($artiste['name'] ?? '') ?></div>
                 <?php if (!empty($genres)): ?>
                     <div class="artiste-genres">
                         <?php foreach ($genres as $genre): ?>
-                            <span class="genre-badge"><?= htmlspecialchars($genre['name']) ?></span>
+                            <span class="genre-badge"><?= htmlspecialchars($genre['name'] ?? '') ?></span>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
@@ -81,9 +82,9 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
         <h3>Titres</h3>
         <?php foreach ($titres as $titre): ?>
             <div class="content mini-song" data-track-id="<?= $titre['id'] ?>" onclick="loadTrack(<?= $titre['id'] ?>)">
-                <img src="<?= htmlspecialchars($titre['img']) ?>" class="song-img" alt="<?= htmlspecialchars($titre['title']) ?>">
+                <img src="<?= htmlspecialchars($titre['img'] ?? '') ?>" class="song-img" alt="<?= htmlspecialchars($titre['title'] ?? '') ?>">
                 <div class="song-infos">
-                    <div class="song-title"><?= htmlspecialchars($titre['title']) ?></div>
+                    <div class="song-title"><?= htmlspecialchars($titre['title'] ?? '') ?></div>
                     <div class="song-artist"><?= htmlspecialchars($titre['artists_names'] ?? 'Artiste inconnu') ?></div>
                 </div>
                 <button class="buttons material-symbols-outlined">more_vert</button>

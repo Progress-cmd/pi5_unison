@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 ?>
 
 <article id="queue-bar" class="containers">

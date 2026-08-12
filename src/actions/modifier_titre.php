@@ -1,6 +1,8 @@
 <?php
 header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 include_once "../includes/config.php";
 
 if (!isset($_SESSION['user']['id'])) {

@@ -7,7 +7,9 @@
  * Entrée POST : text (plusieurs lignes)
  * Sortie JSON : { success, tracks: [{url, title}], count }
  */
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user'])) {

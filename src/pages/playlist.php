@@ -66,9 +66,9 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 
 <article id="playlist-content" class="containers">
     <div class="head-bar">
-        <?= htmlspecialchars($playlist['name']) ?>
+        <?= htmlspecialchars($playlist['name'] ?? '') ?>
         <div style="display: flex; gap: 10px;">
-            <a href="#" class="more-bar" data-page="search" data-playlist-id="<?= $id ?>" data-playlist-name="<?= htmlspecialchars($playlist['name']) ?>">+</a>
+            <a href="#" class="more-bar" data-page="search" data-playlist-id="<?= $id ?>" data-playlist-name="<?= htmlspecialchars($playlist['name'] ?? '') ?>">+</a>
             <button class="buttons material-symbols-outlined edit-playlist-inline" data-playlist-id="<?= $id ?>" style="background: none; border: none; cursor: pointer; color: inherit; font-size: inherit;">more_vert</button>
         </div>
     </div>
@@ -78,7 +78,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
             <div style="margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 8px;">
                 <?php foreach ($tags as $tag): ?>
                     <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #666;">
-                        <?= htmlspecialchars($tag['name']) ?>
+                        <?= htmlspecialchars($tag['name'] ?? '') ?>
                     </span>
                 <?php endforeach; ?>
             </div>
@@ -92,7 +92,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
                     <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px; font-size: 12px;">
                         <strong><?= htmlspecialchars($note['username'] ?? 'Anonyme') ?></strong>
                         <span style="color: #999; font-size: 11px;"><?= date('d/m/Y', strtotime($note['created-at'])) ?></span>
-                        <p style="margin: 4px 0; color: #333;"><?= nl2br(htmlspecialchars($note['text'])) ?></p>
+                        <p style="margin: 4px 0; color: #333;"><?= nl2br(htmlspecialchars($note['text'] ?? '')) ?></p>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -101,9 +101,9 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
         <!-- Chansons -->
         <?php foreach ($tracks as $track): ?>
             <div class="content mini-song" data-track-id="<?= $track['id'] ?>" onclick="loadTrack(<?= $track['id'] ?>)">
-                <img src="<?= htmlspecialchars($track['img']) ?>" class="song-img" alt="<?= htmlspecialchars($track['title']) ?>">
+                <img src="<?= htmlspecialchars($track['img'] ?? '') ?>" class="song-img" alt="<?= htmlspecialchars($track['title'] ?? '') ?>">
                 <div class="song-infos">
-                    <div class="song-title"><?= htmlspecialchars($track['title']) ?></div>
+                    <div class="song-title"><?= htmlspecialchars($track['title'] ?? '') ?></div>
                     <div class="song-artist"><?= htmlspecialchars($track['artists_names'] ?? 'Artiste inconnu') ?></div>
                 </div>
                 <button class="buttons material-symbols-outlined">more_vert</button>
@@ -128,7 +128,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
         });
 
         // Marque la playlist si c'est Favorite Tracks pour modifier le menu contextuel
-        const playlistName = "<?= htmlspecialchars($playlist['name']) ?>";
+        const playlistName = "<?= htmlspecialchars($playlist['name'] ?? '') ?>";
         if (playlistName === "Favorite Tracks") {
             // Marque les chansons pour modifier le menu contextuel
             document.querySelectorAll("#playlist-content .mini-song").forEach(song => {

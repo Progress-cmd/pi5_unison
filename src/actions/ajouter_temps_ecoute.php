@@ -9,6 +9,14 @@ if (!isset($_SESSION['user']['id'])) {
     exit;
 }
 
+include_once "../includes/auth.php";
+
+// Même logique que compter_ecoute.php : acquitté, mais non comptabilisé.
+if (estDemo()) {
+    echo json_encode(['success' => true, 'demo' => true]);
+    exit;
+}
+
 $secondes = filter_input(INPUT_POST, 'secondes', FILTER_VALIDATE_INT);
 
 // Borne anti-abus : un envoi couvre au plus une heure d'écoute

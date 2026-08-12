@@ -9,6 +9,15 @@ if (!isset($_SESSION['user']['id'])) {
     exit;
 }
 
+include_once "../includes/auth.php";
+
+// En démonstration on acquitte sans rien écrire : les statistiques du compte
+// réel ne doivent pas bouger, et le player ne doit pas voir d'erreur.
+if (estDemo()) {
+    echo json_encode(['success' => true, 'demo' => true]);
+    exit;
+}
+
 $trackId = filter_input(INPUT_POST, 'track_id', FILTER_VALIDATE_INT);
 $playlistId = filter_input(INPUT_POST, 'playlist_id', FILTER_VALIDATE_INT);
 

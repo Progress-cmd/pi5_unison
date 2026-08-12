@@ -1,54 +1,89 @@
 <?php
+/**
+ * (Ré)indexe Meilisearch depuis la base. Lancé au démarrage du conteneur.
+ *
+ * Deux jeux d'index sont maintenus : ceux de l'application, et ceux suffixés
+ * « _demo » alimentés par la base de démonstration. Ils ne se croisent jamais.
+ */
 require __DIR__ . '/../../vendor/autoload.php';
 use Meilisearch\Client;
 
 include_once __DIR__ . "/config.php";
-$pdo = Config::getConnection();
 
 // Connexion Meilisearch
 $meiliKey = getenv('MS_PASS') ?? null;
 $client = new Client('http://ms:7700', $meiliKey);
 
-// --- Indexation musiques ---
-$sql = "SELECT id AS id_music, title AS title_music FROM tracks";
-$musiques = $pdo->query($sql)->fetchAll();
+/**
+ * Reconstruit un index à partir d'une requête SQL.
+ *
+ * @param string $nom      nom de l'index Meilisearch
+ * @param string $cle      clé primaire des documents
+ * @param string $sql      requête produisant les documents
+ * @param array  $champs   attributs rendus recherchables
+ */
+function indexer(Client $client, PDO $pdo, string $nom, string $cle, string $sql, array $champs): int
+{
+    $documents = $pdo->query($sql)->fetchAll();
 
-// Crée l’index s’il n’existe pas
-$client->createIndex('musiques', ['primaryKey' => 'id_music']);
-// Récupère l’objet index
-$indexMusiques = $client->index('musiques');
+    // Crée l'index s'il n'existe pas
+    $client->createIndex($nom, ['primaryKey' => $cle]);
+    $index = $client->index($nom);
 
-// Supprimer tous les documents
-$task = $indexMusiques->deleteAllDocuments();
-$client->waitForTask($task['taskUid']);
+    // Repart d'un index vide : l'indexation est un remplacement, pas un ajout
+    $task = $index->deleteAllDocuments();
+    $client->waitForTask($task['taskUid']);
 
-// Ajouter les documents
-$task = $indexMusiques->addDocuments($musiques);
-$client->waitForTask($task['taskUid']);
+    if ($documents) {
+        $task = $index->addDocuments($documents);
+        $client->waitForTask($task['taskUid']);
+    }
 
-// Définir les champs recherchables
-$task = $indexMusiques->updateSearchableAttributes(['title_music']);
-$client->waitForTask($task['taskUid']);
+    $task = $index->updateSearchableAttributes($champs);
+    $client->waitForTask($task['taskUid']);
 
-// --- Indexation artistes ---
-$sql = "SELECT id AS id_artist, name AS name_artist FROM artists";
-$artistes = $pdo->query($sql)->fetchAll();
+    return count($documents);
+}
 
-// Crée l’index s’il n’existe pas
-$client->createIndex('artists', ['primaryKey' => 'id_artist']);
-// Récupère l’objet index
-$indexArtists = $client->index('artists');
+/** Ouvre une connexion sur une base nommée, hors du singleton de Config. */
+function connexionVers(string $base): ?PDO
+{
+    try {
+        return new PDO(
+            'mysql:host=' . getenv('DB_HOST') . ";dbname=$base;charset=utf8mb4",
+            getenv('DB_USER'),
+            getenv('DB_PASS'),
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]
+        );
+    } catch (PDOException $e) {
+        return null;
+    }
+}
 
-// Supprimer tous les documents
-$task = $indexArtists->deleteAllDocuments();
-$client->waitForTask($task['taskUid']);
+$sqlMusiques = "SELECT id AS id_music, title AS title_music FROM tracks";
+$sqlArtistes = "SELECT id AS id_artist, name AS name_artist FROM artists";
 
-// Ajouter les documents
-$task = $indexArtists->addDocuments($artistes);
-$client->waitForTask($task['taskUid']);
+// --- Index de l'application ---
+$pdo = Config::getConnection();
+$nbMusiques = indexer($client, $pdo, 'musiques', 'id_music', $sqlMusiques, ['title_music']);
+$nbArtistes = indexer($client, $pdo, 'artists', 'id_artist', $sqlArtistes, ['name_artist']);
 
-// Définir les champs recherchables
-$task = $indexArtists->updateSearchableAttributes(['name_artist']);
-$client->waitForTask($task['taskUid']);
+echo "Indexation terminée ! $nbMusiques musiques et $nbArtistes artistes envoyés.\n";
 
-echo "Indexation terminée ! " . count($musiques) . " musiques et " . count($artistes) . " artistes envoyés.";
+// --- Index de démonstration (silencieux si la base n'a pas été installée) ---
+$baseDemo = getenv('DB_NAME_DEMO') ?: getenv('DB_NAME') . '_demo';
+$pdoDemo = connexionVers($baseDemo);
+
+if ($pdoDemo === null) {
+    echo "Base de démonstration « $baseDemo » absente : index _demo ignorés.\n";
+    return;
+}
+
+$nbMusiques = indexer($client, $pdoDemo, 'musiques_demo', 'id_music', $sqlMusiques, ['title_music']);
+$nbArtistes = indexer($client, $pdoDemo, 'artists_demo', 'id_artist', $sqlArtistes, ['name_artist']);
+
+echo "Démonstration indexée ! $nbMusiques musiques et $nbArtistes artistes envoyés.\n";
