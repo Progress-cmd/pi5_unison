@@ -3,3 +3,9 @@ musics_storage/
 vendor/
 src/prototypes/
 docker/.env
+
+# Boîte aux lettres des mises à jour : le dossier est versionné (le montage
+# Docker le créerait sinon en root, et www-data ne pourrait pas y écrire),
+# mais son contenu — fichiers de contrôle — ne l'est jamais.
+maj/*
+!maj/.gitkeep

@@ -16,26 +16,30 @@ require_once __DIR__ . '/artistImage.php';
  * échec (âge, vidéo privée, blocage géographique…). Sans elle, un import raté
  * est indiscernable d'un import vide.
  *
+ * La séparation se fait par redirection vers un fichier temporaire, et non par
+ * proc_open() : cette fonction figure dans le disable_functions de la
+ * configuration de production (docker/security.ini), où elle provoquerait une
+ * erreur fatale à chaque import. exec() y est autorisé, et /tmp fait partie de
+ * l'open_basedir.
+ *
  * @return array{0:string,1:string,2:int} [sortie, erreurs, code de retour]
  */
 function executerYtDlp(array $arguments): array
 {
     $cmd = '/usr/local/bin/yt-dlp ' . implode(' ', array_map('escapeshellarg', $arguments));
 
-    $descripteurs = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-    $processus = proc_open($cmd, $descripteurs, $tuyaux);
-
-    if (!is_resource($processus)) {
-        return ['', "Impossible de lancer yt-dlp", -1];
+    $fichierErreurs = tempnam('/tmp', 'ytdlp_');
+    if ($fichierErreurs === false) {
+        return ['', "Impossible de préparer la sortie d'erreur de yt-dlp", -1];
     }
 
-    $sortie  = stream_get_contents($tuyaux[1]);
-    $erreurs = stream_get_contents($tuyaux[2]);
-    fclose($tuyaux[1]);
-    fclose($tuyaux[2]);
-    $code = proc_close($processus);
+    $lignes = [];
+    exec($cmd . ' 2>' . escapeshellarg($fichierErreurs), $lignes, $code);
 
-    return [$sortie, $erreurs, $code];
+    $erreurs = (string) @file_get_contents($fichierErreurs);
+    @unlink($fichierErreurs);
+
+    return [implode("\n", $lignes), $erreurs, $code];
 }
 
 /**
@@ -84,6 +88,51 @@ function traduireErreurYtDlp(string $erreurs): string
     }
 
     return 'Raison inconnue (voir les logs du conteneur)';
+}
+
+/**
+ * Choisit la miniature à enregistrer parmi celles que propose yt-dlp.
+ *
+ * On prenait aveuglément la dernière (la plus grande). Deux écueils : elle
+ * n'existe pas pour toutes les vidéos, et son URL peut dépasser les 250
+ * caractères de la colonne `tracks.img`, où elle serait tronquée. Dans les
+ * deux cas le résultat est une image cassée dans l'interface.
+ *
+ * On descend donc de la meilleure à la moins bonne jusqu'à en trouver une qui
+ * tienne dans la colonne et qui réponde réellement.
+ */
+function choisirMiniature(array $data, int $maxEssais = 3): string
+{
+    $candidates = [];
+
+    if (!empty($data['thumbnails']) && is_array($data['thumbnails'])) {
+        // yt-dlp classe de la moins bonne à la meilleure : on inverse.
+        foreach (array_reverse($data['thumbnails']) as $t) {
+            if (!empty($t['url'])) {
+                $candidates[] = $t['url'];
+            }
+        }
+    }
+
+    // Repli garanti : hqdefault existe pour toute vidéo YouTube.
+    if (!empty($data['id'])) {
+        $candidates[] = 'https://i.ytimg.com/vi/' . $data['id'] . '/hqdefault.jpg';
+    }
+
+    $essais = 0;
+    foreach ($candidates as $url) {
+        if (mb_strlen($url) > 250) {
+            continue; // serait tronquée en base
+        }
+        if (++$essais > $maxEssais) {
+            break;
+        }
+        if (urlImageValide($url)) {
+            return $url;
+        }
+    }
+
+    return '';
 }
 
 /**
@@ -148,10 +197,7 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
     $genreBrut = $data['genres'] ?? $data['genre'] ?? '';
     if (is_array($genreBrut)) { $genreBrut = implode(', ', $genreBrut); }
 
-    $thumb = '';
-    if (!empty($data['thumbnails']) && is_array($data['thumbnails'])) {
-        $thumb = $data['thumbnails'][count($data['thumbnails']) - 1]['url'] ?? '';
-    }
+    $thumb = choisirMiniature($data);
 
     return [
         'title'     => mb_substr($trackTitle  ?: 'Aucun titre',   0, 50),

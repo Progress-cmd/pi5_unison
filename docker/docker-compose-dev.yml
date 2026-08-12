@@ -27,6 +27,7 @@ services:
     volumes:
       - ../src:/var/www/html/src # transfert du code source
       - ../musics_storage:/var/www/music_data # persistance des musiques
+      - ../maj:/var/www/maj # boîte aux lettres des mises à jour
     ports:
       - "${PORT_EXPOSE}:80"
     networks:

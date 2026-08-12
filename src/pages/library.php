@@ -1,7 +1,9 @@
+<?php
+include_once "../includes/auth.php";
+exigerConnexion(false);
+?>
 <article id="artist-bar" class="containers">
     <?php
-    session_start();
-
     include_once "../includes/config.php";
     $pdo = Config::getConnection();
 
@@ -198,7 +200,7 @@ $pdo = Config::getConnection();
         });
     })();
 </script>
-<script src="../scripts/dragdrop.js"></script>
+<script src="<?= assetVersionne('../scripts/dragdrop.js') ?>"></script>
 <script>
     setTimeout(() => {
         const favoriteContainer = document.querySelector('#favorite-bar .body-bar');

@@ -18,6 +18,52 @@ const routes = {
     'library/edit-playlist': 'pages/edit_playlist.php',
     'library/titre': 'pages/titre.php',
     'library/artiste': 'pages/artiste.php',
+
+    /*
+     * Section d'administration. Ce fichier est servi à tout le monde : ces
+     * routes ne sont donc pas un secret, et n'ont pas à l'être. La seule garde
+     * qui compte est exigerAdmin() en tête de chaque page — une session
+     * ordinaire qui tape ?page=admin reçoit un 404.
+     */
+    'admin':             'pages/admin.php',
+    'admin/contenu':     'pages/admin_contenu.php',
+    'admin/stockage':    'pages/admin_stockage.php',
+    'admin/comptes':     'pages/admin_comptes.php',
+    'admin/maintenance': 'pages/admin_maintenance.php',
+};
+
+/*
+ * Filet de sécurité sur les images : pochettes et photos d'artistes viennent
+ * de services externes (YouTube, Deezer) et peuvent manquer, expirer ou ne pas
+ * répondre. Sans ça le navigateur affiche une icône cassée.
+ *
+ * Un seul écouteur en phase de capture — l'événement `error` d'une image ne
+ * remonte pas — donc valable aussi pour les pages injectées par le routeur.
+ */
+window.POCHETTE_DEFAUT =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E"
+    + "%3Crect width='64' height='64' fill='%23dfcbc0'/%3E"
+    + "%3Cpath d='M40 18v18a6 6 0 1 1-4-5.7V24l-12 3v15a6 6 0 1 1-4-5.7V24z' fill='%237A736C'/%3E%3C/svg%3E";
+
+document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+
+    // `dataset.replie` empêche la boucle si le remplacement échoue lui aussi.
+    if (img.dataset.replie) return;
+    img.dataset.replie = '1';
+    img.src = window.POCHETTE_DEFAUT;
+}, true);
+
+// Une source vide ne déclenche pas d'erreur : on la traite à l'injection.
+window.corrigerImagesVides = function (racine = document) {
+    racine.querySelectorAll('img:not([data-replie])').forEach(img => {
+        const src = img.getAttribute('src');
+        if (!src || src === 'null' || src === 'undefined') {
+            img.dataset.replie = '1';
+            img.src = window.POCHETTE_DEFAUT;
+        }
+    });
 };
 
 
@@ -88,6 +134,7 @@ function bindForms(container) {
             } else {
                 // Réponse HTML → affichage dans mainContent (comme import-form)
                 mainContent.innerHTML = await res.text();
+                window.corrigerImagesVides(mainContent);
                 reinjectScripts(mainContent);
                 bindForms(mainContent);
                 bindDataPageLinks(mainContent);
@@ -108,6 +155,11 @@ function bindDataPageLinks(container) {
 
 // Charge la page sans reload
 async function navigateTo(page) {
+    // Un compte d'administration ne quitte pas sa section.
+    if (window.UNISON_ADMIN && !String(page).startsWith('admin')) {
+        page = 'admin';
+    }
+
     // Permet de garder la page search pour la recherche et l'ajout dans les playlists
     if (page !== 'search') {
         sessionStorage.removeItem('search_playlist_id');
@@ -168,6 +220,7 @@ async function navigateTo(page) {
     }
 
     mainContent.innerHTML = html;
+    window.corrigerImagesVides(mainContent);
 
     reinjectScripts(mainContent);
     bindForms(mainContent);
@@ -243,8 +296,20 @@ window.addEventListener('popstate', (e) => {
 });
 
 // Charge la bonne page au démarrage
-const startPage = new URLSearchParams(location.search).get('page') || 'home';
-navigateTo(startPage);
+/*
+ * Page de démarrage. Un compte d'administration n'a pas de pages d'écoute :
+ * il atterrit sur la gestion, et toute route hors de sa section y est
+ * ramenée. Le serveur refuse déjà ces pages (exigerConnexion), ce garde-fou
+ * évite simplement d'afficher un message d'erreur à la place du contenu.
+ */
+const demandee = new URLSearchParams(location.search).get('page');
+
+function pageAutorisee(page) {
+    if (!window.UNISON_ADMIN) return page && routes[page] ? page : 'home';
+    return page && page.startsWith('admin') && routes[page] ? page : 'admin';
+}
+
+navigateTo(pageAutorisee(demandee));
 
 // Popup de notification
 window.showToast = function(message, type = 'success', duration = 60000) {

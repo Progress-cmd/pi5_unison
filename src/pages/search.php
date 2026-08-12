@@ -21,4 +21,4 @@ exigerConnexion(false);
     </div>
 </article>
 
-<script src="../scripts/search.js"></script>
+<script src="<?= assetVersionne('../scripts/search.js') ?>"></script>

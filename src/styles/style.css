@@ -488,7 +488,11 @@ header {
 
 footer > #navbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* Colonnes déduites du nombre d'entrées : la barre comptait cinq entrées
+       en dur, et la sixième (Gestion, réservée à l'administration) passait à
+       la ligne. */
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     justify-content: space-around;
     align-items: center;
     background-color: var(--white);

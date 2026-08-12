@@ -1,9 +1,11 @@
+<?php
+include_once "../includes/auth.php";
+exigerConnexion(false);
+?>
 <article id="playlists-list" class="containers">
     <div class="head-bar">Playlists<a href="?page=library/playlists/add_playlist" class="more-bar" data-page="library/playlists/add_playlist">Créer</a></div>
     <div class="body-bar">
         <?php
-        session_start();
-
         include_once "../includes/config.php";
         include_once "../includes/viewMode.php";
         $pdo = Config::getConnection();

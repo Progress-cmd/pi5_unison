@@ -25,6 +25,7 @@ services:
     volumes:
       - ../src:/var/www/html/src # transfert du code source
       - pi5_musics-app_data:/var/www/music_data # persistance des musiques
+      - /home/Francis/apps/pi5_unison/maj:/var/www/maj # boîte aux lettres des mises à jour
     ports:
       - "${PORT_EXPOSE}:80"
     networks:

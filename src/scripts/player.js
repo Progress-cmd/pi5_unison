@@ -75,8 +75,17 @@
 
     window.loadTrack = loadTrack;
 
+    /** Le player n'a rien à lire : on le dit, au lieu de rester sur « Loading ». */
+    function afficherFileVide() {
+        document.querySelectorAll('.title-info').forEach(el => el.textContent = 'Aucun titre');
+        document.querySelectorAll('.artist-info').forEach(el => el.textContent = "File d'attente vide");
+    }
+
     function appliquerFileAttente(playlist) {
-        if (!playlist || playlist.length === 0) return;
+        if (!playlist || playlist.length === 0) {
+            if (!currentTrackId) afficherFileVide();
+            return;
+        }
 
         window.waitPlaylist = playlist;
 
@@ -109,7 +118,7 @@
 
             const data = await res.json();
             if (!window.waitPlaylist || window.waitPlaylist.length === 0) {
-                appliquerFileAttente(data.tracks);
+                appliquerFileAttente(data.tracks || []);
                 // Prévient les pages déjà affichées qui dépendent de la file
                 // (la page « Liste d'attente », ouverte directement).
                 window.dispatchEvent(new CustomEvent('queueReady'));

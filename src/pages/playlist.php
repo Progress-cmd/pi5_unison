@@ -1,5 +1,6 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+include_once "../includes/auth.php";
+exigerConnexion(false);
 include_once "../includes/config.php";
 include_once "../includes/viewMode.php";
 
@@ -112,7 +113,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </article>
 
-<script src="../scripts/dragdrop.js"></script>
+<script src="<?= assetVersionne('../scripts/dragdrop.js') ?>"></script>
 <script>
     const playlistId = <?= $id ?>;
     setTimeout(() => {

@@ -72,11 +72,64 @@ docker compose -f docker-compose-prod.yml up -d
 ├── meilisearch_init/       # Initialisation de l'outil de recherche avancé \
 ├── mysqlinit/              # Initialisation de la base de donnée \
 ├── demo_data/              # Environnement de démonstration (base et contenu fictifs) \
+├── maj/                    # Boîte aux lettres des mises à jour (contenu non versionné) \
 ├── src/                    # Fichiers sources \
 ├── .*ignore                # Fichier d'exclusion de partie \
 ├── composer.*              # Fichier d'initialisation des dépendances via `composeur` \
 ├── notes.md                # Avancée du projet
 └── README.md               # Ce fichier ici présent
+
+## Compte d'administration
+
+Un troisième compte, distinct des comptes d'écoute, donne accès à une section
+de gestion : contenu, stockage, comptes, maintenance et mise à jour des
+conteneurs.
+
+### Installation
+
+```bash
+# 1. Ajouter la colonne de rôle (base existante uniquement)
+cd docker && set -a && . ./.env && set +a && cd ..
+docker compose -f docker/docker-compose-dev.yml exec -T db \
+    mariadb -u root -p"$DB_ROOTPASS" "$DB_NAME" < mysql_init/migrations/001_role_admin.sql
+
+# 2. Créer le compte (mot de passe saisi de façon interactive, jamais versionné)
+docker compose -f docker/docker-compose-dev.yml exec app \
+    php /var/www/html/src/includes/creerAdmin.php
+```
+
+Choisir un **identifiant non devinable** : la page de connexion ne propose pas
+ce compte et exige sa saisie manuelle, son nom fait donc partie du secret.
+
+### Connexion
+
+Lien discret « Accès technique » en bas de la page de connexion. Il ouvre un
+formulaire demandant identifiant **et** mot de passe. Ce chemin est réservé aux
+comptes `admin` : un compte normal y est refusé même avec le bon mot de passe,
+sans quoi il annulerait l'anonymisation de la page publique.
+
+Limite dédiée : 3 tentatives par demi-heure, en plus du compteur général.
+
+### Mise à jour des conteneurs
+
+Unison n'a **aucun accès à Docker**. La page de maintenance dépose un fichier
+dans un dossier partagé, qu'un script de l'hôte ramasse. Le conteneur web ne
+peut rien faire d'autre que créer ce signal.
+
+```bash
+# Sur le Pi, une seule fois
+mkdir -p /home/Francis/apps/pi5_unison/maj
+sudo chown 33:33 /home/Francis/apps/pi5_unison/maj   # uid de www-data
+cp docker/update_unison.exemple.sh /home/Francis/apps/pi5_unison/update_unison.sh
+```
+
+Le cron existant (`* * * * *`) reste inchangé. Le script d'exemple conserve le
+comportement actuel — pull automatique et rechargement gracieux — et y ajoute
+le traitement des demandes.
+
+> La demande ne transporte **aucun paramètre** : seulement une action choisie
+> dans une liste blanche. Ne jamais y ajouter de champ `branche`, `tag` ou
+> `commande` : ce serait une exécution de commande à distance.
 
 ## Mode démonstration
 

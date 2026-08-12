@@ -1,9 +1,11 @@
+<?php
+include_once "../includes/auth.php";
+exigerConnexion(false);
+?>
 <article id="account-infos" class="containers">
     <div class="head-bar">Informations</div>
     <div class="body-bar">
         <?php
-        session_start();
-
         include_once "../includes/config.php";
         $pdo = Config::getConnection();
 

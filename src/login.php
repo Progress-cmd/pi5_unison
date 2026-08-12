@@ -23,7 +23,7 @@ $preselection = isset($comptes[$dernier]) ? $dernier : array_key_first($comptes)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="styles/login.css">
+    <link rel="stylesheet" href="<?= assetVersionne('styles/login.css') ?>">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <title>Unison - Login</title>
 </head>
@@ -91,6 +91,40 @@ $preselection = isset($comptes[$dernier]) ? $dernier : array_key_first($comptes)
             </span>
         </button>
     </form>
-    <script src="scripts/login.js"></script>
+
+    <?php
+    /*
+     * Accès technique. Volontairement discret : le compte n'est pas proposé
+     * comme les autres, son identifiant doit être saisi à la main et fait donc
+     * partie du secret. Commentaire PHP et non HTML — celui-ci décrivait la
+     * nature du bloc jusque dans le code source servi au navigateur.
+     */
+    ?>
+    <?php
+    /*
+     * <details> plutôt qu'une bascule en JavaScript : l'ouverture est native,
+     * elle ne dépend d'aucun script. Un login.js servi depuis le cache du
+     * navigateur ne peut donc plus rendre ce formulaire inaccessible.
+     */
+    ?>
+    <details id="acces-technique">
+        <summary>Accès technique</summary>
+
+        <form id="technique-card" method="post" action="actions/login.php">
+            <input type="hidden" name="token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+            <input type="hidden" name="mode" value="admin">
+
+            <label class="technique-label" for="identifiant">Identifiant</label>
+            <input type="text" id="identifiant" name="identifiant" class="form-input"
+                   autocomplete="off" autocapitalize="none" spellcheck="false">
+
+            <label class="technique-label" for="technique-mdp">Mot de passe</label>
+            <input type="password" id="technique-mdp" name="password" class="form-input"
+                   autocomplete="off">
+
+            <button type="submit" class="btn-technique">Continuer</button>
+        </form>
+    </details>
+    <script src="<?= assetVersionne('scripts/login.js') ?>"></script>
 </body>
 </html>

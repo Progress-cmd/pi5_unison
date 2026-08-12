@@ -1,6 +1,9 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(true);
+// Cet endpoint vide une playlist (DELETE) : il doit refuser la démonstration
+// au même titre que les autres écritures.
+refuserSiDemo(true);
 include_once "../includes/config.php";
 
 header('Content-Type: application/json');
