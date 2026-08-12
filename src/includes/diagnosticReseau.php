@@ -26,11 +26,39 @@ function chrono(callable $operation): array
     return [$resultat, microtime(true) - $debut];
 }
 
-echo "=== Résolveurs configurés ===\n";
+echo "=== Version du code réellement exécutée ===\n";
+// Sans ça, on interprète les mesures d'une version qui n'est plus celle du
+// disque : en production, opcache.validate_timestamps peut figer l'ancienne.
+$reflexion = new ReflectionFunction('recupererUrl');
+$defauts = [];
+foreach ($reflexion->getParameters() as $parametre) {
+    if ($parametre->isDefaultValueAvailable()) {
+        $defauts[] = $parametre->getName() . '=' . var_export($parametre->getDefaultValue(), true);
+    }
+}
+echo "  recupererUrl(" . implode(', ', $defauts) . ")\n";
+echo "  IPv4 forcé : " . (defined('CURL_IPRESOLVE_V4')
+        && str_contains((string) @file_get_contents($reflexion->getFileName()), 'CURL_IPRESOLVE_V4')
+        ? 'oui' : 'non') . "\n";
+echo "  opcache    : " . (ini_get('opcache.enable') ? 'actif' : 'inactif')
+   . ', validate_timestamps=' . (ini_get('opcache.validate_timestamps') ?: '0') . "\n";
+
+echo "\n=== Résolveurs configurés ===\n";
 $resolv = @file_get_contents('/etc/resolv.conf');
-foreach (preg_split('/\r?\n/', (string) $resolv) as $ligne) {
-    if (preg_match('/^(nameserver|search|options)/', $ligne)) {
-        echo "  $ligne\n";
+
+if ($resolv === false) {
+    // open_basedir de production n'autorise pas /etc : ce n'est pas une panne
+    // réseau, mais il ne faut pas afficher une section vide qui le laisserait
+    // croire.
+    echo "  Illisible depuis PHP (open_basedir n'inclut pas /etc).\n";
+    echo "  À lancer depuis l'hôte :\n";
+    echo "    docker compose -f docker/docker-compose-prod.yml --env-file docker/.env \\\n";
+    echo "        exec app cat /etc/resolv.conf\n";
+} else {
+    foreach (preg_split('/\r?\n/', $resolv) as $ligne) {
+        if (preg_match('/^(nameserver|search|options)/', $ligne)) {
+            echo "  $ligne\n";
+        }
     }
 }
 

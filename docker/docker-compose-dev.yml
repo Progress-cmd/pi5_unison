@@ -13,6 +13,13 @@ services:
         condition: service_healthy
       ml:
         condition: service_started
+    # Résolveurs explicites : sans eux, le résolveur interne de Docker
+    # renvoie vers ceux de l'hôte, et un serveur qui ne répond pas ajoute son
+    # délai d'expiration à CHAQUE requête sortante (yt-dlp compris).
+    # La découverte des services (db, ms) continue de passer par Docker.
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
     environment:
       DB_HOST: db
       APP_URL: ${APP_URL}
