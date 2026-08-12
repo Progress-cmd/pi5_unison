@@ -35,9 +35,14 @@ if (!$url) {
     exit;
 }
 
-$meta = extractYtMetadata($url);
+$raison = null;
+$meta = extractYtMetadata($url, $raison);
 if ($meta === null) {
-    echo json_encode(['success' => false, 'message' => 'Métadonnées introuvables', 'url' => $url]);
+    echo json_encode([
+        'success' => false,
+        'message' => $raison ?: 'Métadonnées introuvables',
+        'url'     => $url,
+    ]);
     exit;
 }
 
@@ -50,4 +55,5 @@ echo json_encode([
     'title'   => $res['title'],
     'artist'  => $res['artist'],
     'is_new'  => $res['is_new'],
+    'url'     => $url,
 ]);

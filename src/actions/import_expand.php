@@ -5,7 +5,12 @@
  * auquel cas elle est développée en ses titres individuels.
  *
  * Entrée POST : text (plusieurs lignes)
- * Sortie JSON : { success, tracks: [{url, title}], count }
+ * Sortie JSON : { success, tracks: [{url, title}], count, echecs: [{lien, raison}] }
+ *
+ * Une ligne qui ne peut pas être développée n'est jamais silencieusement
+ * ignorée : elle ressort dans `echecs` avec sa raison, pour que l'interface
+ * puisse la signaler. C'est ce qui manquait, et qui faisait disparaître un
+ * lien de la liste sans que rien ne l'indique.
  */
 include_once "../includes/auth.php";
 exigerConnexion(true);
@@ -23,16 +28,26 @@ session_write_close();
 
 @set_time_limit(120);
 
+require_once '../includes/ytImport.php';
+
 $text = filter_input(INPUT_POST, 'text', FILTER_DEFAULT) ?? '';
 $lines = preg_split('/\r\n|\r|\n/', trim($text));
 
 $tracks = [];
+$echecs = [];
 $seen = [];
 $MAX = 300; // garde-fou
 
 foreach ($lines as $line) {
     $line = trim($line);
-    if ($line === '' || !preg_match('#^https?://#i', $line)) {
+    if ($line === '') {
+        continue;
+    }
+
+    // Une ligne non vide qui n'est pas une URL est une erreur de saisie :
+    // on la signale plutôt que de l'ignorer.
+    if (!preg_match('#^https?://#i', $line)) {
+        $echecs[] = ['lien' => mb_substr($line, 0, 120), 'raison' => "Ce n'est pas un lien"];
         continue;
     }
 
@@ -40,11 +55,13 @@ foreach ($lines as $line) {
     // ne prend que la vidéo.
     $isPlaylist = (strpos($line, '/playlist') !== false)
         || (strpos($line, 'list=') !== false && strpos($line, 'v=') === false);
-    $scopeFlag = $isPlaylist ? '--flat-playlist' : '--no-playlist --flat-playlist';
+    $scope = $isPlaylist ? ['--flat-playlist'] : ['--no-playlist', '--flat-playlist'];
 
-    $cmd = "yt-dlp {$scopeFlag} --dump-json " . escapeshellarg($line) . " 2>/dev/null";
-    $output = shell_exec($cmd);
-    if (!$output) {
+    [$output, $erreurs, $code] = executerYtDlp(array_merge($scope, ['--dump-json', $line]));
+
+    if (trim($output) === '') {
+        $echecs[] = ['lien' => $line, 'raison' => traduireErreurYtDlp($erreurs)];
+        error_log("import_expand KO ($line) : " . trim($erreurs));
         continue;
     }
 
@@ -72,4 +89,9 @@ foreach ($lines as $line) {
     }
 }
 
-echo json_encode(['success' => true, 'tracks' => $tracks, 'count' => count($tracks)]);
+echo json_encode([
+    'success' => true,
+    'tracks'  => $tracks,
+    'count'   => count($tracks),
+    'echecs'  => $echecs,
+]);

@@ -1350,10 +1350,25 @@ footer > #navbar {
     text-align: center;
 }
 
+.bulk-item .bulk-textes {
+    min-width: 0;
+    flex: 1;
+}
+
 .bulk-item .bulk-label {
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Raison de l'échec, sous le titre concerné */
+.bulk-item .bulk-raison:not(:empty) {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--light-error);
+    opacity: 0.85;
 }
 
 /* États : icône et couleur */
@@ -1369,6 +1384,66 @@ footer > #navbar {
 
 @keyframes bulk-spin {
     to { transform: rotate(360deg); }
+}
+
+/* --- Bilan des échecs d'import --- */
+#bulk-echecs {
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid var(--light-error);
+    border-radius: 10px;
+    background-color: var(--dark-error);
+    color: var(--light-error);
+}
+
+.bulk-echecs-tete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.bulk-echecs-tete .material-symbols-outlined {
+    font-size: 20px;
+}
+
+.bulk-echecs-tete b {
+    flex: 1;
+}
+
+#copier-echecs {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border: 1px solid var(--light-error);
+    border-radius: 999px;
+    background: none;
+    color: var(--light-error);
+    font-family: var(--sans);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#copier-echecs:hover {
+    background-color: var(--light-error);
+    color: var(--white);
+}
+
+.bulk-echec-ligne {
+    padding: 6px 0;
+    border-top: 1px solid rgba(211, 47, 47, 0.25);
+    font-size: 13px;
+}
+
+.bulk-echec-titre {
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+.bulk-echec-raison {
+    margin-top: 1px;
+    font-size: 12px;
+    opacity: 0.85;
 }
 
 /* ----- INDICATEUR D'IMPORT EN ARRIÈRE-PLAN ----- */
@@ -1392,6 +1467,20 @@ footer > #navbar {
 
 #import-indicator.visible {
     display: flex;
+}
+
+/* Import terminé avec des échecs : l'indicateur le dit et ne s'efface pas. */
+#import-indicator.en-echec .imp-spinner {
+    color: var(--light-error);
+}
+
+#import-indicator.en-echec .imp-count,
+#import-indicator.en-echec .imp-title {
+    color: var(--dark-error);
+}
+
+#import-indicator.en-echec .imp-bar-fill {
+    background-color: var(--light-error);
 }
 
 #import-indicator .imp-spinner {

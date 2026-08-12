@@ -48,18 +48,58 @@ if ($lien === null || $lien === false) {
 
         function render(state) {
             progress.innerHTML = '';
+
+            const echecs = state.items.filter(i => i.status === 'error');
+
+            // Bilan des échecs en tête de liste : c'est ce qu'on doit voir en
+            // premier en revenant sur la page, pas ce qu'on doit aller chercher
+            // au milieu de cinquante lignes vertes.
+            if (echecs.length && !state.running) {
+                const bilan = document.createElement('div');
+                bilan.id = 'bulk-echecs';
+                bilan.innerHTML = `
+                    <div class="bulk-echecs-tete">
+                        <span class="material-symbols-outlined">error</span>
+                        <b>${echecs.length} import(s) en échec</b>
+                        <button type="button" id="copier-echecs" class="buttons">Copier les liens</button>
+                    </div>`;
+
+                echecs.forEach(it => {
+                    const ligne = document.createElement('div');
+                    ligne.className = 'bulk-echec-ligne';
+                    ligne.innerHTML = '<div class="bulk-echec-titre"></div><div class="bulk-echec-raison"></div>';
+                    ligne.querySelector('.bulk-echec-titre').textContent = it.title;
+                    ligne.querySelector('.bulk-echec-raison').textContent = it.raison || 'Raison inconnue';
+                    bilan.appendChild(ligne);
+                });
+
+                bilan.querySelector('#copier-echecs').addEventListener('click', () => {
+                    const liens = echecs.map(i => i.url).filter(Boolean).join('\n');
+                    navigator.clipboard.writeText(liens)
+                        .then(() => window.showToast('Liens copiés', 'success', 3000))
+                        .catch(() => window.showToast('Copie impossible', 'error'));
+                });
+
+                progress.appendChild(bilan);
+            }
+
             state.items.forEach(it => {
                 const div = document.createElement('div');
                 div.className = 'bulk-item bulk-' + it.status;
-                div.innerHTML = '<span class="bulk-status material-symbols-outlined"></span><span class="bulk-label"></span>';
+                div.innerHTML = '<span class="bulk-status material-symbols-outlined"></span>'
+                              + '<span class="bulk-textes"><span class="bulk-label"></span>'
+                              + '<span class="bulk-raison"></span></span>';
                 div.querySelector('.bulk-label').textContent = it.title;
+                if (it.status === 'error') {
+                    div.querySelector('.bulk-raison').textContent = it.raison || 'Raison inconnue';
+                }
                 progress.appendChild(div);
             });
+
+            const traites = state.items.filter(i => i.status === 'done' || i.status === 'error').length;
             btn.disabled = state.running;
             btn.textContent = state.running
-                ? (state.items.length
-                    ? `Import ${state.items.filter(i => i.status === 'done' || i.status === 'error').length}/${state.items.length}`
-                    : 'Analyse...')
+                ? (state.items.length ? `Import ${traites}/${state.items.length}` : 'Analyse...')
                 : 'Importer tout';
         }
 

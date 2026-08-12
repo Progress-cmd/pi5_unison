@@ -6,16 +6,19 @@
 (function () {
     const state = {
         running: false,
-        items: [],        // { title, status: 'pending'|'loading'|'done'|'error' }
+        // { title, url, status: 'pending'|'loading'|'done'|'error', raison }
+        items: [],
         currentIndex: -1,
         ok: 0,
         fail: 0,
+        termine: false,   // un import s'est achevé : le bilan reste affiché
     };
 
     window.BulkImport = {
         state,
         start,
         isRunning: () => state.running,
+        echecs: () => state.items.filter(i => i.status === 'error'),
     };
 
     function emit() {
@@ -38,10 +41,12 @@
         state.currentIndex = -1;
         state.ok = 0;
         state.fail = 0;
+        state.termine = false;
         emit();
 
         // 1) Développe les liens (playlists incluses) en liste de vidéos
         let tracks = [];
+        let echecsAnalyse = [];
         try {
             const res = await fetch('actions/import_expand.php', {
                 method: 'POST',
@@ -50,22 +55,47 @@
             });
             const data = await res.json();
             tracks = data.tracks || [];
-        } catch (e) { /* réseau : liste vide → message ci-dessous */ }
-
-        if (tracks.length === 0) {
+            echecsAnalyse = data.echecs || [];
+        } catch (e) {
             state.running = false;
+            state.termine = true;
             emit();
-            window.showToast && window.showToast('Aucune vidéo trouvée', 'error');
+            window.showToast && window.showToast(
+                "L'analyse des liens a échoué (réseau ou serveur)", 'error', 0);
             return;
         }
 
-        state.items = tracks.map(t => ({ title: t.title, status: 'pending' }));
+        /*
+         * Les liens que l'analyse n'a pas pu développer entrent dans la liste
+         * comme échecs. Sans ça ils disparaissaient purement et simplement, et
+         * le seul indice restant était un total plus petit que prévu.
+         */
+        state.items = echecsAnalyse.map(e => ({
+            title:  e.lien,
+            url:    e.lien,
+            status: 'error',
+            raison: e.raison,
+        }));
+        state.fail = state.items.length;
+
+        const debut = state.items.length;
+        state.items.push(...tracks.map(t => ({ title: t.title, url: t.url, status: 'pending' })));
         emit();
+
+        if (tracks.length === 0) {
+            state.running = false;
+            state.termine = true;
+            state.currentIndex = -1;
+            emit();
+            annoncerBilan();
+            return;
+        }
 
         // 2) Importe chaque vidéo séquentiellement (un seul téléchargement à la fois)
         for (let i = 0; i < tracks.length; i++) {
-            state.currentIndex = i;
-            state.items[i].status = 'loading';
+            const idx = debut + i;
+            state.currentIndex = idx;
+            state.items[idx].status = 'loading';
             emit();
             try {
                 const res = await fetch('actions/import_bulk.php', {
@@ -73,28 +103,52 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'url=' + encodeURIComponent(tracks[i].url)
                 });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
                 const data = await res.json();
                 if (data.success) {
-                    state.items[i].status = 'done';
-                    if (data.title) state.items[i].title = data.title + ' — ' + data.artist;
+                    state.items[idx].status = 'done';
+                    if (data.title) state.items[idx].title = data.title + ' — ' + data.artist;
                     state.ok++;
                 } else {
-                    state.items[i].status = 'error';
+                    state.items[idx].status = 'error';
+                    state.items[idx].raison = data.message || 'Échec sans détail';
                     state.fail++;
                 }
             } catch (e) {
-                state.items[i].status = 'error';
+                state.items[idx].status = 'error';
+                state.items[idx].raison = 'Le serveur n\'a pas répondu';
                 state.fail++;
             }
             emit();
         }
 
         state.running = false;
+        state.termine = true;
         state.currentIndex = -1;
         emit();
-        window.showToast && window.showToast(
-            `${state.ok} importé(s)` + (state.fail ? `, ${state.fail} échec(s)` : ''),
-            state.fail ? 'error' : 'success'
+        annoncerBilan();
+    }
+
+    function annoncerBilan() {
+        if (!window.showToast) return;
+
+        if (!state.fail) {
+            window.showToast(`${state.ok} titre(s) importé(s)`, 'success');
+            return;
+        }
+
+        // Un échec ne doit pas pouvoir passer inaperçu : le toast détaille la
+        // première raison, et reste affiché jusqu'à ce qu'on le ferme.
+        const echecs = window.BulkImport.echecs();
+        const detail = state.fail === 1
+            ? `« ${echecs[0].title} » : ${echecs[0].raison}`
+            : `${state.fail} échecs — voir le détail sur la page Importation`;
+
+        window.showToast(
+            `${state.ok} importé(s), ${state.fail} échec(s).<br>${detail}`,
+            'error',
+            0
         );
     }
 
@@ -111,17 +165,27 @@
         if (state.running) {
             if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
             const cur = state.items[state.currentIndex];
+            el.classList.toggle('en-echec', state.fail > 0);
             el.querySelector('.imp-count').textContent = total ? `${done}/${total}` : '…';
             el.querySelector('.imp-title').textContent = cur ? cur.title : 'Analyse des liens…';
             el.querySelector('.imp-bar-fill').style.width = total ? (done / total * 100) + '%' : '0%';
             el.classList.add('visible');
         } else if (el.classList.contains('visible')) {
-            // Fin d'import : on affiche 100 % un court instant puis on masque
-            el.querySelector('.imp-count').textContent = `${done}/${total}`;
-            el.querySelector('.imp-title').textContent = 'Terminé';
+            el.querySelector('.imp-count').textContent = `${state.ok}/${total}`;
             el.querySelector('.imp-bar-fill').style.width = '100%';
-            if (hideTimer) clearTimeout(hideTimer);
-            hideTimer = setTimeout(() => el.classList.remove('visible'), 3500);
+            el.classList.toggle('en-echec', state.fail > 0);
+
+            if (state.fail > 0) {
+                // En cas d'échec l'indicateur ne s'efface pas tout seul :
+                // il reste comme point d'entrée vers le détail.
+                el.querySelector('.imp-title').textContent =
+                    `${state.fail} échec(s) — voir le détail`;
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+            } else {
+                el.querySelector('.imp-title').textContent = 'Terminé';
+                if (hideTimer) clearTimeout(hideTimer);
+                hideTimer = setTimeout(() => el.classList.remove('visible'), 3500);
+            }
         }
     }
 
