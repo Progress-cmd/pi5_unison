@@ -865,6 +865,75 @@ footer > #navbar {
     flex: 1;
 }
 
+/* `display: flex` l'emporterait sur l'attribut hidden : on le rétablit.
+   Le sélecteur reprend celui de la règle d'affichage pour la dépasser en
+   spécificité, sinon la croix resterait visible sur un champ vide. */
+#search-form button#search-clear[hidden],
+#search-filters[hidden] {
+    display: none;
+}
+
+#search-form button#search-clear {
+    display: flex;
+    align-items: center;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--text-gray);
+    cursor: pointer;
+    font-size: 20px;
+}
+
+#playlist-context {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* --- Onglets de filtrage --- */
+#search-filters {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+#search-filters::-webkit-scrollbar { display: none; }
+
+.search-onglet {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 6px 14px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 999px;
+    background: none;
+    color: var(--text-gray);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.search-onglet:hover {
+    border-color: var(--text-orange);
+    color: var(--text-orange);
+}
+
+.search-onglet.actif {
+    background: var(--text-orange);
+    border-color: var(--text-orange);
+    color: var(--white);
+}
+
+.search-onglet-nb {
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+/* --- Sections de résultats --- */
 #search-results {
     display: flex;
     flex-direction: column;
@@ -873,12 +942,243 @@ footer > #navbar {
 .result-section {
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid var(--dark-beige);
-    margin-bottom: 10px;
+    margin-bottom: 18px;
 }
 
 .result-section h3 {
-    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--dark-beige);
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.result-section-nb {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--dark-beige);
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 11px;
+}
+
+/* --- Ligne de résultat --- */
+.search-item {
+    gap: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.search-item:hover {
+    background: var(--text-orange-light);
+}
+
+.search-item .song-title mark {
+    background: none;
+    color: var(--text-orange);
+    font-weight: 700;
+}
+
+.search-img-ronde {
+    border-radius: 50% !important;
+}
+
+.search-icone-playlist {
+    display: grid;
+    place-items: center;
+    flex: 0 0 40px;
+    height: 40px;
+    margin-right: 10px;
+    border-radius: 10px;
+    background: var(--dark-beige);
+    color: var(--text-dark);
+}
+
+/* Ligne de métadonnées : durée, écoutes, genres, étiquettes */
+.search-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 3px;
+    color: var(--text-gray);
+    font-size: 12px;
+}
+
+/* Séparateur en point entre les infos textuelles, pas avant les badges */
+.search-meta > span + span:not(.search-badge)::before {
+    content: "·";
+    margin-right: 6px;
+}
+
+.search-badge {
+    padding: 1px 8px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 999px;
+    font-size: 11px;
+}
+
+.search-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+
+.search-favori {
+    color: var(--text-orange);
+    font-size: 18px;
+}
+
+.search-play {
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.search-play:hover {
+    color: var(--text-orange);
+}
+
+.search-chevron {
+    flex: 0 0 auto;
+    color: var(--text-gray);
+    font-size: 20px;
+}
+
+/* --- État vide et recherches récentes --- */
+.search-vide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.search-vide-icone {
+    font-size: 40px;
+    color: var(--dark-beige);
+}
+
+.search-vide-titre {
+    margin: 12px 0 4px;
+    font-family: var(--serif);
+    font-size: 20px;
+}
+
+.search-vide-sous {
+    margin: 0;
+    color: var(--text-gray);
+    font-size: 13px;
+}
+
+.search-recentes {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 28px;
+    text-align: left;
+}
+
+.search-recentes-tete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: var(--text-gray);
+    font-size: 12px;
+}
+
+#vider-recentes {
+    border: none;
+    background: none;
+    color: var(--text-orange);
+    font-family: var(--sans);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.search-recentes-liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.search-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 999px;
+    background: none;
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.search-chip:hover {
+    border-color: var(--text-orange);
+    color: var(--text-orange);
+}
+
+.search-chip .material-symbols-outlined {
+    font-size: 15px;
+    color: var(--text-gray);
+}
+
+.search-erreur {
+    padding: 20px;
+    color: var(--light-error);
+    text-align: center;
+}
+
+/* --- Squelette de chargement --- */
+.search-squelette {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.squelette-ligne {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+}
+
+.squelette-texte {
+    flex: 1;
+    min-width: 0;
+}
+
+.squelette-bloc {
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--dark-beige) 25%, var(--light-beige) 50%, var(--dark-beige) 75%);
+    background-size: 200% 100%;
+    animation: squelette 1.2s ease-in-out infinite;
+    opacity: 0.6;
+}
+
+.squelette-img {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+    border-radius: 10px;
+}
+
+.squelette-l1 { height: 12px; width: 55%; margin-bottom: 7px; }
+.squelette-l2 { height: 10px; width: 35%; }
+
+@keyframes squelette {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .squelette-bloc { animation: none; }
 }
 
 /* ----- IMPORT ----- */
