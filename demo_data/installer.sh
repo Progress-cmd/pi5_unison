@@ -29,10 +29,33 @@ set +a
 
 DB_DEMO="${DB_NAME_DEMO:-${DB_NAME}_demo}"
 
+# --- Garde-fous : ce script fait un DROP DATABASE ---
+# Il ne doit jamais pouvoir viser la base de l'application, quoi qu'on ait
+# mis dans le .env. Une variable mal renseignée détruirait les vraies données.
+if [ -z "${DB_NAME:-}" ]; then
+    echo "Abandon : DB_NAME n'est pas défini dans docker/.env." >&2
+    exit 1
+fi
+
+if [ "$DB_DEMO" = "$DB_NAME" ]; then
+    echo "Abandon : la base de démonstration porte le même nom que la base de" >&2
+    echo "l'application (« $DB_NAME »). Corrigez DB_NAME_DEMO dans docker/.env." >&2
+    exit 1
+fi
+
+case "$DB_DEMO" in
+    *_demo) ;;
+    *)
+        echo "Abandon : par sécurité, la base de démonstration doit se terminer" >&2
+        echo "par « _demo » (reçu : « $DB_DEMO »)." >&2
+        exit 1
+        ;;
+esac
+
 dc() { docker compose -f "$COMPOSE" "$@"; }
 sql_root() { dc exec -T db mariadb -u root -p"$DB_ROOTPASS" "$@"; }
 
-echo "→ Base de démonstration « $DB_DEMO »"
+echo "→ Base de démonstration « $DB_DEMO » (l'application utilise « $DB_NAME »)"
 
 # La base est recréée de zéro : c'est ce qui rend le script rejouable.
 sql_root -e "DROP DATABASE IF EXISTS \`$DB_DEMO\`;
