@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
 include_once "../includes/config.php";
 
 header('Content-Type: application/json');

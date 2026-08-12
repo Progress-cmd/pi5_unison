@@ -57,7 +57,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <article id="edit-playlist" class="containers">
-    <div class="head-bar">Éditer: <?= htmlspecialchars($playlist['name']) ?></div>
+    <div class="head-bar">Éditer: <?= htmlspecialchars($playlist['name'] ?? '') ?></div>
 
     <div class="body-bar">
         <!-- Formulaire de modification -->
@@ -66,7 +66,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 
             <div class="form-group">
                 <label>Nom de la playlist</label>
-                <input type="text" name="name" value="<?= htmlspecialchars($playlist['name']) ?>" required>
+                <input type="text" name="name" value="<?= htmlspecialchars($playlist['name'] ?? '') ?>" required>
             </div>
 
             <div class="form-group">
@@ -76,7 +76,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
                         <label class="tag-checkbox">
                             <input type="checkbox" name="tags[]" value="<?= $tag['id'] ?>"
                                 <?= in_array($tag['id'], $currentTagIds) ? 'checked' : '' ?>>
-                            <?= htmlspecialchars($tag['name']) ?>
+                            <?= htmlspecialchars($tag['name'] ?? '') ?>
                         </label>
                     <?php endforeach; ?>
                 </div>
@@ -162,12 +162,12 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
                 <div class="note-item">
                     <div class="note-header">
                         <div>
-                            <strong><?= htmlspecialchars($note['username']) ?></strong>
+                            <strong><?= htmlspecialchars($note['username'] ?? '') ?></strong>
                             <span class="note-date"><?= date('d/m/Y H:i', strtotime($note['created-at'])) ?></span>
                         </div>
                         <button type="button" class="delete-note" data-note-id="<?= $note['id'] ?>" style="background: none; border: none; color: #c9534f; cursor: pointer; font-size: 16px;">✕</button>
                     </div>
-                    <div class="note-text"><?= nl2br(htmlspecialchars($note['text'])) ?></div>
+                    <div class="note-text"><?= nl2br(htmlspecialchars($note['text'] ?? '')) ?></div>
                 </div>
             <?php endforeach; ?>
         </div>

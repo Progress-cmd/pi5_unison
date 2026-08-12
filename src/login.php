@@ -1,10 +1,21 @@
 <?php
-session_start();
+include_once "includes/auth.php";
+demarrerSession();
 
-if (empty($_SESSION['token'])) {
-    $_SESSION['token'] = bin2hex(random_bytes(32));
-}
+$csrf = jetonCsrf();
+$attente = filter_input(INPUT_GET, 'trop_de_tentatives', FILTER_VALIDATE_INT);
 
+// Seuls la clé et le libellé sont rendus : aucun nom d'utilisateur réel
+// n'apparaît dans le HTML servi.
+$comptes = comptesConnexion();
+
+/*
+ * Dernier compte utilisé, mémorisé par le cookie déposé à la connexion.
+ * On le valide contre la liste ci-dessus : un cookie est modifiable par le
+ * client, il ne doit jamais arriver tel quel dans la page.
+ */
+$dernier = $_COOKIE['unison_dernier_compte'] ?? '';
+$preselection = isset($comptes[$dernier]) ? $dernier : array_key_first($comptes);
 ?>
 
 <!doctype html>
@@ -25,28 +36,28 @@ if (empty($_SESSION['token'])) {
 
         <div id="login-headline">Bienvenue,<br><em>choisissez votre compte</em></div>
         <p id="login-sub">La musique, à deux — chacun son univers.</p>
+        <?php // Les libellés sont volontairement des surnoms : la page est publique. ?>
 
         <div id="login-users">
-            <button type="button" class="login-user-btn selected" onclick="selectUser(this, 'Francis')">
-                <div class="login-user-avatar" style="background: #C8593A;">F</div>
+            <?php foreach ($comptes as $cle => $infos): ?>
+            <button type="button" class="login-user-btn<?= $cle === $preselection ? ' selected' : '' ?>"
+                    onclick="selectUser(this, '<?= htmlspecialchars($cle, ENT_QUOTES) ?>')">
+                <div class="login-user-avatar" style="background: <?= $infos['couleur'] ?>;"><?= mb_substr($infos['libelle'], 0, 1) ?></div>
                 <div class="login-user-info">
-                    <div class="name">Francis</div>
-                    <div class="role">Tortue</div>
+                    <div class="name"><?= htmlspecialchars($infos['libelle'], ENT_QUOTES) ?></div>
                 </div>
             </button>
-            <button type="button" class="login-user-btn" onclick="selectUser(this, 'Cassandre')">
-                <div class="login-user-avatar" style="background: #4A7C99;">C</div>
-                <div class="login-user-info">
-                    <div class="name">Cassandre</div>
-                    <div class="role">Papillon</div>
-                </div>
-            </button>
+            <?php endforeach; ?>
         </div>
 
         <div id="form-group">
             <label id="form-label">Mot de passe</label>
             <input type="password" class="form-input" name="password">
-            <?php if (filter_input(INPUT_GET, 'reset_password', FILTER_VALIDATE_BOOL)): ?>
+            <?php if ($attente): ?>
+                <div id="password-error" style="display: flex">
+                    ⏳ Trop de tentatives. Réessayez dans <?= (int) $attente ?> minute(s).
+                </div>
+            <?php elseif (filter_input(INPUT_GET, 'reset_password', FILTER_VALIDATE_BOOL)): ?>
                 <div id="password-reset">
                     ✅ Mot de passe réinitialisé avec succès
                 </div>
@@ -57,14 +68,28 @@ if (empty($_SESSION['token'])) {
             <?php endif; ?>
         </div>
 
-        <input type="hidden" id="selectedUser" name="selectedUser" value="Francis">
-        <input type="hidden" name="token" value="<?= $_SESSION['token']; ?>">
+        <input type="hidden" id="selectedUser" name="selectedUser" value="<?= htmlspecialchars($preselection, ENT_QUOTES) ?>">
+        <input type="hidden" name="token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
 
         <button id="btn-login" type="submit">Se connecter</button>
 
         <div id="login-switch">
             Mot de passe oublié ? <a href="javascript:void(0);" onclick="forgotPassword()">Envoyer un mail</a>
         </div>
+    </form>
+
+    <!-- Accès démonstration : session en lecture seule, pour présenter le projet -->
+    <form id="demo-card" method="post" action="actions/login.php">
+        <input type="hidden" name="token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+        <input type="hidden" name="demo" value="1">
+        <div id="demo-separator"><span>ou</span></div>
+        <button id="btn-demo" type="submit">
+            <span id="demo-icon">◐</span>
+            <span>
+                <span class="demo-title">Découvrir la démo</span>
+                <span class="demo-sub">Visite de l'interface, sans modification</span>
+            </span>
+        </button>
     </form>
     <script src="scripts/login.js"></script>
 </body>

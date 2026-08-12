@@ -1,12 +1,9 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+include_once "../includes/config.php";
 
 // 1. VERIFICATION DE SECURITE
-if (!isset($_SESSION['user'])) {
-    header("HTTP/1.1 403 Forbidden");
-    exit("Accès refusé. Veuillez vous connecter.");
-}
-session_write_close();
+exigerConnexion(false);
 
 // 2. RECUPERATION ET NETTOYAGE DU NOM DE FICHIER
 $file = $_GET['file'] ?? '';
@@ -14,7 +11,17 @@ $file = $_GET['file'] ?? '';
 // SECURITE CRITIQUE : Empêcher l'attaquant de sortir du dossier avec des ../../
 $file = basename($file);
 
-$base_path = '/var/www/music_data/';
+/*
+ * Le dossier dépend de la session : en démonstration c'est music_data/demo/,
+ * qui ne contient que des morceaux libres de droits. Un nom de fichier
+ * personnel n'y existe pas, donc la diffusion publique du catalogue privé est
+ * impossible et pas seulement interdite.
+ */
+$base_path = Config::cheminMusiques();
+
+// La session n'est plus nécessaire : on la libère avant le streaming, qui est long.
+session_write_close();
+
 $full_path = $base_path . $file;
 
 // 3. VERIFICATION DE L'EXISTENCE

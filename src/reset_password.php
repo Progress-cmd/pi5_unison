@@ -1,7 +1,8 @@
 <?php
-session_start();
+include_once "includes/auth.php";
+demarrerSession();
 
-$_SESSION['token'] = bin2hex(random_bytes(32));
+$csrf = jetonCsrf();
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?? null;
 $token = filter_input(INPUT_GET, 'token', FILTER_DEFAULT) ?? null;
@@ -48,31 +49,28 @@ if (!$user) {
         <p id="login-sub">Choisissez un nouveau mot de passe</p>
 
         <div id="login-users">
-            <?php if ($user === "Francis"): ?>
+            <?php
+            // On n'affiche que le surnom du compte concerné : cette page est
+            // atteignable par lien, elle ne doit pas révéler d'identifiant.
+            foreach (comptesConnexion() as $infos):
+                if ($infos['username'] !== $user) continue; ?>
             <button type="button" class="login-user-btn" style="cursor: default">
-                <div class="login-user-avatar" style="background: #C8593A;">F</div>
+                <div class="login-user-avatar" style="background: <?= $infos['couleur'] ?>;"><?= mb_substr($infos['libelle'], 0, 1) ?></div>
                 <div class="login-user-info">
-                    <div class="name">Francis</div>
-                    <div class="role">Tortue</div>
+                    <div class="name"><?= htmlspecialchars($infos['libelle'], ENT_QUOTES) ?></div>
                 </div>
             </button>
-            <?php elseif ($user === "Cassandre"): ?>
-            <button type="button" class="login-user-btn" style="cursor: default">
-                <div class="login-user-avatar" style="background: #4A7C99;">C</div>
-                <div class="login-user-info">
-                    <div class="name">Cassandre</div>
-                    <div class="role">Papillon</div>
-                </div>
-            </button>
-            <?php endif; ?>
+            <?php endforeach; ?>
         </div>
 
         <div id="form-group">
             <label id="form-label">Nouveau mot de passe</label>
-            <input type="password" id="password" class="form-input" name="password" required>
+            <input type="password" id="password" class="form-input" name="password"
+                   minlength="10" required>
 
             <label id="form-label">Réécrivez-le</label>
-            <input type="password" id="password-confirm" class="form-input" name="password_confirm" required>
+            <input type="password" id="password-confirm" class="form-input" name="password_confirm"
+                   minlength="10" required>
 
             <!-- Message d'erreur -->
             <div id="password-error">
@@ -80,8 +78,11 @@ if (!$user) {
             </div>
         </div>
 
-        <input type="hidden" name="token" value="<?= $_SESSION['token']; ?>">
-        <input type="hidden" name="user" value="<?= $user; ?>">
+        <input type="hidden" name="token" value="<?= htmlspecialchars($csrf, ENT_QUOTES) ?>">
+        <!-- C'est ce couple id + jeton du mail qui autorise le changement,
+             pas le nom d'utilisateur : il est revérifié côté serveur. -->
+        <input type="hidden" name="id" value="<?= (int) $id ?>">
+        <input type="hidden" name="reset_token" value="<?= htmlspecialchars($token, ENT_QUOTES) ?>">
         <button id="btn-login" type="submit">Réinitialiser</button>
 
         <div id="login-switch">

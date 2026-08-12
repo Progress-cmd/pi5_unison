@@ -271,12 +271,14 @@ window.showToast = function(message, type = 'success', duration = 60000) {
         toast.addEventListener('transitionend', () => toast.remove(), { once: true });
     }
 
-    // Fermeture auto après `duration` ms
-    const timer = setTimeout(dismiss, duration);
+    // Fermeture auto après `duration` ms.
+    // duration = 0 : le message reste jusqu'à ce qu'on le ferme. Réservé à ce
+    // qu'il ne faut pas manquer, typiquement un échec d'import.
+    const timer = duration > 0 ? setTimeout(dismiss, duration) : null;
 
     // Fermeture manuelle via la croix
     toast.querySelector('.toast-close').addEventListener('click', () => {
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         dismiss();
     });
 }

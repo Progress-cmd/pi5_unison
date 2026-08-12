@@ -104,15 +104,15 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <article id="titre-detail" class="containers">
-    <div class="head-bar"><?= htmlspecialchars($titre['title']) ?></div>
+    <div class="head-bar"><?= htmlspecialchars($titre['title'] ?? '') ?></div>
     <div class="body-bar">
         <div class="titre-entete">
-            <img src="<?= htmlspecialchars($titre['img']) ?>" class="titre-img" alt="<?= htmlspecialchars($titre['title']) ?>">
+            <img src="<?= htmlspecialchars($titre['img'] ?? '') ?>" class="titre-img" alt="<?= htmlspecialchars($titre['title'] ?? '') ?>">
             <div class="titre-infos">
-                <div class="titre-nom"><?= htmlspecialchars($titre['title']) ?></div>
+                <div class="titre-nom"><?= htmlspecialchars($titre['title'] ?? '') ?></div>
                 <div class="titre-artistes">
                     <?php foreach ($artistes as $artiste): ?>
-                        <span class="artiste-lien" data-artiste-id="<?= $artiste['id'] ?>"><?= htmlspecialchars($artiste['name']) ?></span>
+                        <span class="artiste-lien" data-artiste-id="<?= $artiste['id'] ?>"><?= htmlspecialchars($artiste['name'] ?? '') ?></span>
                     <?php endforeach; ?>
                 </div>
                 <div class="titre-duree"><?= intdiv($titre['duration'], 60).':'.str_pad($titre['duration'] % 60, 2, '0', STR_PAD_LEFT) ?></div>
@@ -144,7 +144,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
             <h3>Dans les playlists</h3>
             <div class="titre-playlists">
                 <?php foreach ($playlists as $playlist): ?>
-                    <span class="playlist-lien tag-checkbox" data-playlist-id="<?= $playlist['id'] ?>"><?= htmlspecialchars($playlist['name']) ?></span>
+                    <span class="playlist-lien tag-checkbox" data-playlist-id="<?= $playlist['id'] ?>"><?= htmlspecialchars($playlist['name'] ?? '') ?></span>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -162,7 +162,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         <label class="tag-checkbox">
                             <input type="checkbox" name="genres[]" value="<?= $genre['id'] ?>"
                                 <?= in_array($genre['id'], $currentGenreIds) ? 'checked' : '' ?>>
-                            <?= htmlspecialchars($genre['name']) ?>
+                            <?= htmlspecialchars($genre['name'] ?? '') ?>
                         </label>
                     <?php endforeach; ?>
                 </div>
@@ -177,7 +177,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         <label class="tag-checkbox">
                             <input type="checkbox" name="tags[]" value="<?= $tag['id'] ?>"
                                 <?= in_array($tag['id'], $currentTagIds) ? 'checked' : '' ?>>
-                            <?= htmlspecialchars($tag['name']) ?>
+                            <?= htmlspecialchars($tag['name'] ?? '') ?>
                         </label>
                     <?php endforeach; ?>
                 </div>
@@ -291,7 +291,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <button type="button" class="delete-note" data-note-id="<?= $note['id'] ?>" style="background: none; border: none; color: #c9534f; cursor: pointer; font-size: 16px;">✕</button>
                     </div>
-                    <div class="note-text"><?= nl2br(htmlspecialchars($note['text'])) ?></div>
+                    <div class="note-text"><?= nl2br(htmlspecialchars($note['text'] ?? '')) ?></div>
                 </div>
             <?php endforeach; ?>
         </div>

@@ -10,20 +10,102 @@
 require_once __DIR__ . '/artistImage.php';
 
 /**
+ * Lance yt-dlp en séparant la sortie standard de la sortie d'erreur.
+ *
+ * shell_exec() jette la sortie d'erreur : c'est elle qui porte la raison d'un
+ * échec (âge, vidéo privée, blocage géographique…). Sans elle, un import raté
+ * est indiscernable d'un import vide.
+ *
+ * @return array{0:string,1:string,2:int} [sortie, erreurs, code de retour]
+ */
+function executerYtDlp(array $arguments): array
+{
+    $cmd = '/usr/local/bin/yt-dlp ' . implode(' ', array_map('escapeshellarg', $arguments));
+
+    $descripteurs = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $processus = proc_open($cmd, $descripteurs, $tuyaux);
+
+    if (!is_resource($processus)) {
+        return ['', "Impossible de lancer yt-dlp", -1];
+    }
+
+    $sortie  = stream_get_contents($tuyaux[1]);
+    $erreurs = stream_get_contents($tuyaux[2]);
+    fclose($tuyaux[1]);
+    fclose($tuyaux[2]);
+    $code = proc_close($processus);
+
+    return [$sortie, $erreurs, $code];
+}
+
+/**
+ * Traduit la sortie d'erreur de yt-dlp en une raison lisible.
+ *
+ * Le but est qu'un échec dise *pourquoi* : « vérification d'âge » est
+ * actionnable, « erreur lors du téléchargement » ne l'est pas.
+ */
+function traduireErreurYtDlp(string $erreurs): string
+{
+    $motifs = [
+        '/sign in to confirm your age|age.?restricted|inappropriate for some users/i'
+            => "YouTube exige une vérification d'âge pour cette vidéo",
+        '/private video/i'
+            => 'Vidéo privée',
+        '/members[- ]only|join this channel/i'
+            => 'Réservée aux membres de la chaîne',
+        '/removed by the uploader|account associated .* has been terminated/i'
+            => 'Vidéo supprimée par son auteur',
+        '/video unavailable|is not available/i'
+            => 'Vidéo indisponible',
+        '/not available in your country|geo.?restricted|blocked it in your country/i'
+            => 'Vidéo bloquée dans ce pays',
+        '/copyright/i'
+            => "Retirée pour motif de droits d'auteur",
+        '/this live event will begin|premieres in/i'
+            => "La diffusion n'a pas encore commencé",
+        '/sign in to confirm.*not a bot|confirm you.?re not a bot/i'
+            => 'YouTube demande une confirmation anti-robot',
+        '/unable to download|failed to resolve|connection|timed out|temporary failure/i'
+            => 'Échec réseau pendant la récupération',
+        '/unsupported url|is not a valid url/i'
+            => 'Lien non reconnu par yt-dlp',
+    ];
+
+    foreach ($motifs as $motif => $raison) {
+        if (preg_match($motif, $erreurs)) {
+            return $raison;
+        }
+    }
+
+    // Aucun motif connu : on remonte la première ligne ERROR telle quelle,
+    // tronquée, plutôt qu'un message générique qui n'apprend rien.
+    if (preg_match('/^ERROR:\s*(.+)$/mi', $erreurs, $m)) {
+        return mb_substr(trim(preg_replace('/\s+/', ' ', $m[1])), 0, 160);
+    }
+
+    return 'Raison inconnue (voir les logs du conteneur)';
+}
+
+/**
  * Récupère les métadonnées d'une vidéo YouTube via yt-dlp.
  * Renvoie null si l'extraction échoue, sinon un tableau associatif :
  * [title, artist, album, genre, duration, miniature].
+ *
+ * @param string|null $raison Reçoit la raison de l'échec le cas échéant.
  */
-function extractYtMetadata(string $url): ?array
+function extractYtMetadata(string $url, ?string &$raison = null): ?array
 {
-    $cmd = "yt-dlp --skip-download --no-playlist --dump-json " . escapeshellarg($url);
-    $json = shell_exec($cmd);
-    if ($json === null || trim($json) === '') {
+    [$json, $erreurs, $code] = executerYtDlp(['--skip-download', '--no-playlist', '--dump-json', $url]);
+
+    if (trim($json) === '') {
+        $raison = traduireErreurYtDlp($erreurs);
+        error_log("yt-dlp metadata KO ($url) : " . trim($erreurs));
         return null;
     }
 
     $data = json_decode($json, true);
     if (!is_array($data)) {
+        $raison = 'Réponse illisible de yt-dlp';
         return null;
     }
 
@@ -120,13 +202,15 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
 
     // Téléchargement + conversion WAV si le fichier n'existe pas déjà
     if (!file_exists($wav_path)) {
-        $cmd = "/usr/local/bin/yt-dlp -x --audio-format wav --audio-quality 0 --add-metadata --no-overwrites -o "
-             . escapeshellarg($output_path) . " " . escapeshellarg($url) . " 2>&1";
-        exec($cmd, $output, $code);
+        [, $erreurs, $code] = executerYtDlp([
+            '-x', '--audio-format', 'wav', '--audio-quality', '0',
+            '--add-metadata', '--no-overwrites', '-o', $output_path, $url,
+        ]);
 
         if ($code !== 0 || !file_exists($wav_path)) {
-            error_log('ytImport download failed: ' . implode(' | ', array_slice($output, -3)));
-            $result['message'] = "Erreur lors du téléchargement";
+            error_log("yt-dlp download KO ($url) : " . trim($erreurs));
+            // La raison exacte remonte jusqu'à l'interface, pas seulement aux logs.
+            $result['message'] = traduireErreurYtDlp($erreurs);
             return $result;
         }
     }

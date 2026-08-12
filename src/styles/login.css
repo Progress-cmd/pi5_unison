@@ -9,7 +9,10 @@ body {
     background: white;
     color: #1C1916;
     display: flex;
+    /* Colonne : la carte de connexion, puis l'accès démonstration en dessous */
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
 }
 
 @media (min-width: 415px) {
@@ -121,9 +124,14 @@ body {
     margin-right: 10px;
 }
 
-.login-user-info > .role {
+.login-user-info {
+    display: flex;
+    align-items: center;
+}
+
+.login-user-info > .name {
     font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
+    font-size: 14px;
     color: #7A736C;
 }
 
@@ -203,4 +211,91 @@ body {
     padding: 10px;
     background-color: #e8f5e9;
     border-radius: 4px
+}
+/* --- Accès démonstration --- */
+#demo-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 325px;
+    padding: 0 50px 40px;
+    box-sizing: content-box;
+}
+
+@media (min-width: 415px) {
+    #demo-card {
+        padding: 0 0 40px;
+        animation: fadeUp 0.6s 0.15s ease both;
+    }
+}
+
+/* Séparateur « ou » : un trait interrompu par le mot */
+#demo-separator {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 24px 0 18px;
+    color: #9A9188;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 15px;
+}
+
+#demo-separator::before,
+#demo-separator::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #E2DDD7;
+}
+
+#btn-demo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 18px;
+    border: 1.5px solid #E2DDD7;
+    border-radius: 14px;
+    background: transparent;
+    color: #1C1916;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+}
+
+#btn-demo:hover {
+    border-color: #C8593A;
+    background: white;
+    transform: translateY(-2px);
+}
+
+#demo-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #F7F4EF;
+    color: #C8593A;
+    font-size: 18px;
+}
+
+#btn-demo:hover #demo-icon {
+    background: #C8593A;
+    color: white;
+}
+
+.demo-title {
+    display: block;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+}
+
+.demo-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #9A9188;
 }

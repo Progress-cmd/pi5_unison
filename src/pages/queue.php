@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 ?>
 
 <article id="queue-bar" class="containers">
@@ -12,6 +13,8 @@ session_start();
 <script>
     (function() {
         const queueFull = document.getElementById('queue-full');
+
+        function rendre() {
 
         if (!window.waitPlaylist || window.waitPlaylist.length === 0) {
             queueFull.innerHTML = '<div class="content"><em>Queue vide</em></div>';
@@ -53,6 +56,17 @@ session_start();
         if (selected) {
             selected.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+
+        }
+
+        rendre();
+
+        /*
+         * Si l'application a été ouverte directement sur cette page, le player
+         * récupère la file d'attente en arrière-plan : on se réaffiche quand
+         * elle arrive, au lieu de rester sur « Queue vide ».
+         */
+        window.addEventListener('queueReady', rendre, { once: true });
     })();
 </script>
 

@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 $_SESSION['token'] = bin2hex(random_bytes(32));
 $token = $_SESSION['token'];
 ?>

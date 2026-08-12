@@ -1,6 +1,8 @@
 <?php
 header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 include_once "../includes/config.php";
 
 $noteId = filter_input(INPUT_POST, 'note_id', FILTER_VALIDATE_INT);

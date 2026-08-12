@@ -7,7 +7,9 @@
  * Entrée POST : url
  * Sortie JSON : { success, message, title, artist, is_new }
  */
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+refuserSiDemo(true);
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user'])) {
@@ -33,9 +35,14 @@ if (!$url) {
     exit;
 }
 
-$meta = extractYtMetadata($url);
+$raison = null;
+$meta = extractYtMetadata($url, $raison);
 if ($meta === null) {
-    echo json_encode(['success' => false, 'message' => 'Métadonnées introuvables', 'url' => $url]);
+    echo json_encode([
+        'success' => false,
+        'message' => $raison ?: 'Métadonnées introuvables',
+        'url'     => $url,
+    ]);
     exit;
 }
 
@@ -48,4 +55,5 @@ echo json_encode([
     'title'   => $res['title'],
     'artist'  => $res['artist'],
     'is_new'  => $res['is_new'],
+    'url'     => $url,
 ]);
