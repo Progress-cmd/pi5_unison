@@ -64,26 +64,52 @@ function connexionVers(string $base): ?PDO
     }
 }
 
-$sqlMusiques = "SELECT id AS id_music, title AS title_music FROM tracks";
-$sqlArtistes = "SELECT id AS id_artist, name AS name_artist FROM artists";
+/**
+ * Reconstruit tous les index, application et démonstration.
+ *
+ * Extraite du corps du script pour être appelable depuis la section
+ * d'administration (actions/admin/reindexer.php) : les deux voies passent par
+ * exactement le même code, il n'y a pas deux façons d'indexer.
+ *
+ * @return array{rapport:string, musiques:int, artistes:int}
+ */
+function reindexerTout(Client $client): array
+{
+    $sqlMusiques = "SELECT id AS id_music, title AS title_music FROM tracks";
+    $sqlArtistes = "SELECT id AS id_artist, name AS name_artist FROM artists";
 
-// --- Index de l'application ---
-$pdo = Config::getConnection();
-$nbMusiques = indexer($client, $pdo, 'musiques', 'id_music', $sqlMusiques, ['title_music']);
-$nbArtistes = indexer($client, $pdo, 'artists', 'id_artist', $sqlArtistes, ['name_artist']);
+    $lignes = [];
 
-echo "Indexation terminée ! $nbMusiques musiques et $nbArtistes artistes envoyés.\n";
+    // --- Index de l'application ---
+    $pdo = Config::getConnection();
+    $nbMusiques = indexer($client, $pdo, 'musiques', 'id_music', $sqlMusiques, ['title_music']);
+    $nbArtistes = indexer($client, $pdo, 'artists', 'id_artist', $sqlArtistes, ['name_artist']);
 
-// --- Index de démonstration (silencieux si la base n'a pas été installée) ---
-$baseDemo = getenv('DB_NAME_DEMO') ?: getenv('DB_NAME') . '_demo';
-$pdoDemo = connexionVers($baseDemo);
+    $lignes[] = "Indexation terminée ! $nbMusiques musiques et $nbArtistes artistes envoyés.";
 
-if ($pdoDemo === null) {
-    echo "Base de démonstration « $baseDemo » absente : index _demo ignorés.\n";
-    return;
+    // --- Index de démonstration (silencieux si la base n'a pas été installée) ---
+    $baseDemo = getenv('DB_NAME_DEMO') ?: getenv('DB_NAME') . '_demo';
+    $pdoDemo = connexionVers($baseDemo);
+
+    if ($pdoDemo === null) {
+        $lignes[] = "Base de démonstration « $baseDemo » absente : index _demo ignorés.";
+    } else {
+        $nbDemoMusiques = indexer($client, $pdoDemo, 'musiques_demo', 'id_music', $sqlMusiques, ['title_music']);
+        $nbDemoArtistes = indexer($client, $pdoDemo, 'artists_demo', 'id_artist', $sqlArtistes, ['name_artist']);
+        $lignes[] = "Démonstration indexée ! $nbDemoMusiques musiques et $nbDemoArtistes artistes envoyés.";
+    }
+
+    return [
+        'rapport'  => implode("\n", $lignes),
+        'musiques' => $nbMusiques,
+        'artistes' => $nbArtistes,
+    ];
 }
 
-$nbMusiques = indexer($client, $pdoDemo, 'musiques_demo', 'id_music', $sqlMusiques, ['title_music']);
-$nbArtistes = indexer($client, $pdoDemo, 'artists_demo', 'id_artist', $sqlArtistes, ['name_artist']);
+// --------------------------------------------------------- POINT D'ENTRÉE CLI
+// Lancé par /init.sh au démarrage du conteneur. Un include depuis une action
+// web ne déclenche rien : c'est l'appel à reindexerTout() qui indexe.
 
-echo "Démonstration indexée ! $nbMusiques musiques et $nbArtistes artistes envoyés.\n";
+if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__)) {
+    echo reindexerTout($client)['rapport'] . "\n";
+}

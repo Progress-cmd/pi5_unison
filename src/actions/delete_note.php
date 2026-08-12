@@ -27,19 +27,24 @@ try {
         exit;
     }
 
-    // Supprime la note
+    // Le contrôle annoncé par le commentaire ci-dessus n'était pas fait :
+    // l'auteur était lu puis ignoré, si bien que n'importe quel compte pouvait
+    // supprimer la note d'un autre.
+    if ((int) $note['created-by_id'] !== (int) $_SESSION['user']['id'] && !estAdmin()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => "Cette note n'est pas la vôtre"]);
+        exit;
+    }
+
+    // Les liaisons note__playlist et note__track sont en ON DELETE CASCADE :
+    // supprimer la note suffit.
     $req = $pdo->prepare("DELETE FROM notes WHERE id = :id");
-    $req->execute([':id' => $noteId]);
-
-    // Supprime les associations
-    $req = $pdo->prepare("DELETE FROM note__playlist WHERE note_id = :id");
-    $req->execute([':id' => $noteId]);
-
-    $req = $pdo->prepare("DELETE FROM note__track WHERE note_id = :id");
     $req->execute([':id' => $noteId]);
 
     echo json_encode(['success' => true, 'message' => 'Note supprimée']);
 } catch (Exception $e) {
+    // Le détail va aux logs, pas au client : il expose la structure de la base.
+    error_log('delete_note: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erreur serveur']);
 }

@@ -9,13 +9,26 @@ if (!isset($_SESSION['user'])) {
 }
 
 $demo = estDemo();
+
+/*
+ * Le compte d'administration a sa propre interface : ni player, ni file
+ * d'attente, ni pages d'écoute. index.php reste le squelette commun, mais
+ * n'en rend que la partie utile — le reste n'est pas masqué en CSS, il n'est
+ * tout simplement pas envoyé.
+ */
+$admin = estAdmin();
 ?>
 <!doctype html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="styles/style.css"> <!-- Feuille de style principale -->
+    <link rel="stylesheet" href="<?= assetVersionne('styles/style.css') ?>"> <!-- Feuille de style principale -->
+    <?php if ($admin): ?>
+    <!-- Chargée dès l'ossature : l'en-tête d'administration en dépend, sans
+         attendre que le routeur injecte une page de gestion. -->
+    <link rel="stylesheet" href="<?= assetVersionne('styles/admin.css') ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"> <!-- Intégration des différents icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"> <!-- Ajout de deux polices d'écritures -->
     <title>Unison</title>
@@ -55,21 +68,49 @@ $demo = estDemo();
         ?>
         <div id="headline"><?= $salutation ?>,<br>
             <em><?= htmlspecialchars($_SESSION['user']['username'], ENT_QUOTES) ?></em>
-            <p id="headline-sub">Que voulez-vous écouter <?= $moment ?> ?</p>
+            <p id="headline-sub">
+                <?= $admin ? 'Console d\'administration' : 'Que voulez-vous écouter ' . $moment . ' ?' ?>
+            </p>
         </div>
-        <?php $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal'); ?>
-        <!-- Les deux cercles servent aussi de bascule d'affichage :
-             les deux allumés = contenu commun, seul le mien = contenu perso -->
+        <?php
+        $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal');
+        $partenaire = idPartenaire();
+        ?>
+        <?php
+        /*
+         * Les deux cercles servent aussi de bascule d'affichage : les deux
+         * allumés = contenu commun, seul le mien = contenu perso. Le bloc n'est
+         * rendu que pour les membres du foyer ; hors foyer la bascule n'a pas
+         * de sens. Commentaire PHP et non HTML : il ne doit pas être servi.
+         */
+        ?>
+        <?php if ($admin): ?>
+        <?php
+        /*
+         * La déconnexion vit normalement dans la page Compte, à laquelle un
+         * compte d'administration n'a plus accès : sans ce lien, il serait
+         * impossible d'en sortir autrement qu'en supprimant le cookie.
+         */
+        ?>
+        <a href="actions/logout.php" id="admin-quitter" title="Se déconnecter">
+            <span class="material-symbols-outlined">logout</span>
+            Quitter
+        </a>
+        <?php endif; ?>
+
+        <?php if ($partenaire !== null): ?>
         <section id="persons" class="<?= $isPersonal ? 'is-personal' : 'is-mixed' ?>"
                  role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
                  title="Afficher le contenu commun ou seulement le mien">
-            <div class="first-person user-<?= $_SESSION['user']['id'] ?>">OO</div>
-            <div class="second-person user-<?= 3-$_SESSION['user']['id'] ?>">OO</div>
+            <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">OO</div>
+            <div class="second-person user-<?= $partenaire ?>">OO</div>
         </section>
+        <?php endif; ?>
     </header>
 
     <div id="toast-container"></div>
 
+    <?php if (!$admin): ?>
     <!-- Indicateur d'import en arrière-plan (persiste entre les pages) -->
     <div id="import-indicator" title="Voir l'import en cours">
         <span class="imp-spinner material-symbols-outlined">progress_activity</span>
@@ -79,16 +120,20 @@ $demo = estDemo();
             <div class="imp-bar"><div class="imp-bar-fill"></div></div>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- Le contenu non statique de la page -->
     <div id="content-row">
         <main id="main-content"></main>
+        <?php if (!$admin): ?>
         <!-- Colonne du player sur bureau (remplie par router.js, sauf sur l'accueil) -->
         <aside id="player-aside"></aside>
+        <?php endif; ?>
     </div>
 
-    <!-- Le lecteur audio -->
     <footer>
+        <?php if (!$admin): ?>
+        <!-- Le lecteur audio -->
         <section id="player">
             <!-- PLAYER RETRACTED -->
             <div id="retract">
@@ -186,15 +231,39 @@ $demo = estDemo();
             </div>
         </section>
 
-        <script src="scripts/player.js"></script>
-        <script src="scripts/track-context-menu.js"></script>
-        <script src="scripts/playlist-editor.js"></script>
+        <script src="<?= assetVersionne('scripts/player.js') ?>"></script>
+        <script src="<?= assetVersionne('scripts/track-context-menu.js') ?>"></script>
+        <script src="<?= assetVersionne('scripts/playlist-editor.js') ?>"></script>
+        <?php endif; ?>
 
         <!-- Le menu de navigation -->
         <nav id="navbar">
             <!-- Logo affiché uniquement sur la version bureau (voir style.css) -->
             <div id="nav-brand">Unison</div>
 
+            <?php if ($admin): ?>
+            <a href="?page=admin" data-page="admin">
+                <div class="icons material-symbols-outlined">monitoring</div>
+                Tableau
+            </a>
+            <a href="?page=admin/contenu" data-page="admin/contenu">
+                <div class="icons material-symbols-outlined">library_music</div>
+                Contenu
+            </a>
+            <a href="?page=admin/stockage" data-page="admin/stockage">
+                <div class="icons material-symbols-outlined">hard_drive</div>
+                Stockage
+            </a>
+            <a href="?page=admin/comptes" data-page="admin/comptes">
+                <div class="icons material-symbols-outlined">group</div>
+                Comptes
+            </a>
+            <a href="?page=admin/maintenance" data-page="admin/maintenance">
+                <div class="icons material-symbols-outlined">build</div>
+                Maintenance
+            </a>
+
+            <?php else: ?>
             <a href="?page=home" data-page="home">
                 <div class="icons material-symbols-outlined">home</div>
                 Accueil
@@ -219,14 +288,20 @@ $demo = estDemo();
                 <div class="icons material-symbols-outlined">person</div>
                 Compte
             </a>
+            <?php endif; ?>
         </nav>
     </footer>
 
     <!-- Le front adapte l'affichage ; le blocage réel reste côté serveur -->
-    <script>window.UNISON_DEMO = <?= $demo ? 'true' : 'false' ?>;</script>
-    <script src="scripts/router.js"></script>
-    <script src="scripts/bulk-import.js"></script>
-    <?php if ($demo): ?><script src="scripts/demo.js"></script><?php endif; ?>
+    <script>
+        window.UNISON_DEMO  = <?= $demo ? 'true' : 'false' ?>;
+        window.UNISON_ADMIN = <?= $admin ? 'true' : 'false' ?>;
+    </script>
+    <script src="<?= assetVersionne('scripts/router.js') ?>"></script>
+    <?php if (!$admin): ?>
+    <script src="<?= assetVersionne('scripts/bulk-import.js') ?>"></script>
+    <?php endif; ?>
+    <?php if ($demo): ?><script src="<?= assetVersionne('scripts/demo.js') ?>"></script><?php endif; ?>
 
 </body>
 </html>

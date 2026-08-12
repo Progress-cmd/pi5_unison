@@ -17,14 +17,22 @@ if (!$playlistId || !$name) {
 
 $pdo = Config::getConnection();
 
-// Vérifie que la playlist existe et n'est pas système
-$req = $pdo->prepare("SELECT name FROM playlists WHERE id = :id");
+// Vérifie que la playlist existe, appartient à l'utilisateur et n'est pas système
+$req = $pdo->prepare("SELECT name, `created-by_id` FROM playlists WHERE id = :id");
 $req->execute([':id' => $playlistId]);
 $playlist = $req->fetch();
 
 if (!$playlist) {
     http_response_code(404);
     echo json_encode(['success' => false, 'message' => 'Playlist introuvable']);
+    exit;
+}
+
+// Aucun contrôle d'appartenance n'existait : n'importe quel compte pouvait
+// renommer et réétiqueter la playlist d'un autre.
+if ((int) $playlist['created-by_id'] !== (int) $_SESSION['user']['id'] && !estAdmin()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => "Cette playlist n'est pas la vôtre"]);
     exit;
 }
 
@@ -57,6 +65,7 @@ try {
         'redirect' => 'library/playlists'
     ]);
 } catch (Exception $e) {
+    error_log('edit_playlist: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erreur serveur']);
 }

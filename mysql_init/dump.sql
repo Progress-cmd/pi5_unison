@@ -237,7 +237,8 @@ CREATE TABLE `users` (
   `time-listened` int(11) NOT NULL DEFAULT 0,
   `view_mode` varchar(10) NOT NULL DEFAULT 'mixed',
   `reset_token` varchar(250) DEFAULT NULL,
-  `reset_token_expires` datetime DEFAULT NULL
+  `reset_token_expires` datetime DEFAULT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --

@@ -1,7 +1,9 @@
+<?php
+include_once "../includes/auth.php";
+exigerConnexion(false);
+?>
 <article id="propositions-bar">
     <?php
-    session_start();
-
     include_once "../includes/config.php";
     include_once "../includes/viewMode.php";
     $pdo = Config::getConnection();
@@ -232,7 +234,7 @@
     </script>
 </section>
 
-<script src="../scripts/dragdrop.js"></script>
+<script src="<?= assetVersionne('../scripts/dragdrop.js') ?>"></script>
 <script>
     function initDragDrop() {
         const queueContainer = document.querySelector('#queue-bar .body-bar');

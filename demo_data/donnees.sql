@@ -35,9 +35,11 @@ TRUNCATE TABLE `users`;
 -- mot de passe, seul le bouton « Découvrir la démo » y donne accès, et
 -- actions/login.php refuse un hash vide.
 --
-INSERT INTO `users` (`id`, `username`, `email`, `password-hash`, `time-listened`, `view_mode`) VALUES
-(1, 'Alex',  NULL, '', 48120, 'mixed'),
-(2, 'Robin', NULL, '', 31540, 'mixed');
+-- Le rôle est explicite : aucun compte d'administration n'existe dans la base
+-- de démonstration, même si un jour le défaut de la colonne changeait.
+INSERT INTO `users` (`id`, `username`, `email`, `password-hash`, `time-listened`, `view_mode`, `role`) VALUES
+(1, 'Alex',  NULL, '', 48120, 'mixed', 'user'),
+(2, 'Robin', NULL, '', 31540, 'mixed', 'user');
 
 --
 -- Artistes fictifs.

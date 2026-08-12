@@ -1,5 +1,6 @@
 <?php
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(false);
 include_once "../includes/config.php";
 
 $playlistId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);

@@ -18,6 +18,18 @@ const routes = {
     'library/edit-playlist': 'pages/edit_playlist.php',
     'library/titre': 'pages/titre.php',
     'library/artiste': 'pages/artiste.php',
+
+    /*
+     * Section d'administration. Ce fichier est servi à tout le monde : ces
+     * routes ne sont donc pas un secret, et n'ont pas à l'être. La seule garde
+     * qui compte est exigerAdmin() en tête de chaque page — une session
+     * ordinaire qui tape ?page=admin reçoit un 404.
+     */
+    'admin':             'pages/admin.php',
+    'admin/contenu':     'pages/admin_contenu.php',
+    'admin/stockage':    'pages/admin_stockage.php',
+    'admin/comptes':     'pages/admin_comptes.php',
+    'admin/maintenance': 'pages/admin_maintenance.php',
 };
 
 /*
@@ -143,6 +155,11 @@ function bindDataPageLinks(container) {
 
 // Charge la page sans reload
 async function navigateTo(page) {
+    // Un compte d'administration ne quitte pas sa section.
+    if (window.UNISON_ADMIN && !String(page).startsWith('admin')) {
+        page = 'admin';
+    }
+
     // Permet de garder la page search pour la recherche et l'ajout dans les playlists
     if (page !== 'search') {
         sessionStorage.removeItem('search_playlist_id');
@@ -279,8 +296,20 @@ window.addEventListener('popstate', (e) => {
 });
 
 // Charge la bonne page au démarrage
-const startPage = new URLSearchParams(location.search).get('page') || 'home';
-navigateTo(startPage);
+/*
+ * Page de démarrage. Un compte d'administration n'a pas de pages d'écoute :
+ * il atterrit sur la gestion, et toute route hors de sa section y est
+ * ramenée. Le serveur refuse déjà ces pages (exigerConnexion), ce garde-fou
+ * évite simplement d'afficher un message d'erreur à la place du contenu.
+ */
+const demandee = new URLSearchParams(location.search).get('page');
+
+function pageAutorisee(page) {
+    if (!window.UNISON_ADMIN) return page && routes[page] ? page : 'home';
+    return page && page.startsWith('admin') && routes[page] ? page : 'admin';
+}
+
+navigateTo(pageAutorisee(demandee));
 
 // Popup de notification
 window.showToast = function(message, type = 'success', duration = 60000) {

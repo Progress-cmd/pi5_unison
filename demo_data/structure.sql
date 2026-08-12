@@ -162,6 +162,7 @@ CREATE TABLE `users` (
   `view_mode` varchar(10) NOT NULL DEFAULT 'mixed',
   `reset_token` varchar(250) DEFAULT NULL,
   `reset_token_expires` datetime DEFAULT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'user',
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_pk` (`username`),
   UNIQUE KEY `users_pk_2` (`email`)
