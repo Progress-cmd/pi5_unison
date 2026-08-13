@@ -38,6 +38,7 @@ $noms = array_keys(consoleCommandes());
             second aller-retour au serveur.
         -->
         <div class="console" id="console"
+             data-endpoint="actions/admin/console.php"
              data-commandes="<?= $e(implode(',', $noms)) ?>">
 
             <div class="console-sortie" id="console-sortie" tabindex="0" role="log" aria-live="polite">
@@ -46,10 +47,10 @@ $noms = array_keys(consoleCommandes());
             </div>
 
             <div class="console-saisie">
-                <label for="console-commande" class="console-invite" id="console-invite">unison:principale&nbsp;$</label>
-                <input type="text" id="console-commande" class="console-champ"
-                       autocomplete="off" autocapitalize="off" autocorrect="off"
-                       spellcheck="false" placeholder="aide">
+                <label for="console-commande" class="console-invite" id="console-invite">unison:<?= $e(consoleBaseCourante()) ?> $</label>
+                <textarea id="console-commande" class="console-champ" rows="1"
+                          autocomplete="off" autocapitalize="off" autocorrect="off"
+                          spellcheck="false" placeholder="aide"></textarea>
             </div>
         </div>
 

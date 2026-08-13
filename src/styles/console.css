@@ -92,6 +92,42 @@
     color: var(--console-attenue);
 }
 
+/* Avertissement : plus fort qu'un texte, moins qu'une erreur. Sert au terminal
+   SQL pour l'entrée en mode écriture et les modifications de structure. */
+.console-alerte {
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--console-accent);
+    background-color: rgba(224, 128, 95, 0.12);
+    color: var(--console-accent);
+    font-weight: 600;
+}
+
+/* NULL, distingué d'une chaîne vide — les confondre mène à des diagnostics
+   faux, et c'est la convention de tous les clients SQL. */
+.console-nul {
+    color: var(--console-attenue);
+    font-style: italic;
+}
+
+/* --- Mode écriture du terminal SQL --- */
+/* Le terminal change d'aspect dès que les modifications sont possibles : la
+   bordure et l'invite rappellent en permanence qu'on n'est plus protégé. Sans
+   ce signal, l'état se devine seulement en relisant l'invite. */
+.console-mode-ecriture {
+    border-color: var(--console-erreur);
+    box-shadow: 0 0 0 1px var(--console-erreur);
+}
+
+.console-mode-ecriture .console-invite,
+.console-mode-ecriture .console-echo-invite {
+    color: var(--console-erreur);
+}
+
+.console-mode-ecriture .console-saisie {
+    background-color: rgba(240, 139, 139, 0.08);
+}
+
 /* Point d'attente pendant l'aller-retour serveur. */
 .console-attente {
     color: var(--console-attenue);
@@ -193,15 +229,24 @@
     user-select: none;
 }
 
+/* Zone de saisie : un textarea et non un input, pour que Maj+Entrée passe à
+   la ligne. Sa hauteur suit le contenu (console.js), d'où le redimensionnement
+   manuel désactivé et le défilement interne au-delà de la limite. */
 .console-champ {
     flex: 1;
     min-width: 0;
+    padding: 0;
     border: none;
     background: transparent;
     color: var(--console-texte);
     font-family: inherit;
     font-size: inherit;
+    line-height: inherit;
     caret-color: var(--console-accent);
+    resize: none;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .console-champ:focus {

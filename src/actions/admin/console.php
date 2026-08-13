@@ -37,11 +37,17 @@ verifierCsrf(true);
 
 $commande = trim((string) ($_POST['commande'] ?? ''));
 
+/** Invite du terminal : elle rappelle en permanence la base interrogée. */
+function consoleInvite(): string
+{
+    return 'unison:' . consoleBaseCourante() . ' $';
+}
+
 if ($commande === '') {
     echo json_encode([
         'success' => true,
         'blocs'   => [],
-        'base'    => consoleBaseCourante(),
+        'invite'  => consoleInvite(),
     ]);
     exit;
 }
@@ -53,7 +59,7 @@ if (mb_strlen($commande) > 2000) {
     echo json_encode([
         'success' => false,
         'blocs'   => [blocErreur('Commande trop longue (2000 caractères maximum).')],
-        'base'    => consoleBaseCourante(),
+        'invite'  => consoleInvite(),
     ]);
     exit;
 }
@@ -75,6 +81,6 @@ journalInfo('console', 'commande',
 echo json_encode([
     'success'  => true,
     'blocs'    => $resultat['blocs'],
-    'base'     => $resultat['base'],
+    'invite'   => consoleInvite(),
     'duree_ms' => $duree,
 ]);

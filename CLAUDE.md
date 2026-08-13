@@ -127,6 +127,33 @@ docker compose down
 - `base principale|demo` switches which database is queried; the journal is always
   read from the main one.
 
+### SQL terminal (`admin/sql`)
+Separate from the console: a real SQL client. Everything typed goes to MariaDB
+except meta-commands prefixed with a backslash (`\aide`, `\d`, `\tables`,
+`\base`, `\ecriture`), psql-style. Engine in `src/includes/sqlTerminal.php`.
+
+Three guards, in order of importance:
+1. **Read-only by default.** Reads run inside `START TRANSACTION READ ONLY`.
+   `\ecriture on` lifts this for 15 minutes, then it expires by itself.
+2. **Safe updates.** `UPDATE`/`DELETE` without `WHERE` (and without `LIMIT`) are
+   refused, like the mysql client's `--safe-updates`.
+3. **Permanent bans** (`SQL_INTERDITS`): anything touching server accounts,
+   privileges, whole databases, or files. Matched on a comment-stripped,
+   whitespace-normalised copy — `/*x*/ DROP  DATABASE` does not slip through.
+
+Every statement is journaled: reads at `info`, writes at `attention`, DDL at
+`critique`, with the statement text.
+
+**Watch out**: the journal writes on the *same* PDO connection. Anything relying
+on connection state after a query (`lastInsertId()` is the one that bit us) must
+be captured *before* the next `journaliser()` call.
+
+### Terminal component
+`src/scripts/console.js` drives both terminal pages. What differs is declared in
+data attributes on `#console` (`data-endpoint`, `data-commandes`); the server
+returns the prompt string (`invite`) and the write-mode flag. Adding a terminal
+page requires no change to the script.
+
 ### Frontend
 - Vanilla JavaScript (no frameworks)
 - CSS with Material Icons from Google Fonts
@@ -186,9 +213,25 @@ From `notes.md`:
 ### Database migrations
 `mysql_init/` is only replayed by Docker on a **blank** database. Schema changes
 therefore go in two places:
-1. `mysql_init/migrations/NNN_name.sql` — run by hand on a live install, with the
-   command documented in the file header;
+1. `mysql_init/migrations/NNN_name.sql` — applied to live installs by
+   `docker/appliquer_migrations.sh`;
 2. `mysql_init/dump.sql` — so fresh installs get it too.
+
+Naming is enforced: `NNN_nom.sql` (three digits). Anything else is skipped with a
+warning. Applied migrations are recorded in `schema_migrations`, so each runs
+once — but keep them **idempotent** (`IF NOT EXISTS`) anyway, since a base whose
+tracking table was lost must survive a replay.
+
+`docker/appliquer_migrations.sh` is called automatically after every pull by
+`update_unison.sh`; `--liste` shows what is pending without applying anything.
+
+### Deployment (host side)
+`src/` is bind-mounted, so PHP changes need only `apache2ctl graceful`. Everything
+else is **baked into the image** and needs `up -d --build`: `vendor/` (so
+`composer.json`/`composer.lock`), `docker/*.ini` (security.ini, php-prod.ini),
+`docker/000-default.conf`, the `Dockerfile`, and `meilisearch_init/`.
+`update_unison.sh` diffs the pull and picks the right one — `necessite_reconstruction()`
+holds that list, and it must be updated if the Dockerfile starts copying something new.
 
 ### Styling Changes
 - Main stylesheet: `src/styles/style.css`

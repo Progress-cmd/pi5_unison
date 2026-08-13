@@ -219,6 +219,10 @@ if ($incidents):
                 <span class="material-symbols-outlined">terminal</span>
                 <span><b>Console</b><em>Interroger la base, diagnostiquer</em></span>
             </a>
+            <a href="?page=admin/sql" data-page="admin/sql" class="admin-section">
+                <span class="material-symbols-outlined">database</span>
+                <span><b>Terminal SQL</b><em>Client SQL complet, lecture seule par défaut</em></span>
+            </a>
         </div>
     </div>
 </article>

@@ -159,6 +159,48 @@ transaction `READ ONLY`, où MariaDB refuse elle-même toute écriture quel que
 soit ce qui aurait passé le filtre ; et un temps d'exécution maximal. Le
 filtrage syntaxique est le plus fragile des trois — il n'est pas le seul.
 
+### Terminal SQL
+
+Page distincte de la console : un **vrai client SQL**. Tout ce qui n'est pas
+préfixé d'une contre-oblique part directement à MariaDB. Les méta-commandes
+suivent la convention de `psql` :
+
+| Méta-commande | Effet |
+|---|---|
+| `\aide` | Liste des méta-commandes et mode courant |
+| `\tables` (`\dt`) | Tables de la base courante, volume et poids |
+| `\d <table>` | Colonnes, clés étrangères et index |
+| `\base [principale\|demo]` | Change la base interrogée |
+| `\ecriture [on\|off]` | Autorise les modifications pour 15 minutes |
+| `\effacer` | Vide l'écran |
+
+Entrée exécute, **Maj+Entrée passe à la ligne** — une requête un peu longue se
+lit mieux sur plusieurs lignes. ↑ ↓ rappellent l'historique, Tab complète les
+méta-commandes et les noms de tables.
+
+Trois garde-fous, par ordre d'importance :
+
+1. **Lecture seule par défaut.** À l'ouverture, les requêtes s'exécutent dans
+   une transaction `READ ONLY` : MariaDB refuse elle-même toute écriture. Il
+   faut taper `\ecriture on`, et cette autorisation **expire d'elle-même au bout
+   d'un quart d'heure**. Le terminal change de couleur tant qu'elle est active :
+   on ne modifie jamais la base sans le savoir.
+2. **Safe updates.** Un `UPDATE` ou un `DELETE` sans `WHERE` est refusé, comme
+   avec l'option `--safe-updates` du client `mysql`. Ajouter `WHERE 1=1` lève le
+   refus, si c'est bien l'intention.
+3. **Interdits définitifs.** Comptes, privilèges, bases entières et accès aux
+   fichiers (`GRANT`, `DROP DATABASE`, `INTO OUTFILE`, `LOAD DATA`…) ne sont
+   jamais acceptés, quel que soit le mode. La détection se fait sur une version
+   normalisée : ni un commentaire ni des espaces multiples ne la contournent.
+
+Chaque instruction est journalisée avec son texte exact — lecture en `info`,
+écriture en `attention`, modification de structure en `critique`.
+
+> Ce terminal ne connaît rien au projet : il ne réindexe pas MeiliSearch et ne
+> supprime pas les fichiers audio d'un titre effacé. Pour tout ce que les pages
+> Contenu et Stockage savent faire, elles restent le bon outil.
+> Avant d'écrire : `backup_unison`.
+
 ### Mise à jour des conteneurs
 
 Unison n'a **aucun accès à Docker**. La page de maintenance dépose un fichier
@@ -170,7 +212,61 @@ peut rien faire d'autre que créer ce signal.
 mkdir -p /home/Francis/apps/pi5_unison/maj
 sudo chown 33:33 /home/Francis/apps/pi5_unison/maj   # uid de www-data
 cp docker/update_unison.exemple.sh /home/Francis/apps/pi5_unison/update_unison.sh
+chmod +x /home/Francis/apps/pi5_unison/update_unison.sh
+chmod +x /home/Francis/apps/pi5_unison/docker/appliquer_migrations.sh
+cp docker/bash_aliases.exemple.sh ~/.bash_aliases && . ~/.bash_aliases
 ```
+
+#### Les deux pièges d'un déploiement
+
+Un `git pull` suivi d'un `apache2ctl graceful` ne suffit pas toujours, et les
+deux cas où il ne suffit pas sont **silencieux** : le déploiement paraît réussi,
+la fonctionnalité manque.
+
+**1. Ce qui est cuit dans l'image n'est pas rechargé.** `src/` est monté en
+volume, donc le code PHP s'applique tout de suite. Mais `vendor/` (donc
+`composer.json` et `composer.lock`), `docker/*.ini` — dont `security.ini`, qui
+porte `open_basedir` et `disable_functions` —, `000-default.conf`, le
+`Dockerfile` et `meilisearch_init/` sont **copiés à la construction**. Les
+mettre à jour exige `up -d --build` : un `up -d` seul réutilise l'image
+existante.
+
+**2. Le schéma de la base ne bouge pas.** `mysql_init/` n'est rejoué par Docker
+que sur une base **vierge**. Sur une installation en service, la table qu'attend
+une nouvelle fonctionnalité n'est jamais créée sans passer par les migrations.
+
+`update_unison.sh` traite les deux : il compare les commits avant/après le pull,
+reconstruit **seulement** si un fichier embarqué dans l'image a changé, et
+applique systématiquement les migrations en attente. Passer
+`RECONSTRUCTION_AUTO=0` en tête du script si vous préférez être prévenu plutôt
+qu'interrompu — il signalera alors qu'une reconstruction est nécessaire.
+
+#### Alias disponibles
+
+| Alias | Ce qu'il fait | Coupure |
+|---|---|---|
+| `reload_unison` | pull + rechargement Apache | aucune |
+| `update_unison` | pull + **migrations** + rechargement | aucune |
+| `upgrade_unison` | pull + **`--build`** + migrations + redémarrage | quelques minutes |
+| `migrations_unison` | migrations en attente, sans rien appliquer | — |
+| `status_unison` | commit déployé, version, conteneurs, schéma | — |
+| `backup_unison` | sauvegarde datée et compressée de la base | — |
+| `logs_unison`, `shell_unison`, `sql_unison` | diagnostic | — |
+
+En cas de doute : `upgrade_unison`. Il est plus lent, jamais faux.
+
+#### Migrations
+
+```bash
+./docker/appliquer_migrations.sh --liste   # ce qui est en attente
+./docker/appliquer_migrations.sh           # application (production)
+./docker/appliquer_migrations.sh --dev     # sur l'environnement de dev
+```
+
+Les migrations appliquées sont enregistrées dans `schema_migrations` : chacune
+n'est jouée qu'une fois, et le script s'arrête à la première en échec plutôt que
+de continuer sur un schéma à moitié migré. Elles restent malgré tout écrites de
+façon idempotente, pour qu'une réexécution soit sans conséquence.
 
 Le cron existant (`* * * * *`) reste inchangé. Le script d'exemple conserve le
 comportement actuel — pull automatique et rechargement gracieux — et y ajoute

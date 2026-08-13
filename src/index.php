@@ -270,6 +270,10 @@ $admin = estAdmin();
                 <div class="icons material-symbols-outlined">terminal</div>
                 Console
             </a>
+            <a href="?page=admin/sql" data-page="admin/sql">
+                <div class="icons material-symbols-outlined">database</div>
+                SQL
+            </a>
 
             <?php else: ?>
             <a href="?page=home" data-page="home">

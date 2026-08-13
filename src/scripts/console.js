@@ -1,11 +1,19 @@
 /**
- * Terminal de la console d'administration.
+ * Composant terminal de la section d'administration.
  *
- * Reçoit de actions/admin/console.php une liste de blocs typés (texte, titre,
- * tableau, paires, erreur, succès) et les dessine. Le serveur décide de la
- * structure, ce fichier ne décide que de l'apparence.
+ * Sert deux pages qui ne diffèrent que par leur point d'entrée :
+ *   · Console  — commandes nommées   (actions/admin/console.php)
+ *   · SQL      — requêtes libres      (actions/admin/sql.php)
  *
- * IMPORTANT — tout ce qui est affiché ici sort de la base : titres importés,
+ * Tout ce qui change entre les deux est déclaré en attributs de données sur
+ * l'élément racine (« data-endpoint », « data-commandes ») ; le serveur renvoie
+ * l'invite à afficher. Ce fichier ne connaît donc aucune commande, et ajouter
+ * une page de terminal ne demande pas d'y toucher.
+ *
+ * Le serveur répond par une liste de blocs typés (texte, titre, tableau,
+ * paires, erreur, succès) que ce script dessine.
+ *
+ * IMPORTANT — tout ce qui s'affiche ici sort de la base : titres importés,
  * noms de fichiers, messages d'erreur de MariaDB. Rien n'est jamais posé en
  * innerHTML : chaque valeur passe par textContent. Un titre de morceau
  * contenant du HTML doit s'afficher, pas s'exécuter.
@@ -25,8 +33,11 @@
         const champ  = document.getElementById('console-commande');
         const invite = document.getElementById('console-invite');
 
-        /** Commandes connues, pour la complétion par Tab. */
-        const commandes = (racine.dataset.commandes || '').split(',').filter(Boolean);
+        /** Point d'entrée serveur, propre à la page. */
+        const endpoint = racine.dataset.endpoint || 'actions/admin/console.php';
+
+        /** Mots connus, pour la complétion par Tab (facultatif). */
+        const motsConnus = (racine.dataset.commandes || '').split(',').filter(Boolean);
 
         /*
          * Historique de session, comme dans un shell. Conservé en mémoire
@@ -41,13 +52,11 @@
          * Dessin des blocs
          * --------------------------------------------------------------- */
 
-        /** Ajoute un élément à la sortie et fait défiler jusqu'en bas. */
         function ajouter(element) {
             sortie.appendChild(element);
             sortie.scrollTop = sortie.scrollHeight;
         }
 
-        /** Bloc de texte d'une classe donnée. */
         function bloc(classe, texte) {
             const div = document.createElement('div');
             div.className = 'console-bloc ' + classe;
@@ -72,7 +81,6 @@
             return div;
         }
 
-        /** Liste « clé : valeur ». */
         function blocPaires(paires) {
             const dl = document.createElement('dl');
             dl.className = 'console-bloc console-paires';
@@ -119,6 +127,8 @@
                 for (const cellule of ligne) {
                     const td = document.createElement('td');
                     td.textContent = cellule;
+                    // NULL se distingue d'une chaîne vide, comme dans un client SQL.
+                    if (cellule === '∅') td.className = 'console-nul';
                     tr.appendChild(td);
                 }
                 tbody.appendChild(tr);
@@ -129,12 +139,12 @@
             return enveloppe;
         }
 
-        /** Aiguille un bloc reçu du serveur vers son rendu. */
         function dessiner(b) {
             switch (b.type) {
                 case 'titre':   return bloc('console-titre', b.texte);
                 case 'erreur':  return bloc('console-erreur', b.texte);
                 case 'succes':  return bloc('console-succes', b.texte);
+                case 'alerte':  return bloc('console-alerte', b.texte);
                 case 'paires':  return blocPaires(b.paires);
                 case 'tableau': return blocTableau(b.colonnes, b.lignes);
                 case 'texte':
@@ -156,10 +166,10 @@
             ajouter(echoCommande(ligne));
 
             /*
-             * « effacer » est traitée ici et n'atteint jamais le serveur :
-             * elle ne concerne que l'affichage. C'est la seule exception.
+             * « effacer » ne concerne que l'affichage : traitée ici, elle
+             * n'atteint jamais le serveur. C'est la seule exception.
              */
-            if (ligne.trim().toLowerCase() === 'effacer') {
+            if (/^\\?effacer$/i.test(ligne.trim())) {
                 sortie.replaceChildren();
                 return;
             }
@@ -171,7 +181,7 @@
             ajouter(attente);
 
             try {
-                const res = await fetch('actions/admin/console.php', {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     body: new URLSearchParams({ commande: ligne, token: jeton() }),
                 });
@@ -191,10 +201,14 @@
                     ajouter(dessiner(b));
                 }
 
-                // L'invite rappelle en permanence la base interrogée : sans ça,
-                // on oublie qu'on est resté sur la démonstration.
-                if (data.base) {
-                    invite.textContent = 'unison:' + data.base + ' $';
+                /*
+                 * L'invite est calculée par le serveur : elle rappelle la base
+                 * interrogée et, pour le terminal SQL, si le mode écriture est
+                 * actif. C'est le seul rappel permanent de cet état.
+                 */
+                if (data.invite) {
+                    invite.textContent = data.invite;
+                    racine.classList.toggle('console-mode-ecriture', !!data.ecriture);
                 }
             } catch (e) {
                 attente.remove();
@@ -210,78 +224,105 @@
          * Saisie
          * --------------------------------------------------------------- */
 
+        /** La zone de saisie grandit avec son contenu, jusqu'à une limite. */
+        function ajusterHauteur() {
+            champ.style.height = 'auto';
+            champ.style.height = Math.min(champ.scrollHeight, 200) + 'px';
+        }
+
         /**
-         * Complète le début d'une commande.
-         * Si plusieurs commandes commencent pareil, on complète jusqu'au
-         * préfixe commun et on affiche les candidates — comportement d'un shell.
+         * Complète le premier mot. Si plusieurs candidats commencent pareil, on
+         * complète jusqu'au préfixe commun et on les affiche — comme un shell.
          */
         function completer() {
             const saisie = champ.value;
 
-            // La complétion ne porte que sur le premier mot : au-delà, les
-            // arguments sont des titres ou du SQL, qu'on ne peut pas deviner.
-            if (saisie.includes(' ')) return;
+            // Au-delà du premier mot, les arguments sont des titres ou du SQL :
+            // rien qui puisse se deviner.
+            if (!motsConnus.length || /\s/.test(saisie)) return;
 
-            const candidates = commandes.filter(c => c.startsWith(saisie.toLowerCase()));
+            const candidats = motsConnus.filter(c => c.startsWith(saisie.toLowerCase()));
+            if (candidats.length === 0) return;
 
-            if (candidates.length === 0) return;
-
-            if (candidates.length === 1) {
-                champ.value = candidates[0] + ' ';
+            if (candidats.length === 1) {
+                champ.value = candidats[0] + ' ';
+                ajusterHauteur();
                 return;
             }
 
-            // Plus long préfixe commun aux candidates.
-            let prefixe = candidates[0];
-            for (const candidate of candidates) {
-                while (!candidate.startsWith(prefixe)) {
+            let prefixe = candidats[0];
+            for (const candidat of candidats) {
+                while (!candidat.startsWith(prefixe)) {
                     prefixe = prefixe.slice(0, -1);
                 }
             }
 
             champ.value = prefixe;
-            ajouter(bloc('console-texte console-candidates', candidates.join('   ')));
+            ajusterHauteur();
+            ajouter(bloc('console-texte console-candidates', candidats.join('   ')));
         }
 
+        /** Le curseur est-il sur la première / dernière ligne de la saisie ? */
+        function surPremiereLigne() {
+            return !champ.value.slice(0, champ.selectionStart).includes('\n');
+        }
+
+        function surDerniereLigne() {
+            return !champ.value.slice(champ.selectionEnd).includes('\n');
+        }
+
+        function rappeler(texte) {
+            champ.value = texte;
+            ajusterHauteur();
+            // Curseur en fin de saisie, sinon il resterait au début.
+            setTimeout(() => champ.setSelectionRange(champ.value.length, champ.value.length), 0);
+        }
+
+        champ.addEventListener('input', ajusterHauteur);
+
         champ.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            // Entrée envoie ; Maj+Entrée passe à la ligne — une requête SQL
+            // un peu longue se lit beaucoup mieux sur plusieurs lignes.
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (enCours) return;
 
                 const ligne = champ.value.trim();
                 if (ligne === '') return;
 
-                // Pas de doublon consécutif dans l'historique, comme un shell.
                 if (historique[historique.length - 1] !== ligne) {
                     historique.push(ligne);
                 }
                 curseur = historique.length;
 
                 champ.value = '';
+                ajusterHauteur();
                 executer(ligne);
                 return;
             }
 
-            if (e.key === 'ArrowUp') {
+            /*
+             * ↑ et ↓ ne rappellent l'historique que depuis le bord de la
+             * saisie : au milieu d'une requête sur plusieurs lignes, elles
+             * doivent déplacer le curseur, pas effacer le travail en cours.
+             */
+            if (e.key === 'ArrowUp' && surPremiereLigne()) {
                 e.preventDefault();
                 if (curseur > 0) {
                     curseur--;
-                    champ.value = historique[curseur];
-                    // Curseur en fin de ligne, sinon il reste au début.
-                    setTimeout(() => champ.setSelectionRange(champ.value.length, champ.value.length), 0);
+                    rappeler(historique[curseur]);
                 }
                 return;
             }
 
-            if (e.key === 'ArrowDown') {
+            if (e.key === 'ArrowDown' && surDerniereLigne()) {
                 e.preventDefault();
                 if (curseur < historique.length - 1) {
                     curseur++;
-                    champ.value = historique[curseur];
+                    rappeler(historique[curseur]);
                 } else {
-                    // Retour à la ligne vierge, en bas de l'historique.
                     curseur = historique.length;
-                    champ.value = '';
+                    rappeler('');
                 }
                 return;
             }
@@ -295,11 +336,12 @@
             if (e.key === 'Escape') {
                 e.preventDefault();
                 champ.value = '';
+                ajusterHauteur();
             }
         });
 
-        // Cliquer n'importe où dans le terminal ramène le curseur à la saisie,
-        // sauf si on est en train de sélectionner du texte pour le copier.
+        // Cliquer dans le terminal ramène le curseur à la saisie, sauf si on
+        // est en train de sélectionner du texte pour le copier.
         racine.addEventListener('click', () => {
             if (!window.getSelection().toString()) champ.focus();
         });
@@ -312,6 +354,7 @@
             });
         }
 
+        ajusterHauteur();
         champ.focus();
     }
 
