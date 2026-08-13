@@ -12,6 +12,21 @@
 // la constante est ainsi disponible partout sans include supplémentaire.
 require_once __DIR__ . '/version.php';
 
+/*
+ * Journal d'activité. Même raison : inclus ici, journaliser() est disponible
+ * dans toute page et toute action sans include supplémentaire. Le fichier
+ * n'ouvre aucune connexion tant qu'on n'écrit rien.
+ */
+require_once __DIR__ . '/journal.php';
+
+/*
+ * Branche le journal sur les exceptions non rattrapées et les erreurs fatales.
+ * En production les erreurs sont masquées à l'écran : sans ça, une panne ne
+ * laisse de trace que dans les logs du conteneur, hors de portée de
+ * l'interface d'administration.
+ */
+journalInstallerHandlers();
+
 /**
  * Compte utilisé par les sessions de démonstration.
  *
@@ -187,6 +202,16 @@ function exigerAdmin(bool $json = false): void
         return;
     }
 
+    /*
+     * Trace systématique : un compte ordinaire ne tombe pas par hasard sur une
+     * URL d'administration, la section n'étant nulle part exposée pour lui.
+     * Chaque refus vaut donc d'être vu, et le niveau « attention » les fait
+     * remonter en tête de la page Journal.
+     */
+    journalAttention('auth', 'acces_admin_refuse',
+        'Accès à la section d\'administration refusé',
+        ['cible' => $_SERVER['REQUEST_URI'] ?? '?']);
+
     error_log(sprintf(
         'Accès admin refusé : utilisateur #%s (%s) sur %s',
         $_SESSION['user']['id'] ?? '?',
@@ -265,6 +290,18 @@ function verifierCsrf(bool $json = true): void
     if (!empty($_SESSION['csrf']) && is_string($recu) && hash_equals($_SESSION['csrf'], $recu)) {
         return;
     }
+
+    /*
+     * Un jeton invalide a deux causes très différentes : un formulaire resté
+     * ouvert pendant que la session expirait — bénin et fréquent — ou une
+     * requête forgée depuis un autre site. Rien ne permet de les distinguer
+     * ici, d'où le niveau « attention » : à lire dans son contexte, mais à ne
+     * pas perdre. Sans cette ligne, une tentative de ce genre ne laisserait
+     * aucune trace, l'exécution s'arrêtant juste après.
+     */
+    journalAttention('auth', 'jeton_csrf_invalide',
+        'Requête refusée : jeton CSRF absent ou invalide',
+        ['cible' => $_SERVER['REQUEST_URI'] ?? '?', 'jeton_absent' => $recu === '']);
 
     http_response_code(403);
     if ($json) {

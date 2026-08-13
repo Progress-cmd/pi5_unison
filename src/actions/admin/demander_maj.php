@@ -24,6 +24,16 @@ if (!$ok) {
     http_response_code(409);
 }
 
+/*
+ * Seule opération de la section qui agisse hors d'Unison, et la seule capable
+ * d'interrompre le service : elle est journalisée dans les deux cas, y compris
+ * quand la demande est refusée — un refus répété signale un mécanisme cassé.
+ */
+journaliser('admin', 'maj_demandee',
+    "Mise à jour « $action » : " . ($ok ? 'demande déposée' : "refusée — $message"),
+    ['action' => $action, 'acceptee' => $ok],
+    $ok ? 'attention' : 'erreur');
+
 error_log("Demande de mise à jour « $action » par {$_SESSION['user']['username']} : "
         . ($ok ? 'déposée' : "refusée ($message)"));
 

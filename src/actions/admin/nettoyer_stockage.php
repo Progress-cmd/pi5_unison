@@ -71,6 +71,22 @@ if ($echecs) {
     $message .= ' — ' . count($echecs) . ' échec(s), voir les logs';
 }
 
+/*
+ * Des fichiers audio quittent le disque : c'est irréversible, et le nom des
+ * fichiers concernés est la seule chose qui permettra plus tard de savoir ce
+ * qui a disparu. Un échec de suppression passe en « attention » — le fichier
+ * est toujours là et occupe toujours la place qu'on croyait libérée.
+ */
+journaliser('stockage', 'orphelins_supprimes',
+    $message,
+    [
+        'supprimes'      => $supprimes,
+        'octets_liberes' => $octets,
+        'fichiers'       => array_column($orphelins, 'fichier'),
+        'echecs'         => $echecs,
+    ],
+    $echecs ? 'attention' : 'info');
+
 echo json_encode([
     'success'        => $echecs === [],
     'message'        => $message,

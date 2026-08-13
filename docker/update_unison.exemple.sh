@@ -15,6 +15,12 @@
 #
 # Installation :
 #   cp update_unison.exemple.sh /home/Francis/apps/pi5_unison/update_unison.sh
+#
+# ATTENTION à l'alias upgrade_unison : « docker compose up -d » réutilise
+# l'image existante. Tout ce qui est CUIT DANS L'IMAGE — Dockerfile,
+# security.ini (open_basedir, disable_functions), php-prod.ini — n'est alors
+# jamais mis à jour. Il faut « up -d --build ». C'est ce que fait la branche
+# « reconstruire » ci-dessous.
 #   chmod +x /home/Francis/apps/pi5_unison/update_unison.sh
 #   mkdir -p /home/Francis/apps/pi5_unison/maj
 #   sudo chown 33:33 /home/Francis/apps/pi5_unison/maj   # uid de www-data

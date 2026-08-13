@@ -73,25 +73,32 @@ docker compose -f docker/docker-compose-prod.yml --env-file docker/.env up -d
 ## Compte d'administration
 
 Un troisième compte, distinct des comptes d'écoute, donne accès à une section
-de gestion : contenu, stockage, comptes, maintenance et mise à jour des
-conteneurs.
+de gestion : contenu, stockage, comptes, maintenance, mise à jour des
+conteneurs, journal d'activité et console.
 
 ### Installation
 
 ```bash
-# 1. Ajouter la colonne de rôle (base existante uniquement)
+# 1. Migrations de schéma (base existante uniquement)
 # Ne PAS sourcer le .env : un mot de passe contenant une espace ou un $
 # serait interprété par le shell. On lit les valeurs telles quelles.
 DB_ROOTPASS=$(sed -n 's/^DB_ROOTPASS=//p' docker/.env | head -1)
 DB_NAME=$(sed -n 's/^DB_NAME=//p' docker/.env | head -1)
 
-docker compose -f docker/docker-compose-dev.yml exec -T db \
-    mariadb -u root -p"$DB_ROOTPASS" "$DB_NAME" < mysql_init/migrations/001_role_admin.sql
+for m in mysql_init/migrations/*.sql; do
+    echo "→ $m"
+    docker compose -f docker/docker-compose-dev.yml exec -T db \
+        mariadb -u root -p"$DB_ROOTPASS" "$DB_NAME" < "$m"
+done
 
 # 2. Créer le compte (mot de passe saisi de façon interactive, jamais versionné)
 docker compose -f docker/docker-compose-dev.yml exec app \
     php /var/www/html/src/includes/creerAdmin.php
 ```
+
+Les migrations sont idempotentes : les rejouer ne casse rien. Sur une base
+vierge, rien de tout cela n'est nécessaire — `mysql_init/dump.sql` contient
+déjà tout.
 
 Choisir un **identifiant non devinable** : la page de connexion ne propose pas
 ce compte et exige sa saisie manuelle, son nom fait donc partie du secret.
@@ -104,6 +111,53 @@ comptes `admin` : un compte normal y est refusé même avec le bon mot de passe,
 sans quoi il annulerait l'anonymisation de la page publique.
 
 Limite dédiée : 3 tentatives par demi-heure, en plus du compteur général.
+
+### Journal d'activité
+
+La page **Journal** rassemble ce qui se passe sur l'installation : connexions
+réussies et échouées, blocages du limiteur de tentatives, opérations
+d'administration, importations, et incidents PHP (exceptions non rattrapées,
+erreurs fatales). En production les erreurs sont masquées à l'écran ; sans ce
+journal, elles n'étaient visibles que dans `docker compose logs app`.
+
+Filtres par niveau, canal, période et recherche libre ; rafraîchissement
+automatique pour suivre une opération en cours. Chaque événement peut porter un
+contexte JSON replié — pour une importation ratée, les dernières lignes de
+`yt-dlp`, c'est-à-dire exactement ce qui manquait pour diagnostiquer.
+
+Les événements de plus de **90 jours** sont supprimés automatiquement, au plus
+une fois par jour, à la consultation de la section. Purge manuelle possible.
+
+> Le journal est écrit dans la base **principale**, y compris depuis une session
+> de démonstration : sinon ses traces atterriraient dans la base de
+> démonstration, que l'administration n'ouvre jamais.
+
+### Console
+
+La page **Console** est un terminal pour interroger le projet sans ouvrir de
+shell dans le conteneur. **Toutes les commandes sont en lecture seule** : rien
+n'y modifie, ne supprime ni ne crée quoi que ce soit. Les opérations
+destructrices gardent leurs pages dédiées et leurs confirmations.
+
+`aide` donne la liste ; ↑ ↓ rappellent l'historique, Tab complète.
+
+| Commande | Effet |
+|---|---|
+| `sante` | Base, recherche, disque, PHP, anomalies, incidents des 24 h |
+| `titre <id\|texte>` | Fiche complète : artistes, genres, playlists, écoutes, fichier |
+| `artiste`, `playlist`, `compte` | Fiches et rattachements |
+| `tables`, `decrire <table>` | Structure de la base, clés étrangères comprises |
+| `doublons`, `orphelins`, `manquants` | Incohérences entre le disque et la base |
+| `top`, `ecoutes`, `recents` | Statistiques d'usage |
+| `journal [niveau\|canal] [n]` | Derniers événements, sans quitter le terminal |
+| `base principale\|demo` | Change la base interrogée |
+| `sql <SELECT …>` | Requête libre, strictement en lecture |
+
+La commande `sql` est encadrée par trois mécanismes **indépendants** : liste
+blanche de verbes de lecture et instruction unique ; exécution dans une
+transaction `READ ONLY`, où MariaDB refuse elle-même toute écriture quel que
+soit ce qui aurait passé le filtre ; et un temps d'exécution maximal. Le
+filtrage syntaxique est le plus fragile des trois — il n'est pas le seul.
 
 ### Mise à jour des conteneurs
 

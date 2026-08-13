@@ -262,6 +262,14 @@ $admin = estAdmin();
                 <div class="icons material-symbols-outlined">build</div>
                 Maintenance
             </a>
+            <a href="?page=admin/journal" data-page="admin/journal">
+                <div class="icons material-symbols-outlined">receipt_long</div>
+                Journal
+            </a>
+            <a href="?page=admin/console" data-page="admin/console">
+                <div class="icons material-symbols-outlined">terminal</div>
+                Console
+            </a>
 
             <?php else: ?>
             <a href="?page=home" data-page="home">

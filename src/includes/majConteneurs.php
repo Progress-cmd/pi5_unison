@@ -61,6 +61,37 @@ function majEtatInstallation(): array
 {
     $uid = function_exists('posix_getuid') ? posix_getuid() : null;
 
+    /*
+     * À vérifier AVANT l'existence du dossier : hors open_basedir, is_dir()
+     * renvoie false sur un dossier pourtant bien monté. Sans ce test, on
+     * conclurait à tort que le volume est absent — et on enverrait remonter
+     * un volume déjà en place.
+     */
+    $basedir = (string) ini_get('open_basedir');
+    if ($basedir !== '') {
+        $autorise = false;
+        foreach (explode(PATH_SEPARATOR, $basedir) as $chemin) {
+            if ($chemin !== '' && str_starts_with(MAJ_DOSSIER . '/', rtrim($chemin, '/') . '/')) {
+                $autorise = true;
+                break;
+            }
+        }
+
+        if (!$autorise) {
+            return [
+                'ok'      => false,
+                'cause'   => 'open_basedir',
+                'message' => 'Le volume est peut-être monté, mais PHP n\'a pas le droit de lire '
+                           . MAJ_DOSSIER . " : ce chemin n'est pas dans open_basedir (" . $basedir . ').',
+                'correctif' => "open_basedir est défini dans docker/security.ini, qui est copié dans\n"
+                             . "l'image : il faut la RECONSTRUIRE, un « up -d » seul réutilise l'ancienne.\n"
+                             . "  git pull\n"
+                             . "  docker compose -f docker/docker-compose-prod.yml --env-file docker/.env \\\n"
+                             . "      up -d --build app",
+            ];
+        }
+    }
+
     if (!is_dir(MAJ_DOSSIER)) {
         return [
             'ok'      => false,

@@ -46,6 +46,17 @@
     color: var(--text-dark);
 }
 
+/* Un compteur qui vaut zéro n'a pas à s'alarmer : seule la variante posée
+   explicitement sur un chiffre non nul se colore (voir admin_journal.php). */
+.admin-chiffre.alerte {
+    border-color: var(--light-error);
+    background-color: var(--dark-error);
+}
+
+.admin-chiffre.alerte .valeur {
+    color: var(--light-error);
+}
+
 /* --- Bloc d'anomalies --- */
 .admin-alerte {
     border-color: var(--light-error);
@@ -422,4 +433,163 @@
 
 #admin-quitter .material-symbols-outlined {
     font-size: 16px;
+}
+
+/* ===== JOURNAL ===== */
+/* Page de consultation des événements (pages/admin_journal.php). Le tableau
+   est rempli par scripts/journal.js ; ces règles décrivent ce qu'il produit. */
+
+.journal-filtres {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 14px;
+}
+
+.journal-filtres label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--text-gray);
+    font-size: 12px;
+}
+
+.journal-filtres select {
+    padding: 7px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--white);
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 13px;
+}
+
+.journal-filtres select:focus {
+    outline: 1px solid var(--text-orange);
+}
+
+/* La recherche libre occupe toute la largeur restante : c'est le filtre le
+   plus utilisé, et un champ étroit ne montre pas ce qu'on y a tapé. */
+.journal-filtre-large {
+    grid-column: 1 / -1;
+}
+
+.journal-filtre-large .admin-filtre {
+    margin: 0;
+    width: 100%;
+}
+
+.journal-auto {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-gray);
+    font-size: 12px;
+}
+
+/* --- Lignes d'événements --- */
+
+/* Les tableaux de gestion sont en « nowrap » et tronquent leur colonne
+   principale : bon pour un nom de titre, ruineux pour un message de journal,
+   qui est précisément ce qu'on vient lire. Ici, le texte s'enroule. */
+.journal-table td {
+    vertical-align: top;
+    white-space: normal;
+}
+
+.journal-table td.principal {
+    max-width: none;
+    overflow: visible;
+    font-weight: 400;
+}
+
+/* La colonne de date, elle, ne doit pas se couper en deux. */
+.journal-table td:first-child {
+    white-space: nowrap;
+}
+
+/* Les incidents se repèrent à la bordure, sans avoir à lire la colonne
+   « niveau » : c'est ce qu'on cherche en ouvrant la page. */
+.journal-ligne.niveau-erreur td:first-child,
+.journal-ligne.niveau-critique td:first-child {
+    box-shadow: inset 3px 0 0 var(--light-error);
+}
+
+.journal-ligne.niveau-attention td:first-child {
+    box-shadow: inset 3px 0 0 var(--golden);
+}
+
+.journal-niveau {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--light-beige);
+    color: var(--text-gray);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.journal-niveau.attention { background: #f7edd8; color: #8a6d1f; }
+.journal-niveau.erreur    { background: var(--dark-error); color: var(--light-error); }
+.journal-niveau.critique  { background: var(--light-error); color: var(--white); }
+
+.journal-message {
+    color: var(--text-dark);
+}
+
+/* Code d'action, chemin, durée : indispensables au diagnostic, secondaires à
+   la lecture. Ils s'effacent typographiquement sans disparaître. */
+.journal-meta {
+    margin-top: 2px;
+    color: var(--text-gray);
+    font-size: 11px;
+    word-break: break-word;
+}
+
+/* --- Contexte JSON repliable --- */
+
+.journal-contexte {
+    margin-top: 6px;
+}
+
+.journal-contexte summary {
+    color: var(--text-orange);
+    cursor: pointer;
+    font-size: 11px;
+    list-style: none;
+}
+
+.journal-contexte summary::before {
+    content: '⌄ ';
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.journal-contexte[open] summary::before {
+    content: '⌃ ';
+}
+
+.journal-contexte pre {
+    margin: 6px 0 0;
+    padding: 8px 10px;
+    max-height: 260px;
+    border-radius: 8px;
+    background: var(--light-beige);
+    color: var(--text-dark);
+    font-size: 11px;
+    line-height: 1.5;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* --- Pagination --- */
+
+.journal-pagination {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    color: var(--text-gray);
+    font-size: 12px;
 }

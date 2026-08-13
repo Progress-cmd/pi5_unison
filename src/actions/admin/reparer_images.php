@@ -40,6 +40,13 @@ $message = $appliquer
     ? sprintf('%d artiste(s) et %d titre(s) corrigés', $resultat['artistes'], $resultat['titres'])
     : sprintf('%d artiste(s) et %d titre(s) réparables', $resultat['artistes'], $resultat['titres']);
 
+// Seule la réparation est journalisée : le diagnostic ne change rien et se
+// relance à volonté, l'enregistrer remplirait le journal sans rien apprendre.
+if ($appliquer) {
+    journalInfo('stockage', 'images_reparees', $message,
+        ['artistes' => $resultat['artistes'], 'titres' => $resultat['titres']]);
+}
+
 echo json_encode([
     'success' => true,
     'message' => $message,

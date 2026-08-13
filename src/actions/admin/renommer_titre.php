@@ -60,4 +60,8 @@ if ($meili) {
     }
 }
 
+journalInfo('contenu', 'titre_renomme',
+    'Titre #' . $trackId . ' renommé en « ' . $titre . ' »',
+    ['track_id' => $trackId, 'titre' => $titre]);
+
 echo json_encode(['success' => true, 'message' => 'Titre corrigé', 'titre' => $titre]);
