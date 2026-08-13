@@ -29,11 +29,12 @@ class Config
     /** Nom de la base à utiliser pour la requête en cours. */
     public static function nomBase(): string
     {
-        if (!self::estDemo()) {
-            return self::env('DB_NAME');
-        }
+        return self::estDemo() ? self::nomBaseDemo() : self::env('DB_NAME');
+    }
 
-        // Par défaut « <base>_demo », surchargeable par DB_NAME_DEMO.
+    /** Nom de la base de démonstration : « <base>_demo », ou DB_NAME_DEMO. */
+    public static function nomBaseDemo(): string
+    {
         $demo = getenv('DB_NAME_DEMO');
         return $demo !== false && $demo !== '' ? $demo : self::env('DB_NAME') . '_demo';
     }
@@ -56,8 +57,63 @@ class Config
 
     public static function getConnection(): PDO
     {
-        $name = self::nomBase();
+        return self::connexion(self::nomBase());
+    }
 
+    /**
+     * Connexion à la base principale, quelle que soit la session.
+     *
+     * Sert au journal (includes/journal.php) : une trace doit être écrite au
+     * même endroit pour tout le monde, sinon l'activité d'une session de
+     * démonstration atterrirait dans la base de démonstration — que la section
+     * d'administration n'ouvre jamais, et qui est remise à zéro. Le journal est
+     * une donnée d'exploitation, pas du contenu utilisateur : il ne suit pas
+     * l'aiguillage.
+     *
+     * À n'utiliser que pour ça. Toute lecture ou écriture de contenu passe par
+     * getConnection(), sans quoi l'isolement de la démonstration tomberait.
+     *
+     * Lève une PDOException au lieu d'interrompre la requête : l'appelant est
+     * le journal, et une base injoignable ne doit pas transformer une panne
+     * silencieuse en page blanche.
+     *
+     * @throws PDOException
+     */
+    public static function getConnectionPrincipale(): PDO
+    {
+        return self::connexion(self::env('DB_NAME'), false);
+    }
+
+    /**
+     * Connexion à la base de démonstration, depuis une session qui n'en est
+     * pas une.
+     *
+     * Réservée à la console d'administration, qui doit pouvoir inspecter les
+     * deux bases du projet — et où toute commande est en lecture seule. Aucune
+     * page ni action de l'application ne doit l'appeler : l'aiguillage
+     * automatique de getConnection() est ce qui garantit qu'une session de
+     * démonstration ne voit jamais le contenu réel, et l'inverse.
+     *
+     * Lève une PDOException si la base de démonstration n'existe pas —
+     * l'installation ne l'impose pas.
+     *
+     * @throws PDOException
+     */
+    public static function getConnectionDemo(): PDO
+    {
+        return self::connexion(self::nomBaseDemo(), false);
+    }
+
+    /**
+     * Ouvre (ou réutilise) la connexion vers une base nommée.
+     *
+     * @param bool $fatal true pour interrompre la requête si la base est
+     *                    injoignable (comportement historique de
+     *                    getConnection : aucune page n'a de sens sans base),
+     *                    false pour laisser l'exception remonter.
+     */
+    private static function connexion(string $name, bool $fatal = true): PDO
+    {
         if (!isset(self::$instances[$name])) {
             $host = self::env('DB_HOST');
             $user = self::env('DB_USER');
@@ -76,6 +132,9 @@ class Config
                 );
             } catch (PDOException $e) {
                 error_log($e->getMessage());
+                if (!$fatal) {
+                    throw $e;
+                }
                 die("Erreur de connexion à la base de données.");
             }
         }

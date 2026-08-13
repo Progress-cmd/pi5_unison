@@ -47,11 +47,16 @@ docker compose down
 - **src/includes/** - Shared utilities:
   - `config.php` - PDO database connection singleton
   - `initSearch.php` - MeiliSearch initialization
+  - `auth.php` - Session guards (`exigerConnexion`, `exigerAdmin`, CSRF)
+  - `journal.php` - Activity/incident logging (write side, included everywhere)
+  - `journalRapport.php` - Log reading, filtering, statistics, purge (admin only)
+  - `console.php` - Admin console command interpreter (read-only)
 - **src/scripts/** - Frontend JavaScript:
   - `router.js` - Client-side navigation and page routing
   - `player.js` - Audio player functionality
   - `search.js` - Search interface interactions
   - `login.js`, `reset_password.js` - Form handling
+  - `journal.js`, `console.js` - Admin journal viewer and terminal
 - **src/styles/** - CSS styling
 - **src/index.php** - Main entry point (checks session, includes header)
 - **docker/** - Docker configuration and initialization scripts
@@ -84,6 +89,70 @@ docker compose down
 - MeiliSearch instance accessible via environment variable `MS_PASS`
 - Handled in `src/includes/initSearch.php`
 - Used for music titles, artists, albums
+
+### Logging (journal)
+- **Table**: `journal` in the **main** database only. Demo sessions log there too
+  (`Config::getConnectionPrincipale()`), otherwise their traces would land in the
+  demo database, which the admin section never opens.
+- **Writing**: `journaliser($canal, $action, $message, $contexte, $niveau)` plus
+  shortcuts `journalInfo/journalAttention/journalErreur/journalCritique`.
+  Available everywhere — `auth.php` includes `journal.php`.
+- **Never throws**: any failure falls back to `error_log()`. A lost trace must
+  never break an import or a playback.
+- **Levels**: `debug < info < attention < erreur < critique`. Filtering by a level
+  includes everything more severe.
+- **Channels**: `auth`, `admin`, `contenu`, `import`, `stockage`, `recherche`,
+  `console`, `systeme`.
+- **PHP incidents**: `journalInstallerHandlers()` (called from `auth.php`) captures
+  uncaught exceptions and fatal errors. Ordinary warnings are deliberately not
+  captured — they would drown the signal.
+- **Retention**: 90 days, purged at most once a day when the admin section is
+  visited (no cron exists in this project). Manual purge on the Journal page.
+- **Clock**: MariaDB runs in UTC, PHP in Europe/Paris. Timestamps and SQL filters
+  are consistent with each other; only PHP-side display is corrected, via
+  `journalDecalageSql()`.
+
+### Admin console
+- **Read-only by construction**: no command writes, deletes or modifies anything.
+  Destructive operations keep their dedicated pages and confirmations.
+- Commands are declared in one table, `consoleCommandes()` in
+  `src/includes/console.php` — adding one requires no change elsewhere (help and
+  Tab completion both read that table).
+- Commands return **typed blocks** (`texte`, `titre`, `tableau`, `paires`,
+  `erreur`, `succes`) rendered by `src/scripts/console.js`. Nothing is ever put
+  into `innerHTML`: console and journal display attacker-influenced text.
+- The `sql` command is an escape hatch guarded by three independent mechanisms:
+  read-verb allowlist + single statement, a `START TRANSACTION READ ONLY`
+  (MariaDB refuses writes itself), and `max_statement_time`.
+- `base principale|demo` switches which database is queried; the journal is always
+  read from the main one.
+
+### SQL terminal (`admin/sql`)
+Separate from the console: a real SQL client. Everything typed goes to MariaDB
+except meta-commands prefixed with a backslash (`\aide`, `\d`, `\tables`,
+`\base`, `\ecriture`), psql-style. Engine in `src/includes/sqlTerminal.php`.
+
+Three guards, in order of importance:
+1. **Read-only by default.** Reads run inside `START TRANSACTION READ ONLY`.
+   `\ecriture on` lifts this for 15 minutes, then it expires by itself.
+2. **Safe updates.** `UPDATE`/`DELETE` without `WHERE` (and without `LIMIT`) are
+   refused, like the mysql client's `--safe-updates`.
+3. **Permanent bans** (`SQL_INTERDITS`): anything touching server accounts,
+   privileges, whole databases, or files. Matched on a comment-stripped,
+   whitespace-normalised copy — `/*x*/ DROP  DATABASE` does not slip through.
+
+Every statement is journaled: reads at `info`, writes at `attention`, DDL at
+`critique`, with the statement text.
+
+**Watch out**: the journal writes on the *same* PDO connection. Anything relying
+on connection state after a query (`lastInsertId()` is the one that bit us) must
+be captured *before* the next `journaliser()` call.
+
+### Terminal component
+`src/scripts/console.js` drives both terminal pages. What differs is declared in
+data attributes on `#console` (`data-endpoint`, `data-commandes`); the server
+returns the prompt string (`invite`) and the write-mode flag. Adding a terminal
+page requires no change to the script.
 
 ### Frontend
 - Vanilla JavaScript (no frameworks)
@@ -133,6 +202,36 @@ From `notes.md`:
 - Queries are PDO with prepared statements
 - Use `Config::getConnection()` singleton to get PDO instance
 - Database initialized on container startup from `mysql_init/` SQL files
+- **Prepared statements are native** (`ATTR_EMULATE_PREPARES => false`). Two
+  consequences that bite: a named placeholder cannot appear twice in the same
+  query, and `LIMIT`/`OFFSET`/`INTERVAL` operands do not accept placeholders —
+  bound-check and cast those to `int`, then interpolate.
+- `Config::getConnectionPrincipale()` (journal) and `Config::getConnectionDemo()`
+  (admin console) bypass the demo routing. Nothing else may use them: the
+  automatic routing in `getConnection()` is what keeps demo and real content apart.
+
+### Database migrations
+`mysql_init/` is only replayed by Docker on a **blank** database. Schema changes
+therefore go in two places:
+1. `mysql_init/migrations/NNN_name.sql` — applied to live installs by
+   `docker/appliquer_migrations.sh`;
+2. `mysql_init/dump.sql` — so fresh installs get it too.
+
+Naming is enforced: `NNN_nom.sql` (three digits). Anything else is skipped with a
+warning. Applied migrations are recorded in `schema_migrations`, so each runs
+once — but keep them **idempotent** (`IF NOT EXISTS`) anyway, since a base whose
+tracking table was lost must survive a replay.
+
+`docker/appliquer_migrations.sh` is called automatically after every pull by
+`update_unison.sh`; `--liste` shows what is pending without applying anything.
+
+### Deployment (host side)
+`src/` is bind-mounted, so PHP changes need only `apache2ctl graceful`. Everything
+else is **baked into the image** and needs `up -d --build`: `vendor/` (so
+`composer.json`/`composer.lock`), `docker/*.ini` (security.ini, php-prod.ini),
+`docker/000-default.conf`, the `Dockerfile`, and `meilisearch_init/`.
+`update_unison.sh` diffs the pull and picks the right one — `necessite_reconstruction()`
+holds that list, and it must be updated if the Dockerfile starts copying something new.
 
 ### Styling Changes
 - Main stylesheet: `src/styles/style.css`

@@ -515,6 +515,38 @@ ALTER TABLE `track__genre`
 ALTER TABLE `track__playlist`
   ADD CONSTRAINT `track__playlist_playlists_id_fk` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `track__playlist_tracks_id_fk` FOREIGN KEY (`track_id`) REFERENCES `tracks` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `journal`
+--
+-- Ajoutée après la génération de ce dump : définie d'un seul bloc, clés
+-- comprises, plutôt qu'en CREATE puis ALTER comme les tables ci-dessus.
+-- Le fichier de référence est mysql_init/migrations/002_journal.sql, qui
+-- documente le rôle de chaque colonne et sert aux bases déjà en service.
+--
+
+CREATE TABLE IF NOT EXISTS `journal` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `horodatage` datetime(3) NOT NULL DEFAULT current_timestamp(3),
+  `niveau` varchar(10) NOT NULL DEFAULT 'info',
+  `canal` varchar(20) NOT NULL DEFAULT 'systeme',
+  `action` varchar(50) NOT NULL,
+  `message` varchar(500) NOT NULL DEFAULT '',
+  `user_id` int(11) DEFAULT NULL,
+  `utilisateur` varchar(50) DEFAULT NULL,
+  `ip` varchar(45) DEFAULT NULL,
+  `chemin` varchar(200) DEFAULT NULL,
+  `contexte` text DEFAULT NULL,
+  `duree_ms` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_horodatage` (`horodatage`),
+  KEY `idx_niveau` (`niveau`, `horodatage`),
+  KEY `idx_canal` (`canal`, `horodatage`),
+  KEY `idx_action` (`action`, `horodatage`),
+  KEY `idx_utilisateur` (`user_id`, `horodatage`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

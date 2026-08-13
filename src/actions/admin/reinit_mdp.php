@@ -67,6 +67,12 @@ $req = $pdo->prepare(
 );
 $req->execute([':hash' => password_hash($motDePasse, PASSWORD_DEFAULT), ':id' => $userId]);
 
+// Le mot de passe généré n'apparaît évidemment nulle part dans la trace : on
+// journalise le fait, pas le secret.
+journalAttention('admin', 'mot_de_passe_reinitialise',
+    'Mot de passe régénéré pour « ' . $cible['username'] . ' »',
+    ['compte_id' => $userId, 'compte' => $cible['username'], 'role' => $cible['role']]);
+
 error_log("Mot de passe réinitialisé pour #{$userId} ({$cible['username']}) par "
         . $_SESSION['user']['username']);
 

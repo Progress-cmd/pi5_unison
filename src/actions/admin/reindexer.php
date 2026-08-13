@@ -31,6 +31,12 @@ try {
     $client = new Client('http://ms:7700', getenv('MS_PASS') ?: null);
     $resultat = reindexerTout($client);
 } catch (\Exception $e) {
+    // La recherche est un service à part entière : son indisponibilité dégrade
+    // l'application sans l'arrêter, d'où le niveau « critique ».
+    journalCritique('recherche', 'reindexation_echouee',
+        'MeiliSearch injoignable pendant la réindexation',
+        ['erreur' => $e->getMessage()]);
+
     error_log('reindexer : ' . $e->getMessage());
     http_response_code(502);
     echo json_encode([
@@ -40,9 +46,14 @@ try {
     exit;
 }
 
+$message = sprintf('Index reconstruits : %d titres, %d artistes',
+    $resultat['musiques'], $resultat['artistes']);
+
+journalInfo('recherche', 'reindexation', $message,
+    ['musiques' => $resultat['musiques'], 'artistes' => $resultat['artistes']]);
+
 echo json_encode([
     'success' => true,
-    'message' => sprintf('Index reconstruits : %d titres, %d artistes',
-        $resultat['musiques'], $resultat['artistes']),
+    'message' => $message,
     'rapport' => $resultat['rapport'],
 ]);

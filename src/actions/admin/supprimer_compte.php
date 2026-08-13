@@ -128,6 +128,19 @@ try {
     exit;
 }
 
+// Opération la plus lourde de conséquences de toute la section : elle efface
+// un compte et déplace tout son contenu. Elle est journalisée en « attention »
+// pour rester visible dans le filtre par défaut de la page Journal.
+journalAttention('admin', 'compte_supprime',
+    'Compte « ' . $cible['username'] . ' » supprimé, contenu réattribué à « ' . $repreneur . ' »',
+    [
+        'compte_id'    => $userId,
+        'compte'       => $cible['username'],
+        'role'         => $cible['role'],
+        'repreneur_id' => $repreneurId,
+        'repreneur'    => $repreneur,
+    ]);
+
 error_log("Compte #{$userId} ({$cible['username']}) supprimé par {$_SESSION['user']['username']}, "
         . "contenu réattribué à #{$repreneurId} ($repreneur)");
 

@@ -1,0 +1,291 @@
+/* ===== CONSOLE D'ADMINISTRATION ===== */
+/* Feuille séparée d'admin.css : elle n'est chargée que par la page Console,
+   et rien de ce qu'elle contient ne sert ailleurs.
+
+   Le terminal assume son registre — fond sombre, police à chasse fixe — au
+   milieu d'une interface claire et sérif. C'est délibéré : la console n'est
+   pas une page de plus, c'est un outil technique, et sa forme doit le dire.
+   Les couleurs restent celles du projet, en version foncée. */
+
+.console {
+    --console-fond: #1C1916;          /* --text-dark, en aplat de fond */
+    --console-texte: #E8E3DD;
+    --console-attenue: #8F877E;
+    --console-accent: #E0805F;        /* --text-orange, éclairci pour ce fond */
+    --console-erreur: #F08B8B;
+    --console-succes: #8FC894;
+
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border: 1px solid var(--text-dark);
+    border-radius: 10px;
+    background-color: var(--console-fond);
+    overflow: hidden;
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+}
+
+/* --- Zone de sortie --- */
+
+.console-sortie {
+    /* Hauteur fixe plutôt qu'extensible : le terminal ne doit pas repousser
+       indéfiniment la ligne de saisie hors de l'écran à mesure qu'il se
+       remplit. C'est lui qui défile, pas la page. */
+    height: min(58vh, 520px);
+    padding: 14px 16px;
+    color: var(--console-texte);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--console-attenue) transparent;
+}
+
+.console-sortie:focus {
+    outline: none;
+}
+
+.console-bloc {
+    margin-bottom: 4px;
+    white-space: pre-wrap;   /* les messages multilignes gardent leurs retours */
+    word-break: break-word;
+}
+
+/* Rappel de la commande tapée : ce qui structure la lecture d'un terminal,
+   puisque c'est le seul repère entre deux réponses. */
+.console-echo {
+    margin-top: 14px;
+    margin-bottom: 8px;
+    color: var(--console-texte);
+}
+
+.console-echo:first-child {
+    margin-top: 0;
+}
+
+.console-echo-invite {
+    color: var(--console-accent);
+    user-select: none;   /* copier une réponse ne doit pas ramasser l'invite */
+}
+
+.console-titre {
+    margin-top: 10px;
+    margin-bottom: 6px;
+    color: var(--console-accent);
+    font-weight: 600;
+}
+
+.console-texte {
+    color: var(--console-texte);
+}
+
+.console-erreur {
+    color: var(--console-erreur);
+}
+
+.console-succes {
+    color: var(--console-succes);
+}
+
+.console-candidates {
+    color: var(--console-attenue);
+}
+
+/* Avertissement : plus fort qu'un texte, moins qu'une erreur. Sert au terminal
+   SQL pour l'entrée en mode écriture et les modifications de structure. */
+.console-alerte {
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--console-accent);
+    background-color: rgba(224, 128, 95, 0.12);
+    color: var(--console-accent);
+    font-weight: 600;
+}
+
+/* NULL, distingué d'une chaîne vide — les confondre mène à des diagnostics
+   faux, et c'est la convention de tous les clients SQL. */
+.console-nul {
+    color: var(--console-attenue);
+    font-style: italic;
+}
+
+/* --- Mode écriture du terminal SQL --- */
+/* Le terminal change d'aspect dès que les modifications sont possibles : la
+   bordure et l'invite rappellent en permanence qu'on n'est plus protégé. Sans
+   ce signal, l'état se devine seulement en relisant l'invite. */
+.console-mode-ecriture {
+    border-color: var(--console-erreur);
+    box-shadow: 0 0 0 1px var(--console-erreur);
+}
+
+.console-mode-ecriture .console-invite,
+.console-mode-ecriture .console-echo-invite {
+    color: var(--console-erreur);
+}
+
+.console-mode-ecriture .console-saisie {
+    background-color: rgba(240, 139, 139, 0.08);
+}
+
+/* Point d'attente pendant l'aller-retour serveur. */
+.console-attente {
+    color: var(--console-attenue);
+    animation: console-pulse 1s ease-in-out infinite;
+}
+
+@keyframes console-pulse {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .console-attente {
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+/* --- Listes clé : valeur --- */
+
+.console-paires {
+    display: grid;
+    grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);
+    gap: 2px 18px;
+    margin: 6px 0 10px;
+}
+
+.console-paires dt {
+    color: var(--console-attenue);
+}
+
+.console-paires dd {
+    margin: 0;
+    color: var(--console-texte);
+    word-break: break-word;
+}
+
+/* Une valeur qui signale une panne se repère sans lire la ligne entière. */
+.console-valeur-alerte {
+    color: var(--console-erreur);
+}
+
+/* --- Tableaux --- */
+
+/* Un tableau large défile dans son propre cadre : la page, elle, ne doit
+   jamais partir en défilement horizontal. */
+.console-tableau-enveloppe {
+    margin: 6px 0 10px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--console-attenue) transparent;
+}
+
+.console-tableau {
+    border-collapse: collapse;
+    width: max-content;
+    min-width: 100%;
+}
+
+.console-tableau th,
+.console-tableau td {
+    padding: 3px 14px 3px 0;
+    text-align: left;
+    vertical-align: top;
+    white-space: pre;
+}
+
+.console-tableau th {
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid var(--console-attenue);
+    background-color: var(--console-fond);
+    color: var(--console-accent);
+    font-weight: 600;
+}
+
+.console-tableau td {
+    color: var(--console-texte);
+}
+
+.console-tableau tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* --- Ligne de saisie --- */
+
+.console-saisie {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.console-invite {
+    color: var(--console-accent);
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* Zone de saisie : un textarea et non un input, pour que Maj+Entrée passe à
+   la ligne. Sa hauteur suit le contenu (console.js), d'où le redimensionnement
+   manuel désactivé et le défilement interne au-delà de la limite. */
+.console-champ {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--console-texte);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    caret-color: var(--console-accent);
+    resize: none;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.console-champ:focus {
+    outline: none;
+}
+
+.console-champ::placeholder {
+    color: var(--console-attenue);
+}
+
+.console-champ:disabled {
+    opacity: 0.5;
+}
+
+.console-aide-touches {
+    color: var(--text-gray);
+    font-size: 11px;
+}
+
+/* --- Écrans étroits --- */
+
+@media (max-width: 700px) {
+    .console {
+        font-size: 11.5px;
+    }
+
+    .console-sortie {
+        height: 50vh;
+        padding: 12px;
+    }
+
+    /* Les paires passent en deux lignes : à cette largeur, la colonne de
+       valeurs n'aurait plus la place d'afficher quoi que ce soit. */
+    .console-paires {
+        grid-template-columns: 1fr;
+        gap: 0 0;
+    }
+
+    .console-paires dt {
+        margin-top: 6px;
+    }
+}

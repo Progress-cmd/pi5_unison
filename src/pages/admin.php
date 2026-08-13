@@ -3,10 +3,25 @@ include_once "../includes/auth.php";
 exigerAdmin(false);
 include_once "../includes/adminOutils.php";
 include_once "../includes/adminGraphes.php";
+include_once "../includes/journalRapport.php";
 
 $pdo = Config::getConnection();
 $stats = statistiquesGlobales($pdo);
 $stockage = analyserStockage($pdo);
+
+/*
+ * Journal : il vit dans la base principale, quelle que soit la session.
+ * L'entretien est accroché à cette page parce qu'il n'y a ni cron ni tâche
+ * planifiée dans le projet — consulter l'administration est le seul rendez-vous
+ * régulier sur lequel on puisse compter. Le verrou interne limite à un passage
+ * par jour, l'affichage n'en est donc pas ralenti.
+ */
+$journalPdo = Config::getConnectionPrincipale();
+journalPurgeAutomatique($journalPdo);
+
+$journalInstalle = journalTableExiste($journalPdo);
+$incidents = $journalInstalle ? journalIncidentsRecents($journalPdo, 5) : [];
+$journalStats = $journalInstalle ? journalStatistiques($journalPdo) : ['incidents_24h' => 0];
 
 $parJour  = ecoutesParJour($pdo, 30);
 $parHeure = ecoutesParHeure($pdo);
@@ -74,6 +89,44 @@ if ($nbOrphelins || $nbManquants):
                 <a href="?page=admin/stockage" data-page="admin/stockage" class="buttons">Voir</a>
             </div>
         <?php endif; ?>
+    </div>
+</article>
+<?php endif; ?>
+
+<?php
+/*
+ * Les incidents journalisés remontent au même endroit que les anomalies de
+ * stockage : ce sont les deux choses qui appellent une décision, et elles
+ * doivent se voir sans avoir à ouvrir une page de plus.
+ */
+if ($incidents):
+    $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
+?>
+<article class="containers admin-alerte">
+    <div class="head-bar">
+        Derniers incidents
+        <?php if ($journalStats['incidents_24h']): ?>
+            <span class="more-bar"><?= $journalStats['incidents_24h'] ?> sur 24 h</span>
+        <?php endif; ?>
+    </div>
+    <div class="body-bar">
+        <?php foreach ($incidents as $incident): ?>
+            <div class="admin-ligne-alerte">
+                <span class="material-symbols-outlined">
+                    <?= $incident['niveau'] === 'critique' ? 'gpp_maybe' : 'error' ?>
+                </span>
+                <span>
+                    <b><?= $e($incident['message'] ?: $incident['action']) ?></b>
+                    <em style="font-style:normal;opacity:.8">
+                        — <?= $e(journalLibelleCanal($incident['canal'])) ?>,
+                        <?= $e(journalQuand($incident['horodatage'])) ?>
+                    </em>
+                </span>
+            </div>
+        <?php endforeach; ?>
+        <div class="admin-actions" style="margin-top:8px;">
+            <a href="?page=admin/journal" data-page="admin/journal" class="buttons">Ouvrir le journal</a>
+        </div>
     </div>
 </article>
 <?php endif; ?>
@@ -157,6 +210,18 @@ if ($nbOrphelins || $nbManquants):
             <a href="?page=admin/maintenance" data-page="admin/maintenance" class="admin-section">
                 <span class="material-symbols-outlined">build</span>
                 <span><b>Maintenance</b><em>Recherche, conteneurs, mises à jour</em></span>
+            </a>
+            <a href="?page=admin/journal" data-page="admin/journal" class="admin-section">
+                <span class="material-symbols-outlined">receipt_long</span>
+                <span><b>Journal</b><em>Connexions, opérations, incidents</em></span>
+            </a>
+            <a href="?page=admin/console" data-page="admin/console" class="admin-section">
+                <span class="material-symbols-outlined">terminal</span>
+                <span><b>Console</b><em>Interroger la base, diagnostiquer</em></span>
+            </a>
+            <a href="?page=admin/sql" data-page="admin/sql" class="admin-section">
+                <span class="material-symbols-outlined">database</span>
+                <span><b>Terminal SQL</b><em>Client SQL complet, lecture seule par défaut</em></span>
             </a>
         </div>
     </div>

@@ -81,6 +81,23 @@ if (!file_exists($wav_path)) {
 
     if ($code !== 0 || !file_exists($wav_path)) {
         log_msg("FAIL: code=$code, exists=" . (file_exists($wav_path) ? 'yes' : 'no'));
+
+        /*
+         * Le détail de l'échec vivait uniquement dans /tmp/import_debug.log,
+         * écrasé au redémarrage du conteneur et inaccessible depuis
+         * l'interface. Les dernières lignes de yt-dlp sont ce qui permet de
+         * distinguer une vidéo indisponible d'un yt-dlp à mettre à jour.
+         */
+        journalErreur('import', 'import_echoue',
+            "Échec du téléchargement de « $title » — $artist",
+            [
+                'titre'      => $title,
+                'artiste'    => $artist,
+                'video_id'   => $video_id,
+                'code_sortie' => $code,
+                'sortie'     => array_slice($output, -5),
+            ]);
+
         http_response_code(500);
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => "Erreur lors de l'import"]);
@@ -216,6 +233,20 @@ try {
 }
 
 log_msg("=== SUCCESS ===");
+
+// Seule trace durable de ce qui entre dans la bibliothèque : c'est elle qui
+// permettra plus tard de rattacher un fichier à la date et au compte qui l'ont
+// amené, indépendamment de la table `tracks` si celle-ci a été corrigée depuis.
+journalInfo('import', $is_new ? 'titre_importe' : 'titre_deja_present',
+    ($is_new ? 'Import de « ' : 'Déjà présent : « ') . $title . ' » — ' . $artist,
+    [
+        'track_id' => $track_id,
+        'titre'    => $title,
+        'artiste'  => $artist,
+        'genre'    => $genre !== '' ? $genre : null,
+        'fichier'  => $file,
+    ]);
+
 http_response_code(200);
 header('Content-Type: application/json');
 echo json_encode(['success' => true, 'message' => ($is_new ? 'Importé' : 'Déjà importé'), 'track_id' => $track_id]);

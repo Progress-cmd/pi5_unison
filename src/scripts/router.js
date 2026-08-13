@@ -30,6 +30,9 @@ const routes = {
     'admin/stockage':    'pages/admin_stockage.php',
     'admin/comptes':     'pages/admin_comptes.php',
     'admin/maintenance': 'pages/admin_maintenance.php',
+    'admin/journal':     'pages/admin_journal.php',
+    'admin/console':     'pages/admin_console.php',
+    'admin/sql':         'pages/admin_sql.php',
 };
 
 /*

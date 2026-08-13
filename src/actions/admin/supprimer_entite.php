@@ -85,6 +85,10 @@ if ($entite['index']) {
     }
 }
 
+journalInfo('contenu', 'entite_supprimee',
+    $entite['libelle'] . ' « ' . $nom . ' » supprimé(e)',
+    ['type' => $type, 'table' => $table, 'entite_id' => $id, 'nom' => $nom]);
+
 echo json_encode([
     'success' => true,
     'message' => $entite['libelle'] . ' « ' . $nom . ' » supprimé(e)',

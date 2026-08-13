@@ -92,6 +92,10 @@ if ($meili) {
     }
 }
 
+journalInfo('contenu', 'titre_supprime',
+    'Titre « ' . $titre['title'] . ' » supprimé',
+    ['track_id' => $trackId, 'fichier' => $fichier, 'fichier_supprime' => $fichierSupprime]);
+
 echo json_encode([
     'success'          => true,
     'message'          => 'Titre « ' . $titre['title'] . ' » supprimé',

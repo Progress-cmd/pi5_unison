@@ -79,6 +79,10 @@ if ($role === 'desactive') {
     );
     $req->execute([':id' => $userId]);
 
+    journalAttention('admin', 'compte_desactive',
+        'Compte « ' . $cible['username'] . ' » désactivé',
+        ['compte_id' => $userId, 'compte' => $cible['username'], 'role_precedent' => $cible['role']]);
+
     echo json_encode([
         'success' => true,
         'role'    => 'desactive',
@@ -95,6 +99,17 @@ if ($role === 'desactive') {
  */
 $req = $pdo->prepare("UPDATE users SET role = :role WHERE id = :id");
 $req->execute([':role' => $role, ':id' => $userId]);
+
+// Une promotion administrateur est le changement de droits le plus sensible :
+// elle mérite d'être retrouvable, même des mois après.
+journalAttention('admin', 'role_change',
+    'Compte « ' . $cible['username'] . ' » : rôle ' . $cible['role'] . ' → ' . $role,
+    [
+        'compte_id'      => $userId,
+        'compte'         => $cible['username'],
+        'role_precedent' => $cible['role'],
+        'role_nouveau'   => $role,
+    ]);
 
 $message = 'Compte « ' . $cible['username'] . ' » : rôle ' . $role;
 if ($cible['role'] === 'desactive') {
