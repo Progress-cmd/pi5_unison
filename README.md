@@ -241,17 +241,64 @@ applique systématiquement les migrations en attente. Passer
 `RECONSTRUCTION_AUTO=0` en tête du script si vous préférez être prévenu plutôt
 qu'interrompu — il signalera alors qu'une reconstruction est nécessaire.
 
+#### La commande `unison`
+
+Tout le pilotage du serveur passe par une seule commande. Sans argument, elle
+ouvre un menu :
+
+```bash
+unison            # menu interactif
+unison status     # ou directement une sous-commande
+unison aide       # liste complète
+```
+
+Installation par **lien symbolique**, pas par copie — le dépôt reste la seule
+source, et un `git pull` met la commande à jour tout seul :
+
+```bash
+sudo ln -sfn /home/Francis/apps/pi5_unison/docker/unison.sh /usr/local/bin/unison
+```
+
+| Sous-commande | Effet |
+|---|---|
+| `status` | version, conteneurs, schéma, cron, disque |
+| `update` | pull + migrations + rechargement — sans coupure |
+| `upgrade` | pull + reconstruction `--build` — coupure de service |
+| `reload` | pull + rechargement du code PHP seulement |
+| `migrations` | migrations en attente, puis application |
+| `backup` | sauvegarde compressée et datée (les 10 dernières sont conservées) |
+| `journal [n]` | derniers événements du journal applicatif |
+| `logs [n]` | logs Docker de l'application, en direct |
+| `sql`, `shell` | client SQL, shell dans le conteneur |
+| `start`, `stop`, `restart` | conteneurs |
+| `cron [on\|off\|toggle]` | mise à jour automatique |
+
+**Le cron** est la ligne de crontab qui déclenche `update_unison.sh` chaque
+minute. `unison cron off` la désactive le temps d'une intervention — sans ça,
+le cron peut relancer un pull ou une reconstruction au milieu d'une
+manipulation. La ligne est **commentée et non supprimée**, donc `unison cron on`
+la retrouve à l'identique. Le reste de la crontab n'est jamais touché, et une
+sauvegarde est déposée dans `/tmp` avant chaque modification.
+
+> À la restauration, utilisez `crontab - < fichier` et non `crontab fichier` :
+> la commande `crontab` tronque les noms de fichiers longs et remplacerait la
+> crontab par le contenu d'un chemin inexistant.
+
 #### Alias disponibles
+
+Les alias ne sont que des raccourcis vers `unison` — une seule implémentation,
+qui ne peut donc pas diverger.
 
 | Alias | Ce qu'il fait | Coupure |
 |---|---|---|
 | `reload_unison` | pull + rechargement Apache | aucune |
 | `update_unison` | pull + **migrations** + rechargement | aucune |
 | `upgrade_unison` | pull + **`--build`** + migrations + redémarrage | quelques minutes |
-| `migrations_unison` | migrations en attente, sans rien appliquer | — |
-| `status_unison` | commit déployé, version, conteneurs, schéma | — |
+| `migrations_unison` | migrations en attente | — |
+| `status_unison` | commit déployé, version, conteneurs, schéma, cron | — |
 | `backup_unison` | sauvegarde datée et compressée de la base | — |
-| `logs_unison`, `shell_unison`, `sql_unison` | diagnostic | — |
+| `cron_unison [on\|off]` | mise à jour automatique | — |
+| `journal_unison`, `logs_unison`, `shell_unison`, `sql_unison` | diagnostic | — |
 
 En cas de doute : `upgrade_unison`. Il est plus lent, jamais faux.
 

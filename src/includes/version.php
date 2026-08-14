@@ -13,7 +13,7 @@
  * d'administration, publié par le script de mise à jour de l'hôte.
  */
 
-const UNISON_VERSION = '1.0.8';
+const UNISON_VERSION = '1.0.9';
 
 /** Libellé complet, tel qu'affiché dans l'interface. */
 function versionUnison(bool $avecNom = true): string

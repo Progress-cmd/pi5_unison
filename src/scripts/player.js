@@ -9,6 +9,7 @@
     let secondesAFlusher = 0;    // secondes accumulées pas encore envoyées au serveur
     let ecouteComptee = false;   // une seule écoute comptée par chargement / tour de boucle
     let dernierTemps = 0;        // dernier currentTime vu au timeupdate
+    let dernierePositionPubliee = 0; // dernière position annoncée au système (notification)
     window.sourcePlaylistId = null; // playlist d'origine de la queue (null = hors playlist)
 
     // --- Audio setup ---
@@ -45,6 +46,7 @@
         tempsLectureTitre = 0;
         ecouteComptee = false;
         dernierTemps = 0;
+        dernierePositionPubliee = 0;
         currentTrackId = id;
         const res = await fetch(`actions/getTrack.php?id=${id}`);
         const track = await res.json();
@@ -63,6 +65,13 @@
         document.querySelector('.player-progress_current').style.width = '0%';
         document.querySelector('.time-current').textContent = '0:00';
         document.querySelector('.time-total').textContent = formatTime(track.duration);
+
+        /*
+         * Publication auprès du système AVANT le chargement : la notification
+         * affiche ainsi le bon titre dès l'instant où la lecture démarre,
+         * plutôt que de garder brièvement celui de la piste précédente.
+         */
+        majMetadonneesMedia(track);
 
         audio.load();
         if (autoplay) {
@@ -209,6 +218,17 @@
 
         document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
         document.querySelector('.time-total').textContent = formatTime(audio.duration);
+
+        /*
+         * Barre de progression du système, rafraîchie au plus une fois par
+         * seconde : « timeupdate » se déclenche environ quatre fois par
+         * seconde, et le système extrapole de lui-même entre deux annonces.
+         */
+        if (audio.currentTime - dernierePositionPubliee >= 1
+            || audio.currentTime < dernierePositionPubliee) {
+            dernierePositionPubliee = audio.currentTime;
+            majPositionMedia();
+        }
     });
 
     function formatTime(s) {
@@ -217,6 +237,183 @@
         const sec = Math.floor(s % 60).toString().padStart(2, '0');
         return `${m}:${sec}`;
     }
+
+    /* =====================================================================
+     * Intégration au système : notification Android, écran de verrouillage,
+     * boutons des écouteurs Bluetooth et de la voiture.
+     *
+     * Sans ça, Android n'a que le titre de l'onglet et un bouton pause : pas
+     * de pochette, pas de « suivant », pas de barre de progression. Trois
+     * choses sont nécessaires, et il faut les trois :
+     *
+     *   1. metadata          — ce qui s'affiche (titre, artiste, pochette) ;
+     *   2. setActionHandler  — les boutons proposés. Un bouton n'apparaît QUE
+     *                          si son gestionnaire est déclaré ;
+     *   3. setPositionState  — la barre de progression déplaçable. C'est elle
+     *                          qui manque le plus souvent, et sans elle
+     *                          l'utilisateur ne peut pas se déplacer dans le
+     *                          morceau depuis l'écran verrouillé.
+     *
+     * L'API n'existe qu'en contexte sécurisé : en HTTPS (unison.pi5.ovh) ou
+     * sur localhost. En HTTP simple sur une IP locale, rien de tout ceci ne
+     * fonctionnera — c'est une limite du navigateur, pas du code.
+     * ================================================================== */
+
+    const mediaSessionDispo = 'mediaSession' in navigator;
+
+    /**
+     * Publie le titre, l'artiste et la pochette auprès du système.
+     *
+     * L'URL de la pochette est rendue absolue : Android va la chercher
+     * lui-même, hors du contexte de la page, et une URL relative n'aurait
+     * alors aucun sens. Deux tailles sont déclarées pour la même image afin
+     * que le système prenne la plus adaptée à l'endroit où il l'affiche
+     * (notification déroulée, écran verrouillé).
+     */
+    function majMetadonneesMedia(track) {
+        if (!mediaSessionDispo || !track) return;
+
+        let pochette = [];
+        if (track.img) {
+            try {
+                const url = new URL(track.img, location.href).href;
+                pochette = [
+                    { src: url, sizes: '256x256' },
+                    { src: url, sizes: '512x512' },
+                ];
+            } catch (e) {
+                // Une image inexploitable ne doit pas priver de notification.
+            }
+        }
+
+        try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title:  track.title  || 'Titre inconnu',
+                artist: track.artist || 'Artiste inconnu',
+                album:  'Unison',
+                artwork: pochette,
+            });
+        } catch (e) {
+            console.warn('MediaSession : métadonnées refusées', e);
+        }
+    }
+
+    /**
+     * Publie la position dans le morceau — c'est ce qui dessine la barre
+     * déplaçable de la notification.
+     *
+     * Le système extrapole ensuite tout seul à partir de la position et de la
+     * vitesse : inutile de l'appeler à chaque « timeupdate », une fois par
+     * seconde suffit largement (voir l'appel dans le gestionnaire).
+     *
+     * setPositionState lève une exception si les valeurs sont incohérentes
+     * (durée inconnue, position au-delà de la fin) — ce qui arrive
+     * normalement entre deux pistes, d'où les gardes et le try.
+     */
+    function majPositionMedia() {
+        if (!mediaSessionDispo || !navigator.mediaSession.setPositionState) return;
+
+        const duree = audio.duration;
+        if (!Number.isFinite(duree) || duree <= 0) return;
+
+        try {
+            navigator.mediaSession.setPositionState({
+                duration: duree,
+                playbackRate: audio.playbackRate || 1,
+                position: Math.min(Math.max(audio.currentTime, 0), duree),
+            });
+        } catch (e) {
+            // Position transitoirement incohérente : le prochain appel corrigera.
+        }
+    }
+
+    /** Déplacement borné dans le morceau, quelle que soit l'origine. */
+    function deplacerA(secondes) {
+        if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+        audio.currentTime = Math.min(Math.max(secondes, 0), audio.duration);
+    }
+
+    /**
+     * Déclare les boutons proposés par le système.
+     *
+     * Chaque déclaration est protégée : un navigateur qui ne connaît pas une
+     * action lève une TypeError, et une seule action non gérée ne doit pas
+     * faire tomber toutes les autres.
+     */
+    function brancherMediaSession() {
+        if (!mediaSessionDispo) return;
+
+        const actions = {
+            play:  () => audio.play().catch(() => {}),
+            pause: () => audio.pause(),
+
+            stop: () => {
+                audio.pause();
+                deplacerA(0);
+            },
+
+            nexttrack: () => pisteSuivante(),
+
+            /*
+             * Convention des lecteurs de musique, reprise ici : passé les
+             * trois premières secondes, « précédent » revient au début du
+             * morceau en cours. C'est ce que fait un appui sur « précédent »
+             * dans une voiture, et s'en écarter surprend.
+             */
+            previoustrack: () => {
+                if (audio.currentTime > 3) {
+                    deplacerA(0);
+                } else {
+                    pistePrecedente();
+                }
+            },
+
+            seekbackward: (details) => deplacerA(audio.currentTime - (details.seekOffset || 10)),
+            seekforward:  (details) => deplacerA(audio.currentTime + (details.seekOffset || 10)),
+
+            // Déplacement à un point précis : c'est le glissement du doigt sur
+            // la barre de la notification.
+            seekto: (details) => {
+                if (details.fastSeek && typeof audio.fastSeek === 'function') {
+                    audio.fastSeek(details.seekTime);
+                    return;
+                }
+                deplacerA(details.seekTime);
+            },
+        };
+
+        for (const [nom, gestionnaire] of Object.entries(actions)) {
+            try {
+                navigator.mediaSession.setActionHandler(nom, gestionnaire);
+            } catch (e) {
+                // Action inconnue de ce navigateur : les autres restent posées.
+            }
+        }
+    }
+
+    /*
+     * L'état de lecture est publié séparément des métadonnées : c'est lui qui
+     * décide de l'icône lecture/pause dans la notification, et il doit suivre
+     * l'audio même quand la lecture est commandée depuis la page.
+     */
+    audio.addEventListener('play', () => {
+        if (mediaSessionDispo) navigator.mediaSession.playbackState = 'playing';
+        majPositionMedia();
+    });
+
+    audio.addEventListener('pause', () => {
+        if (mediaSessionDispo) navigator.mediaSession.playbackState = 'paused';
+        majPositionMedia();
+    });
+
+    // La durée n'est connue qu'une fois les métadonnées chargées : c'est le
+    // premier moment où la barre de progression peut être publiée.
+    audio.addEventListener('loadedmetadata', majPositionMedia);
+    audio.addEventListener('durationchange', majPositionMedia);
+    audio.addEventListener('seeked', majPositionMedia);
+    audio.addEventListener('ratechange', majPositionMedia);
+
+    brancherMediaSession();
 
     document.querySelectorAll('.player-progress_bar').forEach(bar => {
         bar.addEventListener('click', function(e) {
@@ -227,25 +424,49 @@
         });
     });
 
+    /*
+     * Navigation dans la file d'attente.
+     *
+     * Extraites en fonctions parce qu'elles ont maintenant trois appelants :
+     * les boutons du lecteur, la fin de piste, et les commandes du système
+     * (notification Android, écouteurs Bluetooth). Les trois doivent se
+     * comporter exactement pareil.
+     *
+     * @return {boolean} false s'il n'y a rien avant / après.
+     */
+    function pisteSuivante() {
+        if (!window.waitPlaylist || window.currentIndex >= window.waitPlaylist.length - 1) {
+            return false;
+        }
+
+        window.currentIndex++;
+        loadTrack(window.waitPlaylist[window.currentIndex].id);
+        updateSelected();
+        return true;
+    }
+
+    function pistePrecedente() {
+        if (!window.waitPlaylist || window.currentIndex <= 0) {
+            return false;
+        }
+
+        window.currentIndex--;
+        loadTrack(window.waitPlaylist[window.currentIndex].id);
+        updateSelected();
+        return true;
+    }
+
     document.querySelectorAll('.next-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
-                window.currentIndex++;
-                loadTrack(window.waitPlaylist[window.currentIndex].id);
-                updateSelected();
-            }
+            pisteSuivante();
         });
     });
 
     document.querySelectorAll('.prev-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (window.waitPlaylist && window.currentIndex > 0) {
-                window.currentIndex--;
-                loadTrack(window.waitPlaylist[window.currentIndex].id);
-                updateSelected();
-            }
+            pistePrecedente();
         });
     });
 
@@ -266,11 +487,8 @@
         } else if (repeatMode === 2) {
             // Boucle infinie - audio.loop gère ça
             return;
-        } else if (window.waitPlaylist && window.currentIndex < window.waitPlaylist.length - 1) {
-            window.currentIndex++;
-            loadTrack(window.waitPlaylist[window.currentIndex].id);
-            updateSelected();
-        } else {
+        } else if (!pisteSuivante()) {
+            // Fin de la file : rien à enchaîner, on remet juste les boutons.
             updatePlayBtns();
         }
     });
