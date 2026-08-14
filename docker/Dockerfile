@@ -25,6 +25,12 @@ RUN curl -fL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
 # Configuration Apache
 RUN a2enmod rewrite headers
 
+# Nom du serveur, au niveau global. Déposé directement dans conf-enabled/, dont
+# Apache charge tout le contenu : pas besoin de a2enconf. Placé dans l'étape
+# commune, il vaut donc pour le développement comme pour la production.
+# Voir docker/servername.conf pour la raison d'être de ce fichier.
+COPY docker/servername.conf /etc/apache2/conf-enabled/servername.conf
+
 # Dossier de stockage
 RUN mkdir -p /var/www/music_data && chown www-data:www-data /var/www/music_data && chmod -R 755 /var/www/music_data
 

@@ -225,6 +225,35 @@ tracking table was lost must survive a replay.
 `docker/appliquer_migrations.sh` is called automatically after every pull by
 `update_unison.sh`; `--liste` shows what is pending without applying anything.
 
+### Server control (`docker/unison.sh`)
+Single entry point for every server operation: `unison` alone opens a menu,
+`unison <cmd>` runs directly. Installed as a **symlink** into `/usr/local/bin`,
+so a `git pull` updates it. `docker/bash_aliases.exemple.sh` only delegates to
+it — never add an operation to the aliases, add it here.
+
+`unison cron on|off` comments/uncomments the crontab line carrying the
+`# unison-maj` marker; the rest of the crontab is preserved and backed up first.
+**Always write a crontab via `crontab -` (stdin)**: `crontab <file>` silently
+truncates long filenames and would replace the crontab with nothing.
+
+### Media notifications (Android lock screen)
+`src/scripts/player.js` publishes to the OS through the MediaSession API. Three
+pieces are needed and all three must be present: `metadata` (what is shown),
+`setActionHandler` (a button only appears if its handler is declared), and
+`setPositionState` (the draggable progress bar — the one most often missing).
+
+Artwork URLs are made absolute: Android fetches them outside the page context.
+`setPositionState` throws on inconsistent values (unknown duration, position past
+the end), which happens normally between tracks — hence the guards. It is
+throttled to ~1/s in `timeupdate`; the OS extrapolates in between.
+
+Requires a secure context: works over HTTPS and on localhost, **not** over plain
+HTTP to a LAN IP. Seeking from the notification relies on `stream.php` answering
+Range requests with 206 — it does.
+
+`pisteSuivante()` / `pistePrecedente()` are shared by the player buttons, track
+end, and the OS handlers; keep them the single path for queue navigation.
+
 ### Deployment (host side)
 `src/` is bind-mounted, so PHP changes need only `apache2ctl graceful`. Everything
 else is **baked into the image** and needs `up -d --build`: `vendor/` (so
