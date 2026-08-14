@@ -33,12 +33,16 @@
         if (document.visibilityState === 'hidden') flusherTemps(true);
     });
 
-    // Demande la permission d'accès aux appareils audio une seule fois au démarrage
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-    }).catch(err => {
-        console.error('Permission audio refusée:', err);
-    });
+    /*
+     * La permission média n'est plus demandée ici.
+     *
+     * Elle ne sert qu'à afficher le NOM des sorties audio dans les réglages —
+     * une fonction de bureau, indisponible sur mobile. La réclamer au
+     * chargement affichait une demande d'accès au micro à chaque visite, y
+     * compris sur Android où elle ne pouvait servir à rien. Elle est désormais
+     * demandée à l'ouverture des réglages, et seulement si le navigateur sait
+     * changer de sortie (voir enumerateAudioDevices).
+     */
 
     // --- Charge une piste par ID et met à jour le player ---
     async function loadTrack(id, autoplay = true) {
@@ -759,8 +763,37 @@
                     <option value="">Détection en cours...</option>
                 </select>
             </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Notifications système</label>
+                <div id="etat-notification" style="font-size: 13px; line-height: 1.45;"></div>
+            </div>
             <button id="close-settings" style="width: 100%; padding: 10px; background: #C8593A; color: white; border: none; border-radius: 4px; cursor: pointer;">Fermer</button>
         `;
+
+        /*
+         * Diagnostic affiché DANS la page : sur Android on ne peut pas ouvrir
+         * une console pour comprendre pourquoi la notification est réduite à
+         * un bouton lecture. Cette ligne répond à la question sur l'appareil
+         * lui-même.
+         */
+        const etatNotif = content.querySelector('#etat-notification');
+        if (!mediaSessionDispo) {
+            etatNotif.innerHTML =
+                '<span style="color:#C8593A">Indisponibles.</span> ' +
+                "Cette page n'est pas en contexte sécurisé : le navigateur " +
+                "désactive l'intégration au système. Ouvrez Unison en " +
+                '<b>HTTPS</b> (https://unison.pi5.ovh) plutôt qu\'en http:// ' +
+                "sur une adresse IP locale.";
+        } else if (window.isSecureContext === false) {
+            etatNotif.innerHTML =
+                '<span style="color:#C8593A">Partiellement disponibles.</span> ' +
+                'Passez en HTTPS pour la pochette et la barre de progression.';
+        } else {
+            etatNotif.innerHTML =
+                '<span style="color:#2e7d32">Actives.</span> ' +
+                'Titre, artiste, pochette, précédent / suivant et barre de ' +
+                "progression sont publiés vers l'écran de verrouillage.";
+        }
 
         const slider = content.querySelector('#volume-slider');
         const volumeValue = content.querySelector('#volume-value');
@@ -779,6 +812,43 @@
 
         // Fonction pour énumérer les appareils
         async function enumerateAudioDevices() {
+            /*
+             * Le choix de la sortie audio depuis une page web repose sur
+             * setSinkId(), qui n'existe que sur les navigateurs de bureau.
+             * Android ne l'implémente pas et n'expose aucun appareil de type
+             * « audiooutput » : c'est le système qui décide où sort le son
+             * (haut-parleur, casque, Bluetooth), et il le fait très bien.
+             *
+             * On le dit clairement plutôt que d'afficher « Aucun appareil
+             * détecté », qui laisse croire à une panne.
+             */
+            if (typeof audio.setSinkId !== 'function') {
+                deviceSelect.innerHTML =
+                    '<option>Géré par le système sur cet appareil</option>';
+                deviceSelect.disabled = true;
+
+                const aide = document.createElement('small');
+                aide.style.cssText = 'display:block;margin-top:6px;color:#9A9188;line-height:1.4';
+                aide.textContent = "Sur mobile, la sortie audio se choisit dans Android "
+                                 + "(casque, Bluetooth) : le navigateur n'a pas la main dessus.";
+                deviceSelect.insertAdjacentElement('afterend', aide);
+                return;
+            }
+
+            /*
+             * Les libellés des appareils restent vides tant qu'aucune
+             * permission média n'a été accordée. On la demande ici, à
+             * l'ouverture des réglages — et non au chargement de la page, où
+             * elle réclamait le micro à chaque visite pour une fonction que
+             * l'utilisateur n'allait peut-être jamais ouvrir.
+             */
+            try {
+                const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
+                flux.getTracks().forEach(piste => piste.stop());
+            } catch (err) {
+                // Permission refusée : on énumère quand même, sans les noms.
+            }
+
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const audioDevices = devices.filter(device => device.kind === 'audiooutput');
