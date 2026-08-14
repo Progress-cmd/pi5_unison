@@ -23,7 +23,9 @@ body {
     }
 
     #login-card {
-        max-width: 325px;
+        /* 425 = les 325 px de contenu d'origine + les 2 × 50 px de padding.
+           En border-box, le rendu large reste donc identique à avant. */
+        max-width: 425px;
         border-radius: 20px;
         border: 1.5px solid #E2DDD7;
         background: white;
@@ -43,6 +45,18 @@ body {
     padding: 50px;
     font-family: 'Cormorant Garamond', serif;
     width: 100%;
+
+    /*
+     * border-box, sinon les 50 px de padding s'AJOUTENT aux 100 % de largeur :
+     * sur un écran de 360 px la carte en faisait 460, débordait de 50 px de
+     * chaque côté, et le padding tombait hors de l'écran — le texte se
+     * retrouvait collé aux bords, sans marge visible.
+     *
+     * Le max-width du mode large est exprimé en conséquence (voir plus bas) :
+     * il vaut désormais la largeur totale, padding compris.
+     */
+    box-sizing: border-box;
+    max-width: 425px;
 }
 
 /* --- Logo d'en-tête --- */
@@ -217,13 +231,18 @@ body {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 325px;
+    /* Même correction que #login-card : le padding est compris dans la
+       largeur, pour rester aligné avec la carte de connexion au-dessus. */
+    box-sizing: border-box;
+    max-width: 425px;
     padding: 0 50px 16px;
-    box-sizing: content-box;
 }
 
 @media (min-width: 415px) {
     #demo-card {
+        /* Sans padding horizontal, la largeur totale retombe sur les 325 px
+           d'origine du mode large. */
+        max-width: 325px;
         padding: 0 0 16px;
         animation: fadeUp 0.6s 0.15s ease both;
     }
@@ -317,15 +336,17 @@ body {
     z-index: 1;
     display: block;
     width: 100%;
-    max-width: 325px;
+    /* Même correction que #login-card et #demo-card. */
+    box-sizing: border-box;
+    max-width: 425px;
     padding: 0 50px 40px;
-    box-sizing: content-box;
     margin-top: 14px;
     text-align: center;
 }
 
 @media (min-width: 415px) {
     #acces-technique {
+        max-width: 325px;
         padding: 0 0 40px;
     }
 }

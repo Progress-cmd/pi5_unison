@@ -30,21 +30,74 @@ if (empty($file) || !file_exists($full_path)) {
     exit("Fichier introuvable.");
 }
 
-// 4. ENVOI DU FICHIER AU NAVIGATEUR
+/*
+ * 4. TYPE DE CONTENU
+ *
+ * Il était fixé à « audio/mpeg » pour tout le monde, alors que les imports
+ * produisent des .wav. Annoncer un type faux n'est pas anodin : la réponse
+ * porte aussi « X-Content-Type-Options: nosniff » (voir docker/000-default.conf),
+ * qui interdit justement au navigateur de rattraper l'erreur en devinant. Le
+ * lecteur peut alors échouer à déterminer la durée du morceau — et sans durée
+ * connue, pas de barre de progression déplaçable dans la notification Android.
+ */
+const TYPES_AUDIO = [
+    'wav'  => 'audio/wav',
+    'mp3'  => 'audio/mpeg',
+    'm4a'  => 'audio/mp4',
+    'mp4'  => 'audio/mp4',
+    'aac'  => 'audio/aac',
+    'ogg'  => 'audio/ogg',
+    'opus' => 'audio/ogg',
+    'flac' => 'audio/flac',
+    'webm' => 'audio/webm',
+];
+
+$extension = strtolower((string) pathinfo($full_path, PATHINFO_EXTENSION));
+$type = TYPES_AUDIO[$extension] ?? 'application/octet-stream';
+
+// 5. ENVOI DU FICHIER AU NAVIGATEUR
 $size = filesize($full_path);
 $start = 0;
 $end = $size - 1;
 
 if (isset($_SERVER['HTTP_RANGE'])) {
-    preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches);
-    $start = (int)$matches[1];
-    $end = isset($matches[2]) && $matches[2] !== '' ? (int)$matches[2] : $size - 1;
+    /*
+     * Les bornes reçues sont bornées au fichier. Sans ça, une demande au-delà
+     * de la fin produisait un Content-Length supérieur à ce qui était réellement
+     * envoyé : le navigateur attendait indéfiniment des octets qui ne venaient
+     * pas. C'est exactement ce que fait Android quand on déplace le curseur
+     * près de la fin d'un morceau.
+     */
+    if (preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+        $debutDemande = $matches[1];
+        $finDemandee  = $matches[2];
 
-    header("HTTP/1.1 206 Partial Content");
-    header("Content-Range: bytes $start-$end/$size");
+        if ($debutDemande === '' && $finDemandee !== '') {
+            // Forme suffixe « bytes=-500 » : les N derniers octets.
+            $longueur = min((int) $finDemandee, $size);
+            $start = $size - $longueur;
+            $end   = $size - 1;
+        } else {
+            $start = (int) $debutDemande;
+            $end   = $finDemandee !== '' ? (int) $finDemandee : $size - 1;
+        }
+
+        $end = min($end, $size - 1);
+
+        // Intervalle inexploitable : la norme impose 416 et la taille réelle,
+        // ce qui permet au lecteur de repartir sur de bonnes bases.
+        if ($start < 0 || $start > $end) {
+            header('HTTP/1.1 416 Range Not Satisfiable');
+            header("Content-Range: bytes */$size");
+            exit;
+        }
+
+        header('HTTP/1.1 206 Partial Content');
+        header("Content-Range: bytes $start-$end/$size");
+    }
 }
 
-header('Content-Type: audio/mpeg');
+header('Content-Type: ' . $type);
 header('Content-Length: ' . ($end - $start + 1));
 header('Accept-Ranges: bytes');
 
