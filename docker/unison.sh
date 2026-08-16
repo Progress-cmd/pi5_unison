@@ -282,6 +282,50 @@ cmd_backup() {
     fi
 }
 
+# Met à jour yt-dlp dans le conteneur en cours.
+#
+# Nécessaire parce qu'une reconstruction ne suffit PAS : le Dockerfile
+# télécharge yt-dlp dans une couche qui ne change jamais, donc Docker la
+# réutilise depuis son cache et réinstalle la même version, même avec --build.
+# Or YouTube modifie régulièrement son format, et un yt-dlp en retard échoue
+# sur tous les imports à la fois.
+#
+# La mise à jour se fait dans le conteneur en cours : elle est donc perdue à la
+# prochaine reconstruction, où il faudra la relancer.
+cmd_ytdlp() {
+    titre "Mise à jour de yt-dlp"
+
+    local avant
+    avant=$(dc exec -T app /usr/local/bin/yt-dlp --version 2>/dev/null | tr -d '\r')
+    info "version actuelle : ${avant:-inconnue}"
+
+    # -u root : en production le conteneur tourne en www-data, qui ne peut pas
+    # écrire dans /usr/local/bin.
+    if dc exec -T -u root app sh -c \
+        'curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+             -o /usr/local/bin/yt-dlp.neuf \
+         && chmod 755 /usr/local/bin/yt-dlp.neuf \
+         && /usr/local/bin/yt-dlp.neuf --version >/dev/null \
+         && mv /usr/local/bin/yt-dlp.neuf /usr/local/bin/yt-dlp'; then
+
+        local apres
+        apres=$(dc exec -T app /usr/local/bin/yt-dlp --version 2>/dev/null | tr -d '\r')
+
+        if [ "$avant" = "$apres" ]; then
+            ok "Déjà à jour ($apres)"
+        else
+            ok "yt-dlp $avant → $apres"
+        fi
+        avert "Perdu à la prochaine reconstruction : relancez « unison ytdlp » après un upgrade."
+    else
+        # Le binaire n'est remplacé qu'après vérification : en cas d'échec,
+        # l'ancien yt-dlp est toujours en place et les imports continuent.
+        ko "Mise à jour impossible — l'ancienne version reste en place"
+        dc exec -T -u root app rm -f /usr/local/bin/yt-dlp.neuf 2>/dev/null
+        return 1
+    fi
+}
+
 cmd_logs()  { dc logs --tail "${1:-80}" -f app; }
 cmd_shell() { dc exec app bash; }
 cmd_sql()   { dc exec -e MYSQL_PWD="$(lire_env DB_ROOTPASS)" db mariadb -u root "$(lire_env DB_NAME)"; }
@@ -350,19 +394,20 @@ menu() {
 
   ${GRAS}Exploitation${RAZ}
     6  Sauvegarder la base
-    7  Journal applicatif
-    8  Logs Docker (suivi en direct)
-    9  Terminal SQL
-   10  Shell dans le conteneur
+    7  Mettre à jour yt-dlp     (imports YouTube en échec)
+    8  Journal applicatif
+    9  Logs Docker (suivi en direct)
+   10  Terminal SQL
+   11  Shell dans le conteneur
 
   ${GRAS}Conteneurs${RAZ}
-   11  Redémarrer
-   12  Démarrer
-   13  Arrêter
+   12  Redémarrer
+   13  Démarrer
+   14  Arrêter
 
   ${GRAS}Mise à jour automatique${RAZ}
-   14  Activer / désactiver le cron
-   15  Détail du cron
+   15  Activer / désactiver le cron
+   16  Détail du cron
 
     0  Quitter
 
@@ -377,15 +422,16 @@ MENU
             4)  cmd_reload ;;
             5)  cmd_migrations ;;
             6)  cmd_backup ;;
-            7)  printf 'Combien d’événements ? [20] '; read -r n; cmd_journal "${n:-20}" ;;
-            8)  info "Ctrl+C pour revenir au menu"; cmd_logs ;;
-            9)  cmd_sql ;;
-            10) cmd_shell ;;
-            11) cmd_restart ;;
-            12) cmd_start ;;
-            13) cmd_stop ;;
-            14) cron_basculer ;;
-            15) cron_afficher ;;
+            7)  cmd_ytdlp ;;
+            8)  printf 'Combien d’événements ? [20] '; read -r n; cmd_journal "${n:-20}" ;;
+            9)  info "Ctrl+C pour revenir au menu"; cmd_logs ;;
+            10) cmd_sql ;;
+            11) cmd_shell ;;
+            12) cmd_restart ;;
+            13) cmd_start ;;
+            14) cmd_stop ;;
+            15) cron_basculer ;;
+            16) cron_afficher ;;
             0|q|Q) exit 0 ;;
             '')  ;;
             *)  ko "Choix inconnu : $choix" ;;
@@ -419,6 +465,7 @@ ${GRAS}unison${RAZ} — pilotage du serveur Unison
   ${GRAS}Exploitation${RAZ}
     backup               sauvegarde compressée de la base
     sql                  client SQL sur la base principale
+    ytdlp                met à jour yt-dlp (imports YouTube en échec)
     shell                shell dans le conteneur applicatif
 
   ${GRAS}Conteneurs${RAZ}
@@ -447,6 +494,7 @@ case "${1:-}" in
     migrations|migrate) cmd_migrations ;;
     backup|sauvegarde)  cmd_backup ;;
     logs)               cmd_logs "${2:-80}" ;;
+    ytdlp)              cmd_ytdlp ;;
     journal)            cmd_journal "${2:-20}" ;;
     sql)                cmd_sql ;;
     shell|bash)         cmd_shell ;;
