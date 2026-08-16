@@ -24,8 +24,31 @@ require_once __DIR__ . '/artistImage.php';
  *
  * @return array{0:string,1:string,2:int} [sortie, erreurs, code de retour]
  */
+/**
+ * Options ajoutées à tous les appels yt-dlp.
+ *
+ * Un import en masse enchaîne les requêtes vers YouTube, qui finit par
+ * répondre « HTTP 429 : Too Many Requests ». Les échecs semblent alors
+ * aléatoires, et une relance manuelle en récupère quelques-uns à chaque
+ * passage — le symptôme classique d'une limitation de débit.
+ *
+ * Ces options laissent yt-dlp espacer et réessayer lui-même, ce qui évite
+ * l'essentiel des refus sans rien changer au reste :
+ *   --sleep-requests    pause entre deux requêtes d'extraction
+ *   --retries           reprises sur erreur HTTP, avec attente croissante
+ *   --extractor-retries reprises sur erreur d'extraction
+ */
+const YTDLP_OPTIONS_COMMUNES = [
+    '--sleep-requests', '1',
+    '--retries', '5',
+    '--extractor-retries', '3',
+    '--no-warnings',
+];
+
 function executerYtDlp(array $arguments): array
 {
+    $arguments = array_merge(YTDLP_OPTIONS_COMMUNES, $arguments);
+
     $cmd = '/usr/local/bin/yt-dlp ' . implode(' ', array_map('escapeshellarg', $arguments));
 
     $fichierErreurs = tempnam('/tmp', 'ytdlp_');
@@ -59,6 +82,16 @@ function traduireErreurYtDlp(string $erreurs): string
             => 'Réservée aux membres de la chaîne',
         '/removed by the uploader|account associated .* has been terminated/i'
             => 'Vidéo supprimée par son auteur',
+        /*
+         * « not available on this app » n'est PAS une vidéo indisponible : la
+         * vidéo existe, c'est le client simulé par yt-dlp que YouTube refuse.
+         * À tester avant le motif générique ci-dessous, qui contient
+         * « is not available » et le capterait sinon — en donnant une raison
+         * fausse et une action inutile.
+         */
+        '/not available on this app|player response|failed to extract/i'
+            => 'YouTube a changé son format : yt-dlp doit être mis à jour (unison ytdlp)',
+
         '/video unavailable|is not available/i'
             => 'Vidéo indisponible',
         '/not available in your country|geo.?restricted|blocked it in your country/i'
@@ -69,6 +102,24 @@ function traduireErreurYtDlp(string $erreurs): string
             => "La diffusion n'a pas encore commencé",
         '/sign in to confirm.*not a bot|confirm you.?re not a bot/i'
             => 'YouTube demande une confirmation anti-robot',
+
+        /*
+         * Limitation de débit. À placer AVANT le motif réseau ci-dessous :
+         * le message de yt-dlp est « unable to download video data: HTTP Error
+         * 429 », qui contient « unable to download » et se faisait donc
+         * étiqueter « échec réseau » — un diagnostic trompeur, puisque le
+         * réseau va très bien. C'est le cas typique de l'import en masse :
+         * YouTube coupe après quelques titres, et l'attente suffit à repartir.
+         */
+        '/http error 429|too many requests|rate.?limit|throttl/i'
+            => 'YouTube limite les téléchargements (trop de requêtes d\'affilée) — '
+             . 'patientez quelques minutes avant de relancer',
+
+        // 403 sur YouTube est presque toujours transitoire (jeton expiré,
+        // protection anti-robot), pas une vraie interdiction d'accès.
+        '/http error 403|forbidden/i'
+            => 'YouTube a refusé le téléchargement (403) — généralement temporaire, réessayez',
+
         '/unable to download|failed to resolve|connection|timed out|temporary failure/i'
             => 'Échec réseau pendant la récupération',
         '/unsupported url|is not a valid url/i'
@@ -248,8 +299,15 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
 
     // Téléchargement + conversion WAV si le fichier n'existe pas déjà
     if (!file_exists($wav_path)) {
+        /*
+         * Pause aléatoire de 1 à 5 s avant le téléchargement lui-même : c'est
+         * l'enchaînement régulier des téléchargements qui déclenche le plus
+         * sûrement la limitation. Le coût est négligeable devant la conversion
+         * WAV qui suit.
+         */
         [, $erreurs, $code] = executerYtDlp([
             '-x', '--audio-format', 'wav', '--audio-quality', '0',
+            '--sleep-interval', '1', '--max-sleep-interval', '5',
             '--add-metadata', '--no-overwrites', '-o', $output_path, $url,
         ]);
 
