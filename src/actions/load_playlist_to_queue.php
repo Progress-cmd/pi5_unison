@@ -1,11 +1,14 @@
 <?php
-header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+verifierCsrf(true);
 include_once "../includes/config.php";
+
+header('Content-Type: application/json');
 
 $playlistId = filter_input(INPUT_POST, 'playlist_id', FILTER_VALIDATE_INT);
 
-if (!$playlistId || !isset($_SESSION['user']['id'])) {
+if (!$playlistId) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Données invalides']);
     exit;
@@ -73,6 +76,5 @@ try {
 
     echo json_encode(['success' => true, 'tracks' => $queueTracks]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('file_playlist', $e, "Impossible de charger la playlist dans la file");
 }

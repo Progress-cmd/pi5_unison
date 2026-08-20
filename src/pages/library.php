@@ -1,7 +1,96 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(false);
+include_once "../includes/config.php";
+include_once "../includes/rendu.php";
+$pdo = Config::getConnection();
+
+// Aperçu de la discothèque : les plus récents seulement. La liste complète est
+// paginée sur sa propre page (library/titres) — quelques centaines de lignes
+// injectées d'un coup figent la page sur mobile.
+$req = $pdo->query("
+    SELECT tracks.id, tracks.title, tracks.img,
+           GROUP_CONCAT(DISTINCT artists.name ORDER BY artists.name SEPARATOR ', ') AS artists_names
+    FROM tracks
+    LEFT JOIN artist__track ON artist__track.track_id = tracks.id
+    LEFT JOIN artists       ON artists.id = artist__track.artist_id
+    GROUP BY tracks.id, tracks.title, tracks.img, tracks.`created-at`
+    ORDER BY tracks.`created-at` DESC, tracks.id DESC
+    LIMIT 6
+");
+$apercuTitres = $req->fetchAll();
+$nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
 ?>
+
+<article id="tracks-bar" class="containers">
+    <div class="head-bar">Tous les titres<a href="?page=library/titres" class="more-bar" data-page="library/titres">Voir tout<?= $nombreTitres ? ' ('.$nombreTitres.')' : '' ?></a></div>
+
+    <button id="tout-ecouter" type="button">
+        <span class="material-symbols-outlined">shuffle</span>
+        <span class="tout-ecouter-textes">
+            <span class="tout-ecouter-titre">Tout écouter</span>
+            <span class="tout-ecouter-sous">Toute la discothèque, en aléatoire</span>
+        </span>
+        <span class="material-symbols-outlined tout-ecouter-play">play_arrow</span>
+    </button>
+
+    <div class="body-bar">
+        <?php
+        foreach ($apercuTitres as $titre) { echo ligneTitre($titre); }
+        if (!$apercuTitres) { echo ligneVide("Aucun titre pour l'instant"); }
+        ?>
+    </div>
+</article>
+
+<script>
+    (function() {
+        const section = document.getElementById('tracks-bar');
+        if (!section) return;
+
+        // Le clic sur une ligne est géré par la délégation du routeur.
+        const bouton = document.getElementById('tout-ecouter');
+        if (!bouton) return;
+
+        bouton.addEventListener('click', async () => {
+            // Le remplissage couvre toute la discothèque : sans verrou, un
+            // double clic relancerait la file en cours de construction.
+            if (bouton.disabled) return;
+            const icone = bouton.querySelector('.tout-ecouter-play');
+            bouton.disabled = true;
+            bouton.classList.add('en-cours');
+            icone.textContent = 'progress_activity';
+
+            try {
+                const res = await fetch('actions/lire_tout_aleatoire.php', { method: 'POST' });
+                const data = await res.json();
+
+                if (!data.success || !data.tracks || data.tracks.length === 0) {
+                    window.showToast(data.message || 'Aucun titre à lire', 'error');
+                    return;
+                }
+
+                window.waitPlaylist = data.tracks;
+                window.sourcePlaylistId = null; // la file ne vient d'aucune playlist
+                window.currentIndex = 0;
+
+                loadTrack(data.tracks[0].id, true);
+
+                if (window.initializeTrackContextMenus) {
+                    window.initializeTrackContextMenus();
+                }
+
+                window.showToast(`${data.tracks.length} titres en lecture aléatoire 🔀`, 'success');
+            } catch (err) {
+                window.showToast("Erreur lors du chargement de la discothèque", 'error');
+            } finally {
+                bouton.disabled = false;
+                bouton.classList.remove('en-cours');
+                icone.textContent = 'play_arrow';
+            }
+        });
+    })();
+</script>
+
 <article id="artist-bar" class="containers">
     <?php
     include_once "../includes/config.php";
@@ -71,19 +160,14 @@ $pdo = Config::getConnection();
         $req->execute([':user_id' => $_SESSION['user']['id']]);
 
         $titres = $req->fetchAll();
-        if ($titres[0]["id"] === NULL) { $titres = []; }
+        // Le LEFT JOIN renvoie une ligne nulle quand la playlist est vide.
+        if (!$titres || $titres[0]['id'] === null) { $titres = []; }
         $playlist_favorite_id = $titres[0]['playlist_id'] ?? null;
 
         foreach ($titres as $titre) {
-            echo '<div class="content mini-song favorite-playlist-song" data-track-id="'.$titre['id'].'" onclick="loadTrack('.$titre["id"].')">
-                      <img src="'.$titre["img"].'" class="song-img" alt=" ">
-                      <div class="song-infos">
-                          <div class="song-title">'.$titre["title"].'</div>
-                          <div class="song-artist">'.$titre["artists_names"].'</div>
-                      </div>
-                        <button class="buttons material-symbols-outlined">more_vert</button>
-                  </div>';
+            echo ligneTitre($titre, ['classes' => 'favorite-playlist-song']);
         }
+        if (!$titres) { echo ligneVide('Aucun favori pour le moment'); }
         ?>
     </div>
 </article>

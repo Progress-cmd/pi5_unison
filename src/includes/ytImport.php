@@ -4,10 +4,78 @@
  * l'import unitaire (avec confirmation) et l'import en masse.
  *
  *  - extractYtMetadata()  : récupère les métadonnées d'une URL via yt-dlp
- *  - importTrackFromUrl() : télécharge le WAV et insère le titre + relations
+ *  - importTrackFromUrl() : télécharge l'audio et insère le titre + relations
  */
 
 require_once __DIR__ . '/artistImage.php';
+
+/*
+ * Journal : c'est ICI que l'instrumentation des imports doit vivre, et non
+ * dans les actions. actions/import_bulk.php et actions/import_expand.php
+ * passent tous les deux par ce fichier ; les instrumenter séparément laissait
+ * l'import en masse — le plus utilisé — totalement muet.
+ */
+require_once __DIR__ . '/journal.php';
+
+/** Dossier des fichiers audio importés. */
+const IMPORT_DOSSIER = '/var/www/music_data/';
+
+/**
+ * Extensions reconnues, par ordre de préférence.
+ *
+ * m4a d'abord : c'est le format des nouveaux imports. wav ensuite, pour les
+ * fichiers téléchargés avant le changement de format — ils restent lisibles
+ * tels quels, et ne doivent surtout pas être retéléchargés.
+ */
+const IMPORT_EXTENSIONS = ['m4a', 'wav', 'opus', 'mp3', 'webm', 'ogg', 'aac', 'flac', 'mp4'];
+
+/**
+ * Fichier déjà présent pour cette vidéo, quel que soit son format, ou null.
+ *
+ * Le nom était auparavant construit en dur (« id.wav »), ce qui liait le code
+ * à un format unique. On cherche désormais ce qui existe réellement.
+ */
+function fichierExistantPour(string $videoId): ?string
+{
+    foreach (IMPORT_EXTENSIONS as $ext) {
+        $nom = $videoId . '.' . $ext;
+        if (is_file(IMPORT_DOSSIER . $nom)) {
+            return $nom;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Identifiant de vidéo utilisable comme nom de fichier.
+ *
+ * Il vient du « ?v= » d'une URL fournie par l'utilisateur et finit en base
+ * dans tracks.file, d'où il ressort pour construire des chemins. Un
+ * identifiant YouTube n'est jamais qu'une suite de lettres, chiffres, tirets
+ * et soulignés : tout le reste est refusé plutôt que nettoyé.
+ */
+function identifiantVideoValide(string $videoId): bool
+{
+    return (bool) preg_match('/^[A-Za-z0-9_-]{1,64}$/', $videoId);
+}
+
+/**
+ * Dernières lignes utiles de la sortie d'erreur de yt-dlp.
+ *
+ * C'est la seule information qui permette de trancher entre une limitation de
+ * débit, une vidéo retirée et un extracteur périmé. Le journal en garde donc
+ * un extrait — borné, parce que yt-dlp peut être très bavard.
+ */
+function extraitErreurYtDlp(string $erreurs, int $lignes = 3): string
+{
+    $utiles = array_values(array_filter(
+        array_map('trim', explode("\n", $erreurs)),
+        fn($l) => $l !== ''
+    ));
+
+    return mb_substr(implode(' | ', array_slice($utiles, -$lignes)), 0, 400);
+}
 
 /**
  * Lance yt-dlp en séparant la sortie standard de la sortie d'erreur.
@@ -92,7 +160,9 @@ function traduireErreurYtDlp(string $erreurs): string
         '/not available on this app|player response|failed to extract/i'
             => 'YouTube a changé son format : yt-dlp doit être mis à jour (unison ytdlp)',
 
-        '/video unavailable|is not available/i'
+        // « Video unavailable » et « This video is unavailable » : yt-dlp
+        // emploie les deux formes, le « is » optionnel couvre les deux.
+        '/video (is )?unavailable|is not available/i'
             => 'Vidéo indisponible',
         '/not available in your country|geo.?restricted|blocked it in your country/i'
             => 'Vidéo bloquée dans ce pays',
@@ -189,7 +259,7 @@ function choisirMiniature(array $data, int $maxEssais = 3): string
 /**
  * Récupère les métadonnées d'une vidéo YouTube via yt-dlp.
  * Renvoie null si l'extraction échoue, sinon un tableau associatif :
- * [title, artist, album, genre, duration, miniature].
+ * [title, artist, genre, duration, miniature].
  *
  * @param string|null $raison Reçoit la raison de l'échec le cas échéant.
  */
@@ -199,6 +269,18 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
 
     if (trim($json) === '') {
         $raison = traduireErreurYtDlp($erreurs);
+
+        // Phase d'analyse : l'échec est visible dans l'interface, mais sa cause
+        // exacte n'existait nulle part une fois la page fermée.
+        journalAttention('import', 'metadonnees_echec',
+            'Analyse impossible : ' . $raison,
+            [
+                'url'          => $url,
+                'raison'       => $raison,
+                'code_sortie'  => $code,
+                'sortie_ytdlp' => extraitErreurYtDlp($erreurs),
+            ]);
+
         error_log("yt-dlp metadata KO ($url) : " . trim($erreurs));
         return null;
     }
@@ -253,7 +335,6 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
     return [
         'title'     => mb_substr($trackTitle  ?: 'Aucun titre',   0, 50),
         'artist'    => $trackArtist ?: 'Aucun artiste',
-        'album'     => $data['album'] ?? 'Aucun album',
         'genre'     => $genreBrut,
         'duration'  => intval($data['duration'] ?? 0),
         'miniature' => $thumb,
@@ -266,9 +347,15 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
  * Renvoie ['success' => bool, 'message' => string, 'track_id' => int|null,
  *          'is_new' => bool, 'title' => string, 'artist' => string].
  */
-function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): array
+/**
+ * @param bool $enLot vrai pour l'import en masse, faux pour l'import unitaire
+ *                    avec confirmation. Ne change que la trace au journal :
+ *                    c'est ce qui permet, après coup, de distinguer un échec
+ *                    isolé d'une salve qui s'est fait limiter par YouTube.
+ */
+function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId, bool $enLot = true): array
 {
-    // Les conversions WAV peuvent être longues : on lève la limite de temps
+    // Le téléchargement peut être long : on lève la limite de temps
     if (function_exists('set_time_limit')) { @set_time_limit(600); }
 
     $title     = trim($meta['title'] ?? '');
@@ -293,28 +380,73 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
         return $result;
     }
 
-    $output_path = "/var/www/music_data/%(id)s.%(ext)s";
-    $file        = $video_id . ".wav";
-    $wav_path    = "/var/www/music_data/" . $file;
+    if (!identifiantVideoValide($video_id)) {
+        $result['message'] = 'URL invalide';
+        return $result;
+    }
 
-    // Téléchargement + conversion WAV si le fichier n'existe pas déjà
-    if (!file_exists($wav_path)) {
+    $output_path = IMPORT_DOSSIER . '%(id)s.%(ext)s';
+
+    // Un fichier déjà là — quel que soit son format — se réutilise tel quel.
+    $file = fichierExistantPour($video_id);
+
+    if ($file === null) {
         /*
-         * Pause aléatoire de 1 à 5 s avant le téléchargement lui-même : c'est
+         * Format : le flux audio de YouTube est repris tel quel.
+         *
+         * L'import convertissait auparavant en WAV, ce qui décompressait une
+         * source déjà compressée : onze fois plus d'octets — mesuré à 11 Mo
+         * par minute, soit ~1500 kbit/s — pour exactement la même information,
+         * puisque YouTube ne diffuse rien de sans perte. La conversion était
+         * de surcroît l'étape la plus lente de l'import.
+         *
+         * m4a (AAC) plutôt qu'opus : YouTube propose les deux à ~130 kbit/s,
+         * mais seul le m4a se lit partout, Safari et iOS compris. Le sélecteur
+         * prend le flux m4a d'origine, donc aucun ré-encodage n'a lieu ;
+         * --audio-format ne sert que de garde-fou pour les rares vidéos qui
+         * n'offriraient pas d'AAC, afin que le format reste le même partout.
+         *
+         * La contrainte « audio_channels<=2 » n'est pas un détail : sans elle,
+         * yt-dlp retient le meilleur m4a disponible, c'est-à-dire la piste
+         * 5.1 à 388 kbit/s quand elle existe — trois fois plus lourde, et
+         * réduite en stéréo à la lecture de toute façon.
+         *
+         * Pause aléatoire de 1 à 5 s avant le téléchargement : c'est
          * l'enchaînement régulier des téléchargements qui déclenche le plus
-         * sûrement la limitation. Le coût est négligeable devant la conversion
-         * WAV qui suit.
+         * sûrement la limitation de débit de YouTube.
          */
         [, $erreurs, $code] = executerYtDlp([
-            '-x', '--audio-format', 'wav', '--audio-quality', '0',
+            '-f', 'ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b',
+            '-x', '--audio-format', 'm4a',
             '--sleep-interval', '1', '--max-sleep-interval', '5',
             '--add-metadata', '--no-overwrites', '-o', $output_path, $url,
         ]);
 
-        if ($code !== 0 || !file_exists($wav_path)) {
+        $file = fichierExistantPour($video_id);
+
+        if ($code !== 0 || $file === null) {
+            $raisonEchec = traduireErreurYtDlp($erreurs);
+
+            /*
+             * Le point aveugle que ce journal comble : lors d'un import en
+             * masse, les échecs défilaient à l'écran et disparaissaient avec
+             * la page. Impossible ensuite de savoir si YouTube avait limité le
+             * débit, retiré la vidéo, ou changé de format.
+             */
+            journalErreur('import', 'import_echoue',
+                'Téléchargement échoué : ' . $title . ' — ' . $artist,
+                [
+                    'url'          => $url,
+                    'titre'        => $title,
+                    'artiste'      => $artist,
+                    'raison'       => $raisonEchec,
+                    'code_sortie'  => $code,
+                    'sortie_ytdlp' => extraitErreurYtDlp($erreurs),
+                ]);
+
             error_log("yt-dlp download KO ($url) : " . trim($erreurs));
             // La raison exacte remonte jusqu'à l'interface, pas seulement aux logs.
-            $result['message'] = traduireErreurYtDlp($erreurs);
+            $result['message'] = $raisonEchec;
             return $result;
         }
     }
@@ -351,7 +483,11 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
             }
         }
     } catch (\Exception $e) {
-        error_log('Meilisearch error: ' . $e->getMessage());
+        // L'indexation ratée ne fait pas échouer l'import : le morceau est en
+        // base et lisible, il manque seulement à la recherche.
+        journalErreur('recherche', 'indexation_echouee',
+            'Indexation Meilisearch impossible pour « ' . $title . ' »',
+            ['erreur' => $e->getMessage()]);
     }
 
     // Artistes
@@ -382,7 +518,9 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
                         'name_artist' => $art,
                     ]]);
                 } catch (\Exception $e) {
-                    error_log('Meilisearch artist error: ' . $e->getMessage());
+                    journalErreur('recherche', 'indexation_echouee',
+                        'Indexation Meilisearch impossible pour l\'artiste « ' . $art . ' »',
+                        ['erreur' => $e->getMessage()]);
                 }
             }
         } else {
@@ -437,5 +575,17 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
 
     $result['success'] = true;
     $result['message'] = $is_new ? 'Importé' : 'Déjà présent';
+
+    journalInfo('import', $is_new ? 'titre_importe' : 'titre_deja_present',
+        ($is_new ? 'Import de « ' : 'Déjà présent : « ') . $title . ' » — ' . $artist,
+        [
+            'track_id' => $track_id,
+            'titre'    => $title,
+            'artiste'  => $artist,
+            'url'      => $url,
+            'fichier'  => $file,
+            'lot'      => $enLot,   // distingue l'import en masse de l'unitaire
+        ]);
+
     return $result;
 }

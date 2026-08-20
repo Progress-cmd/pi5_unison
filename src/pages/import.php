@@ -177,16 +177,24 @@ if ($lien === null || $lien === false) {
         $trackArtist = preg_replace('/\s*-\s*Topic$/i', '', $channelName) ?: null;
     }
 
-    $title    = htmlspecialchars($trackTitle       ?: "Aucun titre",        ENT_QUOTES, 'UTF-8');
-    $artist   = htmlspecialchars($trackArtist       ?: "Aucun artiste",      ENT_QUOTES, 'UTF-8');
-    $album    = htmlspecialchars($data['album']    ?? "Aucun album",        ENT_QUOTES, 'UTF-8');
-    $duration = htmlspecialchars($data['duration'] ?? "Aucune information", ENT_QUOTES, 'UTF-8');
-    $thumb    = htmlspecialchars($data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '', ENT_QUOTES, 'UTF-8');
+    /*
+     * Valeurs gardées telles quelles.
+     *
+     * Elles étaient échappées ici, en amont — donc renvoyées échappées dans
+     * les champs du formulaire, repostées échappées, et finalement écrites
+     * ainsi en base : « Rock & Roll » y devenait « Rock &amp; Roll ». L'import
+     * en masse, lui, n'échappait rien : le même morceau était enregistré
+     * différemment selon la porte d'entrée. L'échappement appartient à
+     * l'affichage, et c'est là qu'il a lieu maintenant (voir plus bas).
+     */
+    $title    = $trackTitle  ?: "Aucun titre";
+    $artist   = $trackArtist ?: "Aucun artiste";
+    $duration = $data['duration'] ?? "Aucune information";
+    $thumb    = $data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '';
 
     // Le genre est parfois fourni par yt-dlp (tableau "genres" ou chaîne "genre")
-    $genreBrut = $data['genres'] ?? $data['genre'] ?? '';
-    if (is_array($genreBrut)) { $genreBrut = implode(', ', $genreBrut); }
-    $genre = htmlspecialchars($genreBrut, ENT_QUOTES, 'UTF-8');
+    $genre = $data['genres'] ?? $data['genre'] ?? '';
+    if (is_array($genre)) { $genre = implode(', ', $genre); }
 
 
     include_once "../includes/config.php";
@@ -200,32 +208,27 @@ if ($lien === null || $lien === false) {
         ?>
         <form data-action="../actions/import.php" id="import-check" class="containers" method="post">
             <label>
-                <input type="text" class="alterable" value="<?php echo $title ?>" name="title" readonly required>
+                <input type="text" class="alterable" value="<?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?>" name="title" readonly required>
             </label>
 
-            <img src="<?php echo $thumb ?>" alt="image">
+            <img src="<?= htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8') ?>" alt="image">
 
             <label>Artiste :
-                <input type="text" class="alterable" value="<?php echo $artist ?>" name="artist" readonly required>
-            </label>
-            <br>
-
-            <label>Album :
-                <input type="text" class="alterable" value="<?php echo $album ?>" name="album" readonly>
+                <input type="text" class="alterable" value="<?= htmlspecialchars($artist, ENT_QUOTES, 'UTF-8') ?>" name="artist" readonly required>
             </label>
             <br>
 
             <label>Genre :
-                <input type="text" class="alterable" value="<?php echo $genre ?>" name="genre" placeholder="Genre inconnu" readonly>
+                <input type="text" class="alterable" value="<?= htmlspecialchars($genre, ENT_QUOTES, 'UTF-8') ?>" name="genre" placeholder="Genre inconnu" readonly>
             </label>
             <br>
 
             <label>Durée :
-                <input type="text" value="<?php echo $duration ?>" name="duration" readonly>
+                <input type="text" value="<?= htmlspecialchars($duration, ENT_QUOTES, 'UTF-8') ?>" name="duration" readonly>
             </label>
             <br>
 
-            <input type="hidden" value="<?php echo $thumb ?>" name="miniature">
+            <input type="hidden" value="<?= htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8') ?>" name="miniature">
             <input type="hidden" value="<?php echo filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL); ?>" name="url">
             <input type="hidden" name="token" value="<?= $token; ?>">
 
@@ -241,7 +244,7 @@ if ($lien === null || $lien === false) {
         <article class="containers">
             <div class="body-bar">
                 <div class="content">
-                    <em><?= $title ?></em>&nbsp; existe déjà dans la bibliothèque.
+                    <em><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></em>&nbsp; existe déjà dans la bibliothèque.
                 </div>
             </div>
         </article>

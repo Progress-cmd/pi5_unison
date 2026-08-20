@@ -1,8 +1,11 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
+
+header('Content-Type: application/json');
 
 $playlistId = filter_input(INPUT_POST, 'playlist_id', FILTER_VALIDATE_INT);
 $trackId = filter_input(INPUT_POST, 'track_id', FILTER_VALIDATE_INT);
@@ -14,6 +17,8 @@ if (!$playlistId || !$trackId) {
 }
 
 $pdo = Config::getConnection();
+
+exigerPlaylistDeLUtilisateur($pdo, $playlistId);
 
 try {
     // Supprime la chanson de la playlist
@@ -40,6 +45,5 @@ try {
 
     echo json_encode(['success' => true, 'message' => 'Chanson supprimée']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('retirer_titre', $e, "Impossible de retirer ce titre");
 }

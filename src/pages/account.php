@@ -1,6 +1,7 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(false);
+include_once "../includes/rendu.php";
 ?>
 <article class="containers" id="account-dashboard">
     <div class="head-bar">Dashboard</div>
@@ -22,9 +23,18 @@ exigerConnexion(false);
             <div class="dasboard-title"><b>Total Playlists : </b></div>
             <div class="dashboard-value">
                 <?php
-                $req = $pdo->prepare("SELECT COUNT(*) FROM playlists");
+                /*
+                 * Les playlists système sont écartées par leur nom, et non
+                 * plus en retranchant 2 du total : ce « -2 » supposait deux
+                 * comptes et deux seulement. À trois comptes il comptait une
+                 * file d'attente en trop ; à un seul il affichait -1.
+                 */
+                $req = $pdo->prepare("
+                    SELECT COUNT(*) FROM playlists
+                    WHERE name NOT IN ('Wait Tracks', 'Favorite Tracks')
+                ");
                 $req->execute();
-                echo $req->fetchColumn()-2; // On retire les deux playlists Wait track
+                echo $req->fetchColumn();
                 ?>
             </div>
         </div>
@@ -65,20 +75,13 @@ exigerConnexion(false);
         $req->execute([':user_id' => $_SESSION['user']['id']]);
         $topTitres = $req->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!$topTitres) {
-            echo '<div class="content">Aucune écoute pour le moment</div>';
-        }
+        if (!$topTitres) { echo ligneVide('Aucune écoute pour le moment'); }
 
         foreach ($topTitres as $topTitre) {
             $nbLibelle = $topTitre['nb'] > 1 ? $topTitre['nb'].' écoutes' : $topTitre['nb'].' écoute';
-            echo '<div class="content mini-song" data-track-id="'.$topTitre['id'].'" onclick="loadTrack('.$topTitre['id'].')">
-                      <img src="'.htmlspecialchars($topTitre['img'] ?? '').'" class="song-img" alt=" ">
-                      <div class="song-infos">
-                          <div class="song-title">'.htmlspecialchars($topTitre['title'] ?? '').'</div>
-                          <div class="song-artist">'.htmlspecialchars($topTitre['artists_names'] ?? '').' - '.$nbLibelle.'</div>
-                      </div>
-                      <button class="buttons material-symbols-outlined">more_vert</button>
-                  </div>';
+            echo ligneTitre($topTitre, [
+                'sous_titre' => ($topTitre['artists_names'] ?? '') . ' - ' . $nbLibelle,
+            ]);
         }
         ?>
     </div>
@@ -103,19 +106,13 @@ exigerConnexion(false);
         $req->execute([':user_id' => $_SESSION['user']['id']]);
         $ecoutes = $req->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!$ecoutes) {
-            echo '<div class="content">Aucune écoute pour le moment</div>';
-        }
+        if (!$ecoutes) { echo ligneVide('Aucune écoute pour le moment'); }
 
         foreach ($ecoutes as $ecoute) {
-            echo '<div class="content mini-song" data-track-id="'.$ecoute['id'].'" onclick="loadTrack('.$ecoute['id'].')">
-                      <img src="'.htmlspecialchars($ecoute['img'] ?? '').'" class="song-img" alt=" ">
-                      <div class="song-infos">
-                          <div class="song-title">'.htmlspecialchars($ecoute['title'] ?? '').'</div>
-                          <div class="song-artist">'.htmlspecialchars($ecoute['artists_names'] ?? '').' - '.date('d/m/Y H:i', strtotime($ecoute['listened-at'])).'</div>
-                      </div>
-                      <button class="buttons material-symbols-outlined">more_vert</button>
-                  </div>';
+            echo ligneTitre($ecoute, [
+                'sous_titre' => ($ecoute['artists_names'] ?? '')
+                              . ' - ' . date('d/m/Y H:i', strtotime($ecoute['listened-at'])),
+            ]);
         }
         ?>
     </div>
@@ -127,9 +124,6 @@ exigerConnexion(false);
             <a class="redirect buttons" href="?page=account/infos" data-page="account/infos">
                 <span>Infos</span>
             </a>
-            <form action="../actions/logout.php">
-                <button type="submit" class="buttons">Déconnexion</button>
-            </form>
         </div>
     </div>
 </article>

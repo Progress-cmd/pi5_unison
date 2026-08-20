@@ -1,6 +1,7 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 if (
     !isset($_POST['token'], $_SESSION['token']) ||

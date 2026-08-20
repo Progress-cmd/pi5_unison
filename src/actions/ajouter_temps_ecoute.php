@@ -1,15 +1,10 @@
 <?php
-header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+verifierCsrf(true);
 include_once "../includes/config.php";
 
-if (!isset($_SESSION['user']['id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Non connecté']);
-    exit;
-}
-
-include_once "../includes/auth.php";
+header('Content-Type: application/json');
 
 // Même logique que compter_ecoute.php : acquitté, mais non comptabilisé.
 if (estDemo()) {
@@ -34,6 +29,5 @@ try {
 
     echo json_encode(['success' => true]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('temps_ecoute', $e, "Temps d'écoute non enregistré");
 }

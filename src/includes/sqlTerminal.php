@@ -144,26 +144,103 @@ function sqlInvite(): string
  */
 function sqlVerbe(string $requete): string
 {
-    $nu = sqlSansCommentaires($requete);
+    $nu = sqlAnalysable($requete);
     $nu = ltrim($nu, "( \t\n\r");
 
     return strtoupper((string) strtok($nu, " \t\n\r("));
 }
 
 /**
- * Requête débarrassée de ses commentaires.
+ * Requête réduite à sa structure : commentaires retirés, chaînes vidées.
  *
  * Sert à l'analyse uniquement — c'est bien la requête d'origine qui est
- * exécutée. Sans ça, un commentaire suffirait à masquer le vrai verbe aux
- * contrôles ci-dessous.
+ * exécutée.
+ *
+ * L'implémentation précédente travaillait à coups d'expressions régulières,
+ * en ignorant les chaînes de caractères. Elle se trompait dans les deux sens :
+ *
+ *  - faux positif : « WHERE title LIKE '%&amp;%' » contient un point-virgule
+ *    à l'intérieur d'une chaîne, et la requête était refusée comme si elle
+ *    contenait deux instructions ;
+ *
+ *  - faux négatif, plus grave : le « # » de « SELECT '#' , … » était pris pour
+ *    un début de commentaire, et tout ce qui suivait disparaissait de la copie
+ *    analysée — y compris un INTO OUTFILE, que MariaDB exécutait pourtant.
+ *    La liste des interdits ne voyait alors rien.
+ *
+ * D'où ce parcours caractère par caractère, qui suit les mêmes règles que
+ * MariaDB : « -- » n'ouvre un commentaire que suivi d'une espace, « # » et
+ * les quotes ne comptent pas à l'intérieur d'une chaîne, et « /*! … *&#47; »
+ * est un commentaire exécutable dont le contenu doit rester visible.
  */
-function sqlSansCommentaires(string $requete): string
+function sqlAnalysable(string $requete): string
 {
-    $sans = preg_replace('!/\*.*?\*/!s', ' ', $requete);      // /* … */
-    $sans = preg_replace('/--[^\n]*/', ' ', (string) $sans);   // -- …
-    $sans = preg_replace('/#[^\n]*/', ' ', (string) $sans);    // # …
+    $n = strlen($requete);
+    $sortie = '';
+    $i = 0;
 
-    return (string) $sans;
+    while ($i < $n) {
+        $c = $requete[$i];
+        $suivant = $i + 1 < $n ? $requete[$i + 1] : '';
+
+        // --- Commentaire « # … » jusqu'à la fin de ligne
+        if ($c === '#') {
+            while ($i < $n && $requete[$i] !== "\n") { $i++; }
+            $sortie .= ' ';
+            continue;
+        }
+
+        // --- Commentaire « -- … » : MariaDB exige une espace derrière.
+        //     « SELECT --1 » vaut « SELECT 1 », ce n'est pas un commentaire.
+        if ($c === '-' && $suivant === '-') {
+            $apres = $i + 2 < $n ? $requete[$i + 2] : "\n";
+            if ($apres === ' ' || $apres === "\t" || $apres === "\n" || $apres === "\r") {
+                while ($i < $n && $requete[$i] !== "\n") { $i++; }
+                $sortie .= ' ';
+                continue;
+            }
+        }
+
+        // --- Commentaire « /* … */ », et sa variante exécutable « /*! … */ »
+        if ($c === '/' && $suivant === '*') {
+            $executable = ($i + 2 < $n && $requete[$i + 2] === '!');
+            $fin = strpos($requete, '*/', $i + 2);
+            $contenu = $fin === false
+                ? substr($requete, $i + 2)
+                : substr($requete, $i + 2, $fin - $i - 2);
+
+            // Le contenu d'un /*!… */ est exécuté : il reste soumis aux contrôles.
+            $sortie .= $executable ? ' ' . ltrim($contenu, '!0123456789') . ' ' : ' ';
+            $i = $fin === false ? $n : $fin + 2;
+            continue;
+        }
+
+        // --- Chaînes et identifiants entre quotes : contenu vidé, délimiteurs
+        //     conservés pour que la structure reste lisible.
+        if ($c === "'" || $c === '"' || $c === '`') {
+            $delimiteur = $c;
+            $i++;
+            while ($i < $n) {
+                // Échappement par antislash — sans objet entre backticks.
+                if ($requete[$i] === '\\' && $delimiteur !== '`') { $i += 2; continue; }
+
+                if ($requete[$i] === $delimiteur) {
+                    // Délimiteur doublé : il s'agit du caractère lui-même.
+                    if ($i + 1 < $n && $requete[$i + 1] === $delimiteur) { $i += 2; continue; }
+                    $i++;
+                    break;
+                }
+                $i++;
+            }
+            $sortie .= $delimiteur . $delimiteur;
+            continue;
+        }
+
+        $sortie .= $c;
+        $i++;
+    }
+
+    return $sortie;
 }
 
 /**
@@ -175,7 +252,7 @@ function sqlSansCommentaires(string $requete): string
  */
 function sqlInterditDetecte(string $requete): ?string
 {
-    $normalise = strtoupper((string) preg_replace('/\s+/', ' ', sqlSansCommentaires($requete)));
+    $normalise = strtoupper((string) preg_replace('/\s+/', ' ', sqlAnalysable($requete)));
 
     foreach (SQL_INTERDITS as $interdit) {
         if (str_contains($normalise, $interdit)) {
@@ -201,7 +278,7 @@ function sqlSansFiltre(string $requete): bool
         return false;
     }
 
-    $normalise = strtoupper(sqlSansCommentaires($requete));
+    $normalise = strtoupper(sqlAnalysable($requete));
 
     // Un LIMIT sans WHERE reste borné : c'est une intention explicite.
     return !preg_match('/\bWHERE\b/', $normalise) && !preg_match('/\bLIMIT\b/', $normalise);
@@ -416,7 +493,7 @@ function sqlRequete(string $requete): array
     // plusieurs instructions, que PDO::query ne doit pas recevoir.
     $requete = rtrim($requete, "; \t\n\r");
 
-    if (str_contains(sqlSansCommentaires($requete), ';')) {
+    if (str_contains(sqlAnalysable($requete), ';')) {
         return [blocErreur('Une seule instruction à la fois : le point-virgule est refusé.')];
     }
 
@@ -484,7 +561,7 @@ function sqlExecuterLecture(string $requete): array
      * et lui coller un LIMIT n'ajouterait qu'une note inutile sous chaque
      * réponse.
      */
-    $nu = sqlSansCommentaires($requete);
+    $nu = sqlAnalysable($requete);
     $limiteAjoutee = false;
 
     if ($verbe === 'SELECT'

@@ -1,15 +1,10 @@
 <?php
-header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
+verifierCsrf(true);
 include_once "../includes/config.php";
 
-if (!isset($_SESSION['user']['id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Non connecté']);
-    exit;
-}
-
-include_once "../includes/auth.php";
+header('Content-Type: application/json');
 
 // En démonstration on acquitte sans rien écrire : les statistiques du compte
 // réel ne doivent pas bouger, et le player ne doit pas voir d'erreur.
@@ -67,6 +62,5 @@ try {
 
     echo json_encode(['success' => true, 'message' => 'Écoute enregistrée']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('compter_ecoute', $e, "Écoute non enregistrée");
 }

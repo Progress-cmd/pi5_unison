@@ -593,3 +593,20 @@
     color: var(--text-gray);
     font-size: 12px;
 }
+
+
+/* --- Conversion de format (page Maintenance) --- */
+.conv-jauge {
+    height: 8px;
+    margin: 10px 0 6px;
+    background-color: var(--dark-beige, #dfcbc0);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.conv-jauge-remplie {
+    width: 0;
+    height: 100%;
+    background-color: var(--text-orange, #C8593A);
+    transition: width 0.3s ease;
+}

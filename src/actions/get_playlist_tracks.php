@@ -31,6 +31,5 @@ try {
 
     echo json_encode(['success' => true, 'tracks' => $tracks]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('lire_playlist', $e, "Impossible de charger la playlist");
 }

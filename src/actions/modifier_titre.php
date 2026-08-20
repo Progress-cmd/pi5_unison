@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 
@@ -76,6 +77,5 @@ try {
 
     echo json_encode(['success' => true, 'message' => 'Titre mis à jour']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('modifier_titre', $e, "Impossible de modifier le titre");
 }

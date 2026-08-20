@@ -2,6 +2,7 @@
 include_once "../includes/auth.php";
 exigerConnexion(false);
 include_once "../includes/config.php";
+include_once "../includes/rendu.php";
 include_once "../includes/viewMode.php";
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -101,15 +102,9 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 
         <!-- Chansons -->
         <?php foreach ($tracks as $track): ?>
-            <div class="content mini-song" data-track-id="<?= $track['id'] ?>" onclick="loadTrack(<?= $track['id'] ?>)">
-                <img src="<?= htmlspecialchars($track['img'] ?? '') ?>" class="song-img" alt="<?= htmlspecialchars($track['title'] ?? '') ?>">
-                <div class="song-infos">
-                    <div class="song-title"><?= htmlspecialchars($track['title'] ?? '') ?></div>
-                    <div class="song-artist"><?= htmlspecialchars($track['artists_names'] ?? 'Artiste inconnu') ?></div>
-                </div>
-                <button class="buttons material-symbols-outlined">more_vert</button>
-            </div>
+            <?= ligneTitre($track, ['sous_titre' => $track['artists_names'] ?: 'Artiste inconnu']) ?>
         <?php endforeach; ?>
+        <?php if (!$tracks): ?><?= ligneVide('Cette playlist est vide') ?><?php endif; ?>
     </div>
 </article>
 

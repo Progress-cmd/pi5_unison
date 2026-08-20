@@ -6,6 +6,7 @@ exigerConnexion(false);
     <?php
     include_once "../includes/config.php";
     include_once "../includes/viewMode.php";
+include_once "../includes/rendu.php";
     $pdo = Config::getConnection();
 
     $req = $pdo->prepare("
@@ -56,23 +57,24 @@ exigerConnexion(false);
             $titres = $req->fetchAll();
             $playlist_wait_id = $titres[0]['playlist_id'] ?? null;
 
-            $select = "selected";
-            $i = 0;
+            /*
+             * Le LEFT JOIN depuis playlists renvoie une ligne entièrement
+             * nulle quand la file est vide — la playlist existe, son contenu
+             * non. Sans ce filtre, la page affichait une ligne « EN COURS »
+             * sans titre, et publiait à window.waitPlaylist une piste d'id
+             * null que le lecteur tentait ensuite de charger.
+             */
+            if (!$titres || $titres[0]['id'] === null) { $titres = []; }
 
-            foreach ($titres as $titre) {
-                echo '
-                <div class="content mini-song '.$select.'" data-track-id="'.$titre['id'].'" onclick="window.currentIndex = '.$i.'; loadTrack('.$titre['id'].')">
-                    <img src="'.$titre['img'].'" class="song-img" alt="image">
-                      <div class="song-infos">
-                          <div class="song-title">'.$titre['title'].'</div>
-                          <div class="song-artist">'.$titre['artists_names'].'</div>
-                      </div>
-                    <div class="running badge">EN COURS</div>
-                        <button class="buttons material-symbols-outlined">more_vert</button>
-                </div>';
-                $select = "";
-                $i++;
+            foreach ($titres as $i => $titre) {
+                echo ligneTitre($titre, [
+                    'classes' => $i === 0 ? 'selected' : '',
+                    'badge'   => true,
+                    'index'   => $i,
+                ]);
             }
+
+            if (!$titres) { echo ligneVide("File d'attente vide"); }
             ?>
         </div>
     </article>
@@ -104,19 +106,13 @@ exigerConnexion(false);
             $req->execute([':user_id' => $_SESSION['user']['id']]);
             $historique = $req->fetchAll(PDO::FETCH_ASSOC);
 
-            if (!$historique) {
-                echo '<div class="content">Aucune écoute pour le moment</div>';
-            }
+            if (!$historique) { echo ligneVide('Aucune écoute pour le moment'); }
 
             foreach ($historique as $ecoute) {
-                echo '<div class="content mini-song" data-track-id="'.$ecoute['id'].'" onclick="loadTrack('.$ecoute['id'].')">
-                          <img src="'.htmlspecialchars($ecoute['img'] ?? '').'" class="song-img" alt=" ">
-                          <div class="song-infos">
-                              <div class="song-title">'.htmlspecialchars($ecoute['title'] ?? '').'</div>
-                              <div class="song-artist">'.htmlspecialchars($ecoute['artists_names'] ?? '').' - '.date('d/m H:i', strtotime($ecoute['listened-at'])).'</div>
-                          </div>
-                          <button class="buttons material-symbols-outlined">more_vert</button>
-                      </div>';
+                echo ligneTitre($ecoute, [
+                    'sous_titre' => ($ecoute['artists_names'] ?? '')
+                                  . ' - ' . date('d/m H:i', strtotime($ecoute['listened-at'])),
+                ]);
             }
             ?>
         </div>
@@ -180,55 +176,42 @@ exigerConnexion(false);
 
     <script>
         async function addToQueueAndPlay(trackId) {
-            const playlistId = <?= json_encode($playlist_wait_id) ?>;
-            
             try {
+                // La file visée est résolue côté serveur : la page n'a plus à
+                // connaître son identifiant, et ne peut plus en désigner une autre.
                 const res = await fetch('actions/clear_queue_and_add.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    body: `track_id=${trackId}&playlist_id=${playlistId}`
+                    body: `track_id=${trackId}`
                 });
                 const data = await res.json();
-                
+
                 if (data.success) {
+                    const playlistId = data.playlist_id;
                     window.waitPlaylist = data.queue;
                     window.sourcePlaylistId = null;
 
+                    window.currentIndex = 0;
+
                     const queueBody = document.querySelector('#queue-bar .body-bar');
                     if (queueBody) {
-                        queueBody.innerHTML = '';
-                        data.queue.forEach((track, idx) => {
-                            const div = document.createElement('div');
-                            div.className = 'content mini-song' + (idx === 0 ? ' selected' : '');
-                            div.setAttribute('data-track-id', track.id);
-                            div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
-                            div.innerHTML = `
-                                <img src="${track.img}" class="song-img" alt="image">
-                                <div class="song-infos">
-                                    <div class="song-title">${track.title}</div>
-                                    <div class="song-artist">${track.artists_names}</div>
-                                </div>
-                                <div class="running badge">EN COURS</div>
-                        <button class="buttons material-symbols-outlined">more_vert</button>
-                            `;
-                            queueBody.appendChild(div);
+                        window.remplirLignesTitres(queueBody, data.queue, {
+                            file: true,
+                            badge: true,
+                            messageVide: "File d'attente vide",
                         });
-                        
-                        // RÉACTIVE LE DRAGDROP ET LE MENU CONTEXTUEL
+
+                        // Le glisser-déposer se rebranche sur les lignes neuves.
                         queueBody.parentElement.setAttribute('data-playlist-id', playlistId);
                         window.enableDragDrop(queueBody, playlistId);
-
-                        // Réinitialise les menus contextuels des chansons
-                        if (window.initializeTrackContextMenus) {
-                            setTimeout(() => window.initializeTrackContextMenus(), 50);
-                        }
                     }
 
-                    window.currentIndex = 0;
                     loadTrack(trackId);
+                } else {
+                    window.showToast(data.message || "Lecture impossible", 'error');
                 }
             } catch (e) {
-                console.error('Erreur:', e);
+                window.showToast('Erreur réseau', 'error');
             }
         }
     </script>
@@ -284,32 +267,14 @@ exigerConnexion(false);
                         // Rafraîchit l'affichage de la queue sur le home
                         const queueBody = document.querySelector('#queue-bar .body-bar');
                         if (queueBody) {
-                            queueBody.innerHTML = '';
-                            data.tracks.forEach((track, idx) => {
-                                const div = document.createElement('div');
-                                div.className = 'content mini-song' + (idx === 0 ? ' selected' : '');
-                                div.setAttribute('data-track-id', track.id);
-                                div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
-                                div.innerHTML = `
-                                    <img src="${track.img}" class="song-img" alt="image">
-                                    <div class="song-infos">
-                                        <div class="song-title">${track.title}</div>
-                                        <div class="song-artist">${track.artists_names}</div>
-                                    </div>
-                                    <div class="running badge">EN COURS</div>
-                                    <button class="buttons material-symbols-outlined">more_vert</button>
-                                `;
-                                queueBody.appendChild(div);
+                            window.remplirLignesTitres(queueBody, data.tracks, {
+                                file: true,
+                                badge: true,
                             });
                         }
 
                         // Charge et joue la première chanson
                         loadTrack(data.tracks[0].id, true);
-
-                        // Initialise le menu contextuel si nécessaire
-                        if (window.initializeTrackContextMenus) {
-                            window.initializeTrackContextMenus();
-                        }
 
                         window.showToast('Lecture de la playlist...', 'success');
                     } else {
