@@ -1,19 +1,15 @@
 <?php
-session_start();
-header('Content-Type: application/json');
+include_once "../includes/auth.php";
+exigerConnexion(true);
+verifierCsrf(true);
 
-if (!isset($_SESSION['user'])) {
-    echo json_encode(['success' => false, 'message' => 'Non connecté']);
-    exit;
-}
+header('Content-Type: application/json');
 
 $mode = filter_input(INPUT_POST, 'mode', FILTER_DEFAULT);
 if ($mode !== 'mixed' && $mode !== 'personal') {
     echo json_encode(['success' => false, 'message' => 'Mode invalide']);
     exit;
 }
-
-include_once "../includes/auth.php";
 
 // En démonstration la bascule reste utilisable, mais elle ne vit que le temps
 // de la session : rien n'est écrit sur le compte emprunté.

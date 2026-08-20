@@ -216,7 +216,7 @@ function choisirMiniature(array $data, int $maxEssais = 3): string
 /**
  * Récupère les métadonnées d'une vidéo YouTube via yt-dlp.
  * Renvoie null si l'extraction échoue, sinon un tableau associatif :
- * [title, artist, album, genre, duration, miniature].
+ * [title, artist, genre, duration, miniature].
  *
  * @param string|null $raison Reçoit la raison de l'échec le cas échéant.
  */
@@ -292,7 +292,6 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
     return [
         'title'     => mb_substr($trackTitle  ?: 'Aucun titre',   0, 50),
         'artist'    => $trackArtist ?: 'Aucun artiste',
-        'album'     => $data['album'] ?? 'Aucun album',
         'genre'     => $genreBrut,
         'duration'  => intval($data['duration'] ?? 0),
         'miniature' => $thumb,
@@ -305,7 +304,13 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
  * Renvoie ['success' => bool, 'message' => string, 'track_id' => int|null,
  *          'is_new' => bool, 'title' => string, 'artist' => string].
  */
-function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): array
+/**
+ * @param bool $enLot vrai pour l'import en masse, faux pour l'import unitaire
+ *                    avec confirmation. Ne change que la trace au journal :
+ *                    c'est ce qui permet, après coup, de distinguer un échec
+ *                    isolé d'une salve qui s'est fait limiter par YouTube.
+ */
+function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId, bool $enLot = true): array
 {
     // Les conversions WAV peuvent être longues : on lève la limite de temps
     if (function_exists('set_time_limit')) { @set_time_limit(600); }
@@ -409,7 +414,11 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
             }
         }
     } catch (\Exception $e) {
-        error_log('Meilisearch error: ' . $e->getMessage());
+        // L'indexation ratée ne fait pas échouer l'import : le morceau est en
+        // base et lisible, il manque seulement à la recherche.
+        journalErreur('recherche', 'indexation_echouee',
+            'Indexation Meilisearch impossible pour « ' . $title . ' »',
+            ['erreur' => $e->getMessage()]);
     }
 
     // Artistes
@@ -440,7 +449,9 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
                         'name_artist' => $art,
                     ]]);
                 } catch (\Exception $e) {
-                    error_log('Meilisearch artist error: ' . $e->getMessage());
+                    journalErreur('recherche', 'indexation_echouee',
+                        'Indexation Meilisearch impossible pour l\'artiste « ' . $art . ' »',
+                        ['erreur' => $e->getMessage()]);
                 }
             }
         } else {
@@ -504,7 +515,7 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
             'artiste'  => $artist,
             'url'      => $url,
             'fichier'  => $file,
-            'lot'      => true,   // distingue l'import en masse de l'unitaire
+            'lot'      => $enLot,   // distingue l'import en masse de l'unitaire
         ]);
 
     return $result;

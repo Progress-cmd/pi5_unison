@@ -15,48 +15,16 @@ exigerConnexion(false);
         const queueFull = document.getElementById('queue-full');
 
         function rendre() {
+            window.remplirLignesTitres(queueFull, window.waitPlaylist, {
+                file: true,
+                badge: true,
+                messageVide: "File d'attente vide",
+            });
 
-        if (!window.waitPlaylist || window.waitPlaylist.length === 0) {
-            queueFull.innerHTML = '<div class="content"><em>Queue vide</em></div>';
-            return;
-        }
-
-        queueFull.innerHTML = '';
-
-        window.waitPlaylist.forEach((track, idx) => {
-            const div = document.createElement('div');
-
-            let className = 'content mini-song';
-            if (idx === window.currentIndex) {
-                className += ' selected';
-            }
-
-            div.className = className;
-            div.setAttribute('data-track-id', track.id);
-            div.onclick = () => {
-                window.currentIndex = idx;
-                loadTrack(track.id);
-            };
-
-            div.innerHTML = `
-                <img src="${track.img}" class="song-img" alt="image">
-                <div class="song-infos">
-                    <div class="song-title">${track.title}</div>
-                    <div class="song-artist">${track.artists_names}</div>
-                </div>
-                <div class="running badge">EN COURS</div>
-                <button class="buttons material-symbols-outlined">more_vert</button>
-            `;
-
-            queueFull.appendChild(div);
-        });
-
-        // Scroll vers la chanson en cours
-        const selected = document.querySelector('#queue-bar .selected');
-        if (selected) {
-            selected.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-
+            // Amène le morceau en cours sous les yeux, sans animer : la page
+            // vient de s'ouvrir, il n'y a rien à suivre du regard.
+            const courant = queueFull.querySelector('.selected');
+            if (courant) courant.scrollIntoView({ block: 'center' });
         }
 
         rendre();
@@ -64,7 +32,7 @@ exigerConnexion(false);
         /*
          * Si l'application a été ouverte directement sur cette page, le player
          * récupère la file d'attente en arrière-plan : on se réaffiche quand
-         * elle arrive, au lieu de rester sur « Queue vide ».
+         * elle arrive, au lieu de rester sur « File d'attente vide ».
          */
         window.addEventListener('queueReady', rendre, { once: true });
     })();

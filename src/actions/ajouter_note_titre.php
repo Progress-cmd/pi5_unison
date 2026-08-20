@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 
@@ -43,6 +44,5 @@ try {
 
     echo json_encode(['success' => true, 'message' => 'Note ajoutée']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('note_titre', $e, "Impossible d'ajouter la note");
 }

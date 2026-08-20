@@ -27,6 +27,12 @@ require_once __DIR__ . '/journal.php';
  */
 journalInstallerHandlers();
 
+/*
+ * Réponses d'erreur normalisées (echecJson). Même raison d'être ici que le
+ * journal : disponible dans toute action sans include supplémentaire.
+ */
+require_once __DIR__ . '/reponse.php';
+
 /**
  * Compte utilisé par les sessions de démonstration.
  *

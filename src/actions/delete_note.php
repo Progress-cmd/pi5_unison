@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 

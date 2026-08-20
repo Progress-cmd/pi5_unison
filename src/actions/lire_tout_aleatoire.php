@@ -10,6 +10,7 @@
  */
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 include_once "../includes/config.php";
 
 header('Content-Type: application/json');

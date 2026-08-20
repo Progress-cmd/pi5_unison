@@ -148,7 +148,11 @@
 
     async function toggleFavorite(trackId) {
         try {
-            const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
+            const res = await fetch('actions/toggle_favorite.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `track_id=${trackId}`,
+                });
             const data = await res.json();
 
             if (data.success) {

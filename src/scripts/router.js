@@ -251,8 +251,12 @@ function bindPlaylistAddLink(container) {
     });
 }
 
-// Intercepte tous les liens de la sidebar
-document.querySelectorAll('#navbar a').forEach(a => {
+/*
+ * Intercepte les liens de navigation de la barre — et eux seuls : `[data-page]`
+ * est ce qui distingue une route interne d'un vrai lien (la déconnexion), que
+ * preventDefault() rendrait inerte.
+ */
+document.querySelectorAll('#navbar a[data-page]').forEach(a => {
     a.addEventListener('click', (e) => {
         e.preventDefault();
         sessionStorage.removeItem('search_playlist_id');
@@ -265,6 +269,34 @@ document.querySelectorAll('.redirect').forEach(a => {
         e.preventDefault();
         navigateTo(a.dataset.page);
     });
+});
+
+/*
+ * Lecture d'une ligne de titre, pour toutes les pages à la fois.
+ *
+ * Chaque page posait auparavant son propre onclick inline, recopié onze fois
+ * et divergent (certaines mettaient à jour l'index de file, d'autres non).
+ * La délégation est volontairement restreinte à [data-piste], l'attribut que
+ * pose le rendu partagé : les résultats de recherche gèrent leurs propres
+ * clics et ne doivent pas être happés ici.
+ */
+document.addEventListener('click', (e) => {
+    const ligne = e.target.closest('.mini-song[data-piste]');
+    if (!ligne) return;
+
+    // Le menu contextuel gère lui-même son bouton « … ».
+    if (e.target.closest('button')) return;
+
+    const id = parseInt(ligne.dataset.trackId, 10);
+    if (!Number.isInteger(id)) return;
+
+    // Une ligne de la file d'attente déplace la lecture ; ailleurs, on lance
+    // simplement le morceau sans toucher à la file.
+    if (ligne.dataset.index !== undefined) {
+        window.currentIndex = parseInt(ligne.dataset.index, 10);
+    }
+
+    if (typeof loadTrack === 'function') loadTrack(id);
 });
 
 // Bascule du mode d'affichage via les deux cercles du header :
@@ -321,10 +353,22 @@ window.showToast = function(message, type = 'success', duration = 60000) {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <span class="toast-message">${message}</span>
-        <button class="toast-close" aria-label="Fermer">✕</button>
-    `;
+
+    /*
+     * textContent, pas innerHTML : les messages viennent des réponses du
+     * serveur, qui y recopient des noms de playlists et des titres de
+     * morceaux — c'est-à-dire du texte venu de l'extérieur.
+     */
+    const texte = document.createElement('span');
+    texte.className = 'toast-message';
+    texte.textContent = message;
+
+    const fermer = document.createElement('button');
+    fermer.className = 'toast-close';
+    fermer.setAttribute('aria-label', 'Fermer');
+    fermer.textContent = '✕';
+
+    toast.append(texte, fermer);
 
     container.appendChild(toast);
 

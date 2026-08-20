@@ -25,35 +25,11 @@ exigerConnexion(false);
         let enCours = false;
         let termine = false;
 
-        function echapper(texte) {
-            const div = document.createElement('div');
-            div.textContent = texte ?? '';
-            return div.innerHTML;
-        }
-
         function ajouter(titres) {
             const fragment = document.createDocumentFragment();
-
-            titres.forEach(titre => {
-                const div = document.createElement('div');
-                div.className = 'content mini-song';
-                div.setAttribute('data-track-id', titre.id);
-                // Titre et artiste sont échappés, la pochette est posée en
-                // attribut : une URL contenant un guillemet sortirait sinon de
-                // l'attribut src.
-                div.innerHTML = `
-                    <img class="song-img" alt=" ">
-                    <div class="song-infos">
-                        <div class="song-title">${echapper(titre.title)}</div>
-                        <div class="song-artist">${echapper(titre.artists_names)}</div>
-                    </div>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
-                `;
-                div.querySelector('img').setAttribute('src', titre.img ?? '');
-                fragment.appendChild(div);
-            });
-
+            titres.forEach(titre => fragment.appendChild(window.creerLigneTitre(titre)));
             corps.appendChild(fragment);
+
             window.corrigerImagesVides(corps);
             if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
         }
@@ -101,13 +77,6 @@ exigerConnexion(false);
         }, { rootMargin: '400px' });
 
         observateur.observe(sentinelle);
-
-        corps.addEventListener('click', (e) => {
-            if (e.target.closest('button')) return; // le menu contextuel gère son bouton
-            const ligne = e.target.closest('.mini-song[data-track-id]');
-            if (!ligne) return;
-            loadTrack(parseInt(ligne.dataset.trackId, 10));
-        });
 
         chargerSuite();
     })();

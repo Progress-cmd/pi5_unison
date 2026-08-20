@@ -2,6 +2,7 @@
 include_once "../includes/auth.php";
 exigerConnexion(false);
 include_once "../includes/config.php";
+include_once "../includes/rendu.php";
 $pdo = Config::getConnection();
 
 // Aperçu de la discothèque : les plus récents seulement. La liste complète est
@@ -35,19 +36,8 @@ $nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
 
     <div class="body-bar">
         <?php
-        foreach ($apercuTitres as $titre) {
-            echo '<div class="content mini-song" data-track-id="'.$titre['id'].'">
-                      <img src="'.htmlspecialchars($titre['img'] ?? '').'" class="song-img" alt=" ">
-                      <div class="song-infos">
-                          <div class="song-title">'.htmlspecialchars($titre['title']).'</div>
-                          <div class="song-artist">'.htmlspecialchars($titre['artists_names'] ?? '').'</div>
-                      </div>
-                      <button class="buttons material-symbols-outlined">more_vert</button>
-                  </div>';
-        }
-        if (!$apercuTitres) {
-            echo '<div class="content"><em>Aucun titre pour l\'instant</em></div>';
-        }
+        foreach ($apercuTitres as $titre) { echo ligneTitre($titre); }
+        if (!$apercuTitres) { echo ligneVide("Aucun titre pour l'instant"); }
         ?>
     </div>
 </article>
@@ -57,13 +47,7 @@ $nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
         const section = document.getElementById('tracks-bar');
         if (!section) return;
 
-        section.querySelector('.body-bar').addEventListener('click', (e) => {
-            if (e.target.closest('button')) return; // le menu contextuel gère son bouton
-            const ligne = e.target.closest('.mini-song[data-track-id]');
-            if (!ligne) return;
-            loadTrack(parseInt(ligne.dataset.trackId, 10));
-        });
-
+        // Le clic sur une ligne est géré par la délégation du routeur.
         const bouton = document.getElementById('tout-ecouter');
         if (!bouton) return;
 
@@ -176,19 +160,14 @@ $pdo = Config::getConnection();
         $req->execute([':user_id' => $_SESSION['user']['id']]);
 
         $titres = $req->fetchAll();
-        if ($titres[0]["id"] === NULL) { $titres = []; }
+        // Le LEFT JOIN renvoie une ligne nulle quand la playlist est vide.
+        if (!$titres || $titres[0]['id'] === null) { $titres = []; }
         $playlist_favorite_id = $titres[0]['playlist_id'] ?? null;
 
         foreach ($titres as $titre) {
-            echo '<div class="content mini-song favorite-playlist-song" data-track-id="'.$titre['id'].'" onclick="loadTrack('.$titre["id"].')">
-                      <img src="'.$titre["img"].'" class="song-img" alt=" ">
-                      <div class="song-infos">
-                          <div class="song-title">'.$titre["title"].'</div>
-                          <div class="song-artist">'.$titre["artists_names"].'</div>
-                      </div>
-                        <button class="buttons material-symbols-outlined">more_vert</button>
-                  </div>';
+            echo ligneTitre($titre, ['classes' => 'favorite-playlist-song']);
         }
+        if (!$titres) { echo ligneVide('Aucun favori pour le moment'); }
         ?>
     </div>
 </article>

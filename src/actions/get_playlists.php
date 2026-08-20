@@ -1,13 +1,9 @@
 <?php
-header('Content-Type: application/json');
-session_start();
+include_once "../includes/auth.php";
+exigerConnexion(true);
 include_once "../includes/config.php";
 
-if (!isset($_SESSION['user']['id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Non autorisé']);
-    exit;
-}
+header('Content-Type: application/json');
 
 $pdo = Config::getConnection();
 
@@ -23,6 +19,5 @@ try {
 
     echo json_encode(['success' => true, 'playlists' => $playlists]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('lister_playlists', $e, "Impossible de charger les playlists");
 }

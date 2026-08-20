@@ -530,6 +530,145 @@ footer > #navbar {
     div:active {
         color: var(--text-orange);
     }
+
+    /* La déconnexion n'est pas une destination : elle se distingue des
+       entrées de navigation sans pour autant crier. */
+    #nav-deconnexion > div {
+        color: var(--text-gray);
+    }
+}
+
+
+/* Six entrées au lieu de cinq depuis l'ajout de la déconnexion : sur les
+   écrans les plus étroits, les libellés se touchaient. */
+@media (max-width: 400px) {
+    footer > #navbar a {
+        font-size: 10px;
+    }
+
+    footer > #navbar a > div {
+        font-size: 26px;
+    }
+}
+
+
+/* ===== MODALES DU LECTEUR ===== */
+/*
+ * Ces règles vivaient en style="" dans player.js, avec un fond blanc et des
+ * gris codés en dur : les modales ne suivaient aucune des variables de la
+ * page et juraient avec le reste de l'interface.
+ */
+.modale {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.modale-contenu {
+    background-color: var(--white);
+    color: var(--text-dark);
+    border: 1px solid var(--dark-beige);
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: var(--sans);
+}
+
+.modale-titre {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.modale-champ {
+    margin-bottom: 20px;
+}
+
+.modale-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-gray);
+}
+
+.modale-contenu select,
+.modale-contenu input[type="range"] {
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.modale-contenu select {
+    padding: 8px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    color: var(--text-dark);
+}
+
+.modale-aide {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-gray);
+    line-height: 1.4;
+}
+
+.modale-etat {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.modale-etat-actif { color: var(--light-success); }
+.modale-etat-alerte { color: var(--text-orange); }
+
+.modale-fermer {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--text-orange);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 15px;
+}
+
+.modale-fermer:hover {
+    background-color: var(--text-orange-hover);
+}
+
+/* Liste de choix (playlists) */
+.modale-choix {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    margin-bottom: 8px;
+    background-color: var(--light-beige);
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--text-dark);
+}
+
+.modale-choix:hover {
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
 }
 
 
@@ -766,6 +905,15 @@ footer > #navbar {
 
 @keyframes tout-ecouter-rotation {
     to { transform: rotate(360deg); }
+}
+
+/* Liste sans contenu : même gabarit partout, au lieu d'un message ad hoc
+   réinventé (ou oublié) sur chaque page. */
+.ligne-vide {
+    padding: 12px 8px;
+    color: var(--text-gray);
+    font-family: var(--sans);
+    font-size: 14px;
 }
 
 /* --- Page « Tous les titres » (chargement progressif) --- */
@@ -1795,6 +1943,11 @@ footer > #navbar {
 
         a:hover > div {
             color: var(--text-orange);
+        }
+
+        /* Poussée en pied de barre latérale, loin des entrées de navigation. */
+        #nav-deconnexion {
+            margin-top: auto;
         }
     }
 

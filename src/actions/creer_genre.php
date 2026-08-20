@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 
@@ -39,6 +40,5 @@ try {
 
     echo json_encode(['success' => true, 'genre_id' => $genreId, 'message' => 'Genre créé']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('creer_genre', $e, "Impossible de créer le genre");
 }

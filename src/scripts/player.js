@@ -20,7 +20,9 @@
         const s = Math.floor(secondesAFlusher);
         if (s < 1) return;
         secondesAFlusher -= s;
+        // sendBeacon ne passe pas par fetch : le jeton est posé à la main.
         const corps = new URLSearchParams({ secondes: s });
+        if (window.ajouterJetonCsrf) window.ajouterJetonCsrf(corps);
         if (avecBeacon && navigator.sendBeacon) {
             navigator.sendBeacon('actions/ajouter_temps_ecoute.php', corps);
         } else {
@@ -52,10 +54,27 @@
         dernierTemps = 0;
         dernierePositionPubliee = 0;
         currentTrackId = id;
-        const res = await fetch(`actions/getTrack.php?id=${id}`);
-        const track = await res.json();
 
-        if (!track) return;
+        let track = null;
+        try {
+            const res = await fetch(`actions/getTrack.php?id=${id}`);
+            track = res.ok ? await res.json() : null;
+        } catch (e) {
+            track = null;
+        }
+
+        /*
+         * Titre introuvable : typiquement une file d'attente qui référence un
+         * morceau supprimé depuis. On le dit — le lecteur restait auparavant
+         * figé sur la piste précédente sans le moindre signe. Pas d'avance
+         * automatique vers la suivante : si plusieurs titres manquent, elle
+         * ferait défiler toute la file d'un coup.
+         */
+        if (!track || track.id === null) {
+            currentTrackId = null;
+            if (window.showToast) window.showToast('Ce titre est introuvable', 'error', 6000);
+            return;
+        }
 
         audio.src = track.src;
 
@@ -497,16 +516,33 @@
         }
     });
 
+    /*
+     * Met en évidence le morceau en cours dans toutes les listes affichées.
+     *
+     * La correspondance se fait sur data-track-id, et non plus sur le rang de
+     * l'élément dans le document : `.mini-song` désigne les lignes de TOUTES
+     * les sections de la page (file, favoris, historique, tous les titres),
+     * si bien que « la n-ième ligne du document » désignait un morceau
+     * arbitraire — et la page sautait dessus à chaque changement de piste.
+     */
     function updateSelected() {
-        const items = document.querySelectorAll('.mini-song');
-        items.forEach((el, i) => {
-            el.classList.toggle('selected', i === window.currentIndex);
+        const idCourant = String(currentTrackId ?? '');
+
+        document.querySelectorAll('.mini-song[data-track-id]').forEach(el => {
+            el.classList.toggle('selected', el.dataset.trackId === idCourant);
         });
+
         getFavorite(currentTrackId);
 
-        const selected = document.querySelector('.mini-song.selected');
-        if (selected) {
-            selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        /*
+         * Le défilement automatique ne vise que la file d'attente : c'est la
+         * seule liste où suivre la lecture a du sens. L'appliquer partout
+         * arrachait la page sous le doigt pendant qu'on parcourait la
+         * bibliothèque.
+         */
+        const dansFile = document.querySelector('#queue-bar .mini-song.selected');
+        if (dansFile) {
+            dansFile.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 
@@ -517,7 +553,11 @@
             const trackId = currentTrackId;
             if (!trackId) return;
             try {
-                const res = await fetch(`actions/toggle_favorite.php?track_id=${trackId}`);
+                const res = await fetch('actions/toggle_favorite.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `track_id=${trackId}`,
+                });
                 const data = await res.json();
                 if (data.success) {
                     const active = data.liked;
@@ -567,22 +607,9 @@
         // Met à jour le DOM de la queue
         const queueBody = document.querySelector('#queue-bar .body-bar');
         if (queueBody) {
-            queueBody.innerHTML = '';
-            window.waitPlaylist.forEach((track, idx) => {
-                const div = document.createElement('div');
-                div.className = 'content mini-song' + (idx === window.currentIndex ? ' selected' : '');
-                div.setAttribute('data-track-id', track.id);
-                div.onclick = () => { window.currentIndex = idx; loadTrack(track.id); };
-                div.innerHTML = `
-                    <img src="${track.img}" class="song-img" alt="image">
-                    <div class="song-infos">
-                        <div class="song-title">${track.title}</div>
-                        <div class="song-artist">${track.artists_names}</div>
-                    </div>
-                    <div class="running badge">EN COURS</div>
-                    <button class="buttons material-symbols-outlined">more_vert</button>
-                `;
-                queueBody.appendChild(div);
+            window.remplirLignesTitres(queueBody, window.waitPlaylist, {
+                file: true,
+                badge: true,
             });
         }
 
@@ -623,6 +650,43 @@
         btn.textContent = icons[volumeLevel];
     });
 
+    /*
+     * Fabrique commune aux deux modales du lecteur.
+     *
+     * Chacune recopiait auparavant la même quinzaine de lignes de
+     * style.cssText — fond, centrage, fermeture au clic hors-cadre — avec des
+     * couleurs en dur qui ignoraient la palette. L'habillage est passé en CSS
+     * (.modale, voir style.css), et il n'existe plus qu'un seul exemplaire de
+     * la mécanique.
+     */
+    function ouvrirModale(titre) {
+        const modale = document.createElement('div');
+        modale.className = 'modale';
+
+        const contenu = document.createElement('div');
+        contenu.className = 'modale-contenu';
+
+        const entete = document.createElement('div');
+        entete.className = 'modale-titre';
+        entete.textContent = titre;
+        contenu.appendChild(entete);
+
+        modale.appendChild(contenu);
+        modale.addEventListener('click', (e) => {
+            if (e.target === modale) modale.remove();
+        });
+
+        // Échap ferme aussi : une modale qui ne se ferme qu'au clic piège
+        // l'utilisateur au clavier.
+        const surTouche = (e) => {
+            if (e.key === 'Escape') { modale.remove(); document.removeEventListener('keydown', surTouche); }
+        };
+        document.addEventListener('keydown', surTouche);
+
+        document.body.appendChild(modale);
+        return { modale, contenu };
+    }
+
     // --- ADD - Ajouter à une playlist ---
     async function showPlaylistModal() {
         if (!currentTrackId) {
@@ -639,64 +703,20 @@
                 return;
             }
 
-            // Crée le modal
-            const modal = document.createElement('div');
-            modal.id = 'playlist-modal';
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.5);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-            `;
+            const { modale, contenu } = ouvrirModale('Ajouter à une playlist');
 
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: white;
-                border-radius: 12px;
-                padding: 20px;
-                width: 90%;
-                max-width: 400px;
-                max-height: 60vh;
-                overflow-y: auto;
-            `;
-
-            content.innerHTML = `
-                <h2 style="margin-top: 0; margin-bottom: 20px;">Ajouter à une playlist</h2>
-                <div id="playlist-list"></div>
-            `;
-
-            const playlistList = content.querySelector('#playlist-list');
             data.playlists.forEach(playlist => {
-                const item = document.createElement('div');
-                item.style.cssText = `
-                    padding: 12px;
-                    margin-bottom: 8px;
-                    background: #f5f5f5;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                `;
-                item.textContent = playlist.name;
-                item.onmouseover = () => item.style.background = '#e0e0e0';
-                item.onmouseout = () => item.style.background = '#f5f5f5';
-                item.onclick = async () => {
+                const choix = document.createElement('button');
+                choix.type = 'button';
+                choix.className = 'modale-choix';
+                // textContent : un nom de playlist est saisi par l'utilisateur.
+                choix.textContent = playlist.name;
+                choix.onclick = async () => {
                     await addToPlaylist(currentTrackId, playlist.id, playlist.name);
-                    modal.remove();
+                    modale.remove();
                 };
-                playlistList.appendChild(item);
+                contenu.appendChild(choix);
             });
-
-            modal.appendChild(content);
-            modal.onclick = (e) => {
-                if (e.target === modal) modal.remove();
-            };
-            document.body.appendChild(modal);
         } catch (e) {
             window.showToast('Erreur: ' + e.message, 'error');
         }
@@ -727,78 +747,49 @@
 
     // --- MORE - Menu d'actions supplémentaires ---
     async function showSettingsModal() {
-        const modal = document.createElement('div');
-        modal.id = 'settings-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        `;
+        const { modale, contenu } = ouvrirModale('Paramètres audio');
 
-        const content = document.createElement('div');
-        content.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            width: 90%;
-            max-width: 400px;
-        `;
-
-        content.innerHTML = `
-            <h2 style="margin-top: 0; margin-bottom: 20px;">Paramètres audio</h2>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Volume: <span id="volume-value">100</span>%</label>
-                <input type="range" id="volume-slider" min="0" max="100" value="100" style="width: 100%; cursor: pointer;">
+        contenu.insertAdjacentHTML('beforeend', `
+            <div class="modale-champ">
+                <label class="modale-label" for="volume-slider">Volume : <span id="volume-value">100</span>%</label>
+                <input type="range" id="volume-slider" min="0" max="100" value="100">
             </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Sortie audio:</label>
-                <select id="audio-device-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+            <div class="modale-champ">
+                <label class="modale-label" for="audio-device-select">Sortie audio</label>
+                <select id="audio-device-select">
                     <option value="">Détection en cours...</option>
                 </select>
             </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: bold;">Notifications système</label>
-                <div id="etat-notification" style="font-size: 13px; line-height: 1.45;"></div>
+            <div class="modale-champ">
+                <span class="modale-label">Notifications système</span>
+                <div id="etat-notification" class="modale-etat"></div>
             </div>
-            <button id="close-settings" style="width: 100%; padding: 10px; background: #C8593A; color: white; border: none; border-radius: 4px; cursor: pointer;">Fermer</button>
-        `;
+            <button type="button" id="close-settings" class="modale-fermer">Fermer</button>
+        `);
 
-        /*
-         * Diagnostic affiché DANS la page : sur Android on ne peut pas ouvrir
-         * une console pour comprendre pourquoi la notification est réduite à
-         * un bouton lecture. Cette ligne répond à la question sur l'appareil
-         * lui-même.
-         */
-        const etatNotif = content.querySelector('#etat-notification');
+        const etatNotif = contenu.querySelector('#etat-notification');
         if (!mediaSessionDispo) {
             etatNotif.innerHTML =
-                '<span style="color:#C8593A">Indisponibles.</span> ' +
+                '<span class="modale-etat-alerte">Indisponibles.</span> ' +
                 "Cette page n'est pas en contexte sécurisé : le navigateur " +
                 "désactive l'intégration au système. Ouvrez Unison en " +
                 '<b>HTTPS</b> (https://unison.pi5.ovh) plutôt qu\'en http:// ' +
                 "sur une adresse IP locale.";
         } else if (window.isSecureContext === false) {
             etatNotif.innerHTML =
-                '<span style="color:#C8593A">Partiellement disponibles.</span> ' +
+                '<span class="modale-etat-alerte">Partiellement disponibles.</span> ' +
                 'Passez en HTTPS pour la pochette et la barre de progression.';
         } else {
             etatNotif.innerHTML =
-                '<span style="color:#2e7d32">Actives.</span> ' +
+                '<span class="modale-etat-actif">Actives.</span> ' +
                 'Titre, artiste, pochette, précédent / suivant et barre de ' +
                 "progression sont publiés vers l'écran de verrouillage.";
         }
 
-        const slider = content.querySelector('#volume-slider');
-        const volumeValue = content.querySelector('#volume-value');
-        const deviceSelect = content.querySelector('#audio-device-select');
-        const closeBtn = content.querySelector('#close-settings');
+        const slider = contenu.querySelector('#volume-slider');
+        const volumeValue = contenu.querySelector('#volume-value');
+        const deviceSelect = contenu.querySelector('#audio-device-select');
+        const closeBtn = contenu.querySelector('#close-settings');
 
         // Initialise le slider avec le volume actuel
         slider.value = Math.round(audio.volume * 100);
@@ -828,7 +819,7 @@
                 deviceSelect.disabled = true;
 
                 const aide = document.createElement('small');
-                aide.style.cssText = 'display:block;margin-top:6px;color:#9A9188;line-height:1.4';
+                aide.className = 'modale-aide';
                 aide.textContent = "Sur mobile, la sortie audio se choisit dans Android "
                                  + "(casque, Bluetooth) : le navigateur n'a pas la main dessus.";
                 deviceSelect.insertAdjacentElement('afterend', aide);
@@ -898,13 +889,7 @@
         // Énumère les appareils
         await enumerateAudioDevices();
 
-        closeBtn.onclick = () => modal.remove();
-        modal.onclick = (e) => {
-            if (e.target === modal) modal.remove();
-        };
-
-        modal.appendChild(content);
-        document.body.appendChild(modal);
+        closeBtn.onclick = () => modale.remove();
     }
 
     document.getElementById('menu-button').addEventListener('click', (e) => {

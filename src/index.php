@@ -32,6 +32,16 @@ $admin = estAdmin();
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"> <!-- Intégration des différents icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"> <!-- Ajout de deux polices d'écritures -->
     <title>Unison</title>
+
+    <?php
+    /*
+     * Chargé dans l'en-tête, avant tout le reste : il enrobe fetch() pour
+     * poser le jeton anti-CSRF sur les écritures, et doit donc être en place
+     * avant le premier appel de n'importe quel script.
+     */
+    ?>
+    <script>window.UNISON_CSRF = <?= json_encode(jetonCsrf()) ?>;</script>
+    <script src="<?= assetVersionne('scripts/csrf.js') ?>"></script>
 </head>
 <body class="<?= $demo ? 'is-demo' : '' ?>">
     <?php if ($demo): ?>
@@ -231,6 +241,7 @@ $admin = estAdmin();
             </div>
         </section>
 
+        <script src="<?= assetVersionne('scripts/ligneTitre.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/player.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/track-context-menu.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/playlist-editor.js') ?>"></script>
@@ -299,6 +310,19 @@ $admin = estAdmin();
             <a href="?page=account" data-page="account">
                 <div class="icons material-symbols-outlined">person</div>
                 Compte
+            </a>
+
+            <?php
+            /*
+             * Vraie navigation, sans data-page : le routeur ne l'intercepte pas.
+             * La confirmation n'est pas de la coquetterie — l'entrée est collée
+             * à celles qu'on touche en permanence sur mobile.
+             */
+            ?>
+            <a href="actions/logout.php" id="nav-deconnexion"
+               onclick="return confirm('Se déconnecter ?')">
+                <div class="icons material-symbols-outlined">logout</div>
+                Quitter
             </a>
             <?php endif; ?>
         </nav>

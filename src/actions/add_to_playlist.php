@@ -1,6 +1,7 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 
@@ -16,6 +17,10 @@ if (!$track_id || !$playlist_id) {
 }
 
 $pdo = Config::getConnection();
+
+// La playlist visée doit être celle de l'utilisateur : sans ce contrôle,
+// changer le playlist_id de la requête suffisait à écrire chez le voisin.
+exigerPlaylistDeLUtilisateur($pdo, $playlist_id);
 
 // Vérifie que la track n'est pas déjà dans la playlist
 $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE track_id = :track AND playlist_id = :playlist");

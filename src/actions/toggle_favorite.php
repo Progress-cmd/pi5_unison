@@ -1,12 +1,19 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 header('Content-Type: application/json');
 
 $user_id  = $_SESSION['user']['id'] ?? null;
-$track_id = filter_input(INPUT_GET, 'track_id', FILTER_VALIDATE_INT);
+/*
+ * POST et non GET : l'action bascule un favori, c'est-à-dire qu'elle écrit.
+ * Une écriture en GET est déclenchable par une simple balise <img>, se fait
+ * rejouer par le bouton « précédent » du navigateur et se retrouve dans les
+ * journaux d'accès avec ses paramètres.
+ */
+$track_id = filter_input(INPUT_POST, 'track_id', FILTER_VALIDATE_INT);
 
 if (!$track_id || !$user_id) {
     http_response_code(400);

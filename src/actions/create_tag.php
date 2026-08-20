@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 include_once "../includes/config.php";
 
@@ -33,6 +34,5 @@ try {
 
     echo json_encode(['success' => true, 'tag_id' => $tagId, 'message' => 'Tag créé']);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erreur: ' . $e->getMessage()]);
+    echecJson('creer_tag', $e, "Impossible de créer le tag");
 }

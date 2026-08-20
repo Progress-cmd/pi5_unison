@@ -9,6 +9,7 @@
  */
 include_once "../includes/auth.php";
 exigerConnexion(true);
+verifierCsrf(true);
 refuserSiDemo(true);
 header('Content-Type: application/json');
 
