@@ -6,6 +6,7 @@ const routes = {
     'home':     'pages/home.php',
     'home/queue': '',
     'library':  'pages/library.php',
+    'library/titres': 'pages/titres.php',
     'library/artists': 'pages/artists.php',
     'library/playlists': 'pages/playlists.php',
     'library/playlists/add_playlist': 'pages/add_playlist.php',

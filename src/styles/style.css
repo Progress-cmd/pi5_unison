@@ -706,6 +706,77 @@ footer > #navbar {
     text-overflow: ellipsis;
 }
 
+/* --- Section « Tous les titres » et bouton « Tout écouter » --- */
+#tracks-bar .body-bar {
+    max-height: 275px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#tout-ecouter {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    box-sizing: border-box;
+    background-color: var(--text-orange);
+    color: var(--white);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: var(--sans);
+    text-align: left;
+}
+
+#tout-ecouter:hover {
+    background-color: var(--text-orange-hover);
+}
+
+#tout-ecouter:disabled {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+.tout-ecouter-textes {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.tout-ecouter-titre {
+    font-family: var(--serif);
+    font-size: 18px;
+}
+
+.tout-ecouter-sous {
+    font-size: 12px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Le disque tourne pendant la construction de la file : l'opération porte sur
+   toute la discothèque et peut prendre une seconde ou deux. */
+#tout-ecouter.en-cours .tout-ecouter-play {
+    animation: tout-ecouter-rotation 1s linear infinite;
+}
+
+@keyframes tout-ecouter-rotation {
+    to { transform: rotate(360deg); }
+}
+
+/* --- Page « Tous les titres » (chargement progressif) --- */
+.titres-etat {
+    padding: 12px 0;
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
 #favorite-bar {
     height: 275px;
     overflow-y: auto;

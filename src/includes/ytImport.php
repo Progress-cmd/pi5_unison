@@ -9,6 +9,31 @@
 
 require_once __DIR__ . '/artistImage.php';
 
+/*
+ * Journal : c'est ICI que l'instrumentation des imports doit vivre, et non
+ * dans les actions. actions/import_bulk.php et actions/import_expand.php
+ * passent tous les deux par ce fichier ; les instrumenter séparément laissait
+ * l'import en masse — le plus utilisé — totalement muet.
+ */
+require_once __DIR__ . '/journal.php';
+
+/**
+ * Dernières lignes utiles de la sortie d'erreur de yt-dlp.
+ *
+ * C'est la seule information qui permette de trancher entre une limitation de
+ * débit, une vidéo retirée et un extracteur périmé. Le journal en garde donc
+ * un extrait — borné, parce que yt-dlp peut être très bavard.
+ */
+function extraitErreurYtDlp(string $erreurs, int $lignes = 3): string
+{
+    $utiles = array_values(array_filter(
+        array_map('trim', explode("\n", $erreurs)),
+        fn($l) => $l !== ''
+    ));
+
+    return mb_substr(implode(' | ', array_slice($utiles, -$lignes)), 0, 400);
+}
+
 /**
  * Lance yt-dlp en séparant la sortie standard de la sortie d'erreur.
  *
@@ -92,7 +117,9 @@ function traduireErreurYtDlp(string $erreurs): string
         '/not available on this app|player response|failed to extract/i'
             => 'YouTube a changé son format : yt-dlp doit être mis à jour (unison ytdlp)',
 
-        '/video unavailable|is not available/i'
+        // « Video unavailable » et « This video is unavailable » : yt-dlp
+        // emploie les deux formes, le « is » optionnel couvre les deux.
+        '/video (is )?unavailable|is not available/i'
             => 'Vidéo indisponible',
         '/not available in your country|geo.?restricted|blocked it in your country/i'
             => 'Vidéo bloquée dans ce pays',
@@ -199,6 +226,18 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
 
     if (trim($json) === '') {
         $raison = traduireErreurYtDlp($erreurs);
+
+        // Phase d'analyse : l'échec est visible dans l'interface, mais sa cause
+        // exacte n'existait nulle part une fois la page fermée.
+        journalAttention('import', 'metadonnees_echec',
+            'Analyse impossible : ' . $raison,
+            [
+                'url'          => $url,
+                'raison'       => $raison,
+                'code_sortie'  => $code,
+                'sortie_ytdlp' => extraitErreurYtDlp($erreurs),
+            ]);
+
         error_log("yt-dlp metadata KO ($url) : " . trim($erreurs));
         return null;
     }
@@ -312,9 +351,28 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
         ]);
 
         if ($code !== 0 || !file_exists($wav_path)) {
+            $raisonEchec = traduireErreurYtDlp($erreurs);
+
+            /*
+             * Le point aveugle que ce journal comble : lors d'un import en
+             * masse, les échecs défilaient à l'écran et disparaissaient avec
+             * la page. Impossible ensuite de savoir si YouTube avait limité le
+             * débit, retiré la vidéo, ou changé de format.
+             */
+            journalErreur('import', 'import_echoue',
+                'Téléchargement échoué : ' . $title . ' — ' . $artist,
+                [
+                    'url'          => $url,
+                    'titre'        => $title,
+                    'artiste'      => $artist,
+                    'raison'       => $raisonEchec,
+                    'code_sortie'  => $code,
+                    'sortie_ytdlp' => extraitErreurYtDlp($erreurs),
+                ]);
+
             error_log("yt-dlp download KO ($url) : " . trim($erreurs));
             // La raison exacte remonte jusqu'à l'interface, pas seulement aux logs.
-            $result['message'] = traduireErreurYtDlp($erreurs);
+            $result['message'] = $raisonEchec;
             return $result;
         }
     }
@@ -437,5 +495,17 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId): ar
 
     $result['success'] = true;
     $result['message'] = $is_new ? 'Importé' : 'Déjà présent';
+
+    journalInfo('import', $is_new ? 'titre_importe' : 'titre_deja_present',
+        ($is_new ? 'Import de « ' : 'Déjà présent : « ') . $title . ' » — ' . $artist,
+        [
+            'track_id' => $track_id,
+            'titre'    => $title,
+            'artiste'  => $artist,
+            'url'      => $url,
+            'fichier'  => $file,
+            'lot'      => true,   // distingue l'import en masse de l'unitaire
+        ]);
+
     return $result;
 }
