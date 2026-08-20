@@ -7,6 +7,7 @@ exigerConnexion(false);
     <div class="body-bar">
         <?php
         include_once "../includes/config.php";
+include_once "../includes/rendu.php";
         include_once "../includes/viewMode.php";
         $pdo = Config::getConnection();
 
@@ -43,7 +44,7 @@ exigerConnexion(false);
                     <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
                     <div class="playlist-infos">
                         <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
-                        <div class="playlist-info"><?php if ($occurrence > 1) { echo $occurrence.' titres'; } else { echo $occurrence.' titre'; } ?> - <?php echo intdiv($time ?? 0, 60).':'.$time%60; ?> min</div>
+                        <div class="playlist-info"><?= resumePlaylist((int) $occurrence, $time === null ? null : (int) $time) ?></div>
                     </div>
                 </div>
                 <div class="playlist-controls">
