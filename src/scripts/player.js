@@ -284,6 +284,19 @@
 
     const mediaSessionDispo = 'mediaSession' in navigator;
 
+    /*
+     * Traces de ce qui a RÉELLEMENT été accepté par le navigateur.
+     *
+     * On ne peut pas relire un gestionnaire déjà posé (setActionHandler n'a pas
+     * de lecteur), ni savoir si Android a retenu la position. Ces trois
+     * variables enregistrent donc ce qui s'est passé, pour que les réglages
+     * puissent l'afficher : sur un téléphone, il n'y a pas de console où aller
+     * vérifier, et sans mesure on en est réduit aux suppositions.
+     */
+    const actionsMediaPosees = [];
+    let metadonneesPosees = null;
+    let positionPosee = null;
+
     /**
      * Publie le titre, l'artiste et la pochette auprès du système.
      *
@@ -316,6 +329,12 @@
                 album:  'Unison',
                 artwork: pochette,
             });
+
+            metadonneesPosees = {
+                titre: track.title,
+                artiste: track.artist,
+                pochette: pochette.length > 0,
+            };
         } catch (e) {
             console.warn('MediaSession : métadonnées refusées', e);
         }
@@ -345,6 +364,8 @@
                 playbackRate: audio.playbackRate || 1,
                 position: Math.min(Math.max(audio.currentTime, 0), duree),
             });
+
+            positionPosee = duree;
         } catch (e) {
             // Position transitoirement incohérente : le prochain appel corrigera.
         }
@@ -408,6 +429,7 @@
         for (const [nom, gestionnaire] of Object.entries(actions)) {
             try {
                 navigator.mediaSession.setActionHandler(nom, gestionnaire);
+                actionsMediaPosees.push(nom);
             } catch (e) {
                 // Action inconnue de ce navigateur : les autres restent posées.
             }
@@ -767,24 +789,63 @@
             <button type="button" id="close-settings" class="modale-fermer">Fermer</button>
         `);
 
+        /*
+         * Diagnostic MESURÉ, et non déduit.
+         *
+         * « Seul le bouton lecture apparaît » a deux causes très différentes :
+         * soit le navigateur refuse l'API (page non sécurisée), soit il
+         * l'accepte et c'est Android qui choisit de ne pas afficher les
+         * boutons. On ne peut pas ouvrir de console sur un téléphone : cet
+         * encart montre donc ce qui a été réellement accepté, et permet de
+         * trancher en un coup d'œil.
+         */
         const etatNotif = contenu.querySelector('#etat-notification');
+        const lignes = [];
+
         if (!mediaSessionDispo) {
-            etatNotif.innerHTML =
-                '<span class="modale-etat-alerte">Indisponibles.</span> ' +
-                "Cette page n'est pas en contexte sécurisé : le navigateur " +
-                "désactive l'intégration au système. Ouvrez Unison en " +
-                '<b>HTTPS</b> (https://unison.pi5.ovh) plutôt qu\'en http:// ' +
-                "sur une adresse IP locale.";
-        } else if (window.isSecureContext === false) {
-            etatNotif.innerHTML =
-                '<span class="modale-etat-alerte">Partiellement disponibles.</span> ' +
-                'Passez en HTTPS pour la pochette et la barre de progression.';
+            lignes.push('<span class="modale-etat-alerte">API indisponible.</span> '
+                + "Cette page n'est pas en contexte sécurisé : le navigateur "
+                + "désactive l'intégration au système. Ouvrez Unison en "
+                + '<b>HTTPS</b> (https://unison.pi5.ovh) plutôt qu\'en http:// '
+                + 'sur une adresse IP locale.');
         } else {
-            etatNotif.innerHTML =
-                '<span class="modale-etat-actif">Actives.</span> ' +
-                'Titre, artiste, pochette, précédent / suivant et barre de ' +
-                "progression sont publiés vers l'écran de verrouillage.";
+            const sur = window.isSecureContext !== false;
+            lignes.push(sur
+                ? '<span class="modale-etat-actif">API active.</span>'
+                : '<span class="modale-etat-alerte">Contexte non sécurisé.</span> '
+                  + 'Passez en HTTPS.');
+
+            lignes.push('Boutons acceptés : <b>'
+                + (actionsMediaPosees.length ? actionsMediaPosees.join(', ') : 'aucun')
+                + '</b>');
+
+            lignes.push('Métadonnées : <b>'
+                + (metadonneesPosees
+                    ? metadonneesPosees.titre + ' — ' + metadonneesPosees.artiste
+                      + (metadonneesPosees.pochette ? ' (avec pochette)' : ' (sans pochette)')
+                    : 'aucune publiée')
+                + '</b>');
+
+            lignes.push('Barre de progression : <b>'
+                + (positionPosee
+                    ? 'durée ' + Math.round(positionPosee) + ' s publiée'
+                    : 'jamais publiée — durée du morceau inconnue')
+                + '</b>');
+
+            /*
+             * Si tout est publié et que les boutons manquent quand même, la
+             * décision vient d'Android, pas d'Unison : la notification réduite
+             * cache les commandes tant qu'elle n'est pas dépliée.
+             */
+            if (actionsMediaPosees.includes('nexttrack') && metadonneesPosees) {
+                lignes.push('<span class="modale-etat-actif">Tout est publié.</span> '
+                    + 'Si « précédent / suivant » manquent, dépliez la notification '
+                    + '(glissez vers le bas dessus) : Android n\'affiche que deux '
+                    + 'commandes tant qu\'elle est repliée.');
+            }
         }
+
+        etatNotif.innerHTML = lignes.join('<br>');
 
         const slider = contenu.querySelector('#volume-slider');
         const volumeValue = contenu.querySelector('#volume-value');
