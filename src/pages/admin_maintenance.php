@@ -33,6 +33,33 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
 </article>
 
 <article class="containers">
+    <div class="head-bar">Format audio</div>
+    <div class="body-bar">
+        <div class="admin-note">
+            Les imports produisent désormais du m4a, repris tel quel depuis la
+            source. Les fichiers plus anciens sont en WAV : même contenu, une
+            dizaine de fois plus lourd. La conversion les aligne, un titre à la
+            fois — vous pouvez l'interrompre et la reprendre, chaque titre
+            converti est acquis.
+        </div>
+
+        <div id="conv-etat" class="admin-note">Analyse…</div>
+
+        <div class="admin-actions">
+            <button class="admin-btn" id="conv-lancer" disabled>Convertir</button>
+            <button class="admin-btn" id="conv-arreter" hidden>Arrêter</button>
+        </div>
+
+        <div id="conv-barre" hidden>
+            <div class="conv-jauge"><div class="conv-jauge-remplie"></div></div>
+            <div id="conv-detail" class="admin-note"></div>
+        </div>
+
+        <pre id="conv-echecs" class="admin-note" hidden></pre>
+    </div>
+</article>
+
+<article class="containers">
     <div class="head-bar">Conteneurs</div>
     <div class="body-bar">
         <?php if (!$disponible): $etat = majEtatInstallation(); ?>
@@ -106,6 +133,107 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
             btnIndex.disabled = false;
         });
     }
+
+    // --- Format audio ---
+    (function () {
+        const etat     = document.getElementById('conv-etat');
+        const lancer   = document.getElementById('conv-lancer');
+        const arreter  = document.getElementById('conv-arreter');
+        const barre    = document.getElementById('conv-barre');
+        const remplie  = document.querySelector('.conv-jauge-remplie');
+        const detail   = document.getElementById('conv-detail');
+        const echecs   = document.getElementById('conv-echecs');
+        if (!etat) return;
+
+        let aConvertir = [];
+        let interrompu = false;
+
+        function octets(n) {
+            const u = ['o', 'Ko', 'Mo', 'Go'];
+            let i = 0;
+            while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+            return n.toFixed(i === 0 ? 0 : 1) + ' ' + u[i];
+        }
+
+        async function analyser() {
+            const r = await A.appeler('lister_conversions.php');
+            if (!r || !r.success) { etat.textContent = 'Analyse impossible.'; return; }
+
+            aConvertir = r.titres || [];
+
+            if (aConvertir.length === 0) {
+                etat.textContent = r.manquants
+                    ? `Tous les fichiers présents sont au bon format (${r.manquants} titre(s) sans fichier sur le disque — voir Stockage).`
+                    : 'Tous les fichiers sont déjà au bon format.';
+                lancer.disabled = true;
+                return;
+            }
+
+            etat.textContent = `${aConvertir.length} titre(s) à convertir, ${r.octets_lisible} sur le disque.`;
+            lancer.disabled = false;
+        }
+
+        async function convertir() {
+            interrompu = false;
+            lancer.hidden = true;
+            arreter.hidden = false;
+            barre.hidden = false;
+            echecs.hidden = true;
+            echecs.textContent = '';
+
+            let faits = 0, avant = 0, apres = 0;
+            const rates = [];
+
+            for (const t of aConvertir) {
+                if (interrompu) break;
+
+                detail.textContent = `${faits + 1} / ${aConvertir.length} — ${t.titre}`;
+
+                const r = await A.appeler('convertir_titre.php', { track_id: t.id });
+
+                if (r && r.success) {
+                    avant += r.avant || 0;
+                    apres += r.apres || 0;
+                } else {
+                    rates.push(`${t.titre} — ${(r && r.message) || 'échec'}`);
+                }
+
+                faits++;
+                remplie.style.width = (faits / aConvertir.length * 100) + '%';
+            }
+
+            arreter.hidden = true;
+            lancer.hidden = false;
+
+            const gain = avant > 0 ? (avant / Math.max(apres, 1)).toFixed(1) : '0';
+            detail.textContent = interrompu
+                ? `Interrompu après ${faits} titre(s). ${octets(avant)} → ${octets(apres)} (×${gain}).`
+                : `Terminé : ${faits - rates.length} converti(s), ${octets(avant)} → ${octets(apres)} (×${gain}).`;
+
+            if (rates.length) {
+                echecs.hidden = false;
+                // textContent : les titres viennent de la base, donc de l'extérieur.
+                echecs.textContent = 'Échecs (fichiers d\'origine conservés) :\n' + rates.join('\n');
+            }
+
+            await analyser();
+        }
+
+        lancer.addEventListener('click', () => {
+            if (!confirm(`Convertir ${aConvertir.length} fichier(s) ?\n\n`
+                       + `Les originaux sont supprimés après vérification de chaque conversion.`)) return;
+            convertir();
+        });
+
+        arreter.addEventListener('click', () => {
+            interrompu = true;
+            arreter.disabled = true;
+            detail.textContent += ' — arrêt après le titre en cours…';
+            setTimeout(() => { arreter.disabled = false; }, 100);
+        });
+
+        analyser();
+    })();
 
     // --- Conteneurs ---
     let sondage = null;

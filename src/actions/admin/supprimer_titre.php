@@ -72,7 +72,10 @@ try {
 // Fichier audio
 $fichierSupprime = false;
 if ($fichier !== '') {
-    $chemin = Config::cheminMusiques() . $fichier;
+    // basename() : le nom vient de tracks.file, alimenté à l'import depuis
+    // le « ?v= » d'une URL. Il est désormais validé en amont, mais le chemin
+    // ne doit dépendre d'aucune hypothèse — comme dans nettoyer_stockage.
+    $chemin = Config::cheminMusiques() . basename($fichier);
     if (is_file($chemin)) {
         $fichierSupprime = @unlink($chemin);
         if (!$fichierSupprime) {

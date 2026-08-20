@@ -4,7 +4,7 @@
  * l'import unitaire (avec confirmation) et l'import en masse.
  *
  *  - extractYtMetadata()  : récupère les métadonnées d'une URL via yt-dlp
- *  - importTrackFromUrl() : télécharge le WAV et insère le titre + relations
+ *  - importTrackFromUrl() : télécharge l'audio et insère le titre + relations
  */
 
 require_once __DIR__ . '/artistImage.php';
@@ -16,6 +16,49 @@ require_once __DIR__ . '/artistImage.php';
  * l'import en masse — le plus utilisé — totalement muet.
  */
 require_once __DIR__ . '/journal.php';
+
+/** Dossier des fichiers audio importés. */
+const IMPORT_DOSSIER = '/var/www/music_data/';
+
+/**
+ * Extensions reconnues, par ordre de préférence.
+ *
+ * m4a d'abord : c'est le format des nouveaux imports. wav ensuite, pour les
+ * fichiers téléchargés avant le changement de format — ils restent lisibles
+ * tels quels, et ne doivent surtout pas être retéléchargés.
+ */
+const IMPORT_EXTENSIONS = ['m4a', 'wav', 'opus', 'mp3', 'webm', 'ogg', 'aac', 'flac', 'mp4'];
+
+/**
+ * Fichier déjà présent pour cette vidéo, quel que soit son format, ou null.
+ *
+ * Le nom était auparavant construit en dur (« id.wav »), ce qui liait le code
+ * à un format unique. On cherche désormais ce qui existe réellement.
+ */
+function fichierExistantPour(string $videoId): ?string
+{
+    foreach (IMPORT_EXTENSIONS as $ext) {
+        $nom = $videoId . '.' . $ext;
+        if (is_file(IMPORT_DOSSIER . $nom)) {
+            return $nom;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Identifiant de vidéo utilisable comme nom de fichier.
+ *
+ * Il vient du « ?v= » d'une URL fournie par l'utilisateur et finit en base
+ * dans tracks.file, d'où il ressort pour construire des chemins. Un
+ * identifiant YouTube n'est jamais qu'une suite de lettres, chiffres, tirets
+ * et soulignés : tout le reste est refusé plutôt que nettoyé.
+ */
+function identifiantVideoValide(string $videoId): bool
+{
+    return (bool) preg_match('/^[A-Za-z0-9_-]{1,64}$/', $videoId);
+}
 
 /**
  * Dernières lignes utiles de la sortie d'erreur de yt-dlp.
@@ -312,7 +355,7 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
  */
 function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId, bool $enLot = true): array
 {
-    // Les conversions WAV peuvent être longues : on lève la limite de temps
+    // Le téléchargement peut être long : on lève la limite de temps
     if (function_exists('set_time_limit')) { @set_time_limit(600); }
 
     $title     = trim($meta['title'] ?? '');
@@ -337,25 +380,51 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId, boo
         return $result;
     }
 
-    $output_path = "/var/www/music_data/%(id)s.%(ext)s";
-    $file        = $video_id . ".wav";
-    $wav_path    = "/var/www/music_data/" . $file;
+    if (!identifiantVideoValide($video_id)) {
+        $result['message'] = 'URL invalide';
+        return $result;
+    }
 
-    // Téléchargement + conversion WAV si le fichier n'existe pas déjà
-    if (!file_exists($wav_path)) {
+    $output_path = IMPORT_DOSSIER . '%(id)s.%(ext)s';
+
+    // Un fichier déjà là — quel que soit son format — se réutilise tel quel.
+    $file = fichierExistantPour($video_id);
+
+    if ($file === null) {
         /*
-         * Pause aléatoire de 1 à 5 s avant le téléchargement lui-même : c'est
+         * Format : le flux audio de YouTube est repris tel quel.
+         *
+         * L'import convertissait auparavant en WAV, ce qui décompressait une
+         * source déjà compressée : onze fois plus d'octets — mesuré à 11 Mo
+         * par minute, soit ~1500 kbit/s — pour exactement la même information,
+         * puisque YouTube ne diffuse rien de sans perte. La conversion était
+         * de surcroît l'étape la plus lente de l'import.
+         *
+         * m4a (AAC) plutôt qu'opus : YouTube propose les deux à ~130 kbit/s,
+         * mais seul le m4a se lit partout, Safari et iOS compris. Le sélecteur
+         * prend le flux m4a d'origine, donc aucun ré-encodage n'a lieu ;
+         * --audio-format ne sert que de garde-fou pour les rares vidéos qui
+         * n'offriraient pas d'AAC, afin que le format reste le même partout.
+         *
+         * La contrainte « audio_channels<=2 » n'est pas un détail : sans elle,
+         * yt-dlp retient le meilleur m4a disponible, c'est-à-dire la piste
+         * 5.1 à 388 kbit/s quand elle existe — trois fois plus lourde, et
+         * réduite en stéréo à la lecture de toute façon.
+         *
+         * Pause aléatoire de 1 à 5 s avant le téléchargement : c'est
          * l'enchaînement régulier des téléchargements qui déclenche le plus
-         * sûrement la limitation. Le coût est négligeable devant la conversion
-         * WAV qui suit.
+         * sûrement la limitation de débit de YouTube.
          */
         [, $erreurs, $code] = executerYtDlp([
-            '-x', '--audio-format', 'wav', '--audio-quality', '0',
+            '-f', 'ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b',
+            '-x', '--audio-format', 'm4a',
             '--sleep-interval', '1', '--max-sleep-interval', '5',
             '--add-metadata', '--no-overwrites', '-o', $output_path, $url,
         ]);
 
-        if ($code !== 0 || !file_exists($wav_path)) {
+        $file = fichierExistantPour($video_id);
+
+        if ($code !== 0 || $file === null) {
             $raisonEchec = traduireErreurYtDlp($erreurs);
 
             /*

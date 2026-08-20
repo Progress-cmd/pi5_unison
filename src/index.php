@@ -333,6 +333,23 @@ $admin = estAdmin();
         window.UNISON_DEMO  = <?= $demo ? 'true' : 'false' ?>;
         window.UNISON_ADMIN = <?= $admin ? 'true' : 'false' ?>;
     </script>
+    <?php if ($admin): ?>
+    <?php
+    /*
+     * Chargé ici, et non plus par chaque page de gestion.
+     *
+     * Les pages le tiraient par une balise <script src> que le routeur
+     * réinjectait à côté de leur script en ligne. Or un script externe se
+     * charge de façon asynchrone, tandis qu'un script en ligne s'exécute dès
+     * son insertion : à l'arrivée directe sur une page d'administration,
+     * « window.AdminUnison » n'existait pas encore, le « if (!A) return; »
+     * coupait court, et TOUT le JavaScript de la page restait mort — sans la
+     * moindre erreur en console. Cela ne se voyait qu'au premier chargement,
+     * puisqu'une navigation ultérieure retrouvait le script déjà chargé.
+     */
+    ?>
+    <script src="<?= assetVersionne('scripts/admin.js') ?>"></script>
+    <?php endif; ?>
     <script src="<?= assetVersionne('scripts/router.js') ?>"></script>
     <?php if (!$admin): ?>
     <script src="<?= assetVersionne('scripts/bulk-import.js') ?>"></script>
