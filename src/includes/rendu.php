@@ -71,3 +71,36 @@ function ligneVide(string $message): string
          . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
          . '</em></div>';
 }
+
+/**
+ * Résumé d'une playlist : nombre de titres et durée totale.
+ *
+ * Le calcul était recopié à l'identique sur trois pages, sous la forme
+ * « intdiv($t, 60) . ':' . $t % 60 » — qui n'ajoute pas le zéro des secondes.
+ * Une playlist vide s'affichait donc « 0:0 min », et 1 min 5 s « 1:5 min ».
+ * Le modulo sur une somme nulle (playlist sans titre) déclenchait de surcroît
+ * un avertissement PHP, masqué en production.
+ *
+ * @param int      $nombre    nombre de titres
+ * @param int|null $secondes  durée cumulée, null si la playlist est vide
+ */
+function resumePlaylist(int $nombre, ?int $secondes): string
+{
+    $libelle = $nombre . ($nombre > 1 ? ' titres' : ' titre');
+
+    $secondes = max(0, (int) $secondes);
+
+    if ($secondes === 0) {
+        return $libelle;
+    }
+
+    if ($secondes >= 3600) {
+        $duree = intdiv($secondes, 3600) . ' h '
+               . str_pad((string) intdiv($secondes % 3600, 60), 2, '0', STR_PAD_LEFT);
+    } else {
+        $duree = intdiv($secondes, 60) . ':'
+               . str_pad((string) ($secondes % 60), 2, '0', STR_PAD_LEFT) . ' min';
+    }
+
+    return $libelle . ' - ' . $duree;
+}

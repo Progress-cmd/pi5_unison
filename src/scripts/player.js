@@ -391,11 +391,6 @@
             play:  () => audio.play().catch(() => {}),
             pause: () => audio.pause(),
 
-            stop: () => {
-                audio.pause();
-                deplacerA(0);
-            },
-
             nexttrack: () => pisteSuivante(),
 
             /*
@@ -426,6 +421,8 @@
             },
         };
 
+        actionsMediaPosees.length = 0;
+
         for (const [nom, gestionnaire] of Object.entries(actions)) {
             try {
                 navigator.mediaSession.setActionHandler(nom, gestionnaire);
@@ -443,6 +440,24 @@
      */
     audio.addEventListener('play', () => {
         if (mediaSessionDispo) navigator.mediaSession.playbackState = 'playing';
+
+        /*
+         * Les actions sont redéclarées ICI, et pas seulement au chargement de
+         * la page.
+         *
+         * Au chargement, aucune lecture n'a commencé : Android n'a pas encore
+         * de session média, et Chrome n'a donc rien à qui transmettre les
+         * boutons. Résultat observé sur le téléphone : la notification portait
+         * bien la pochette, le titre, l'artiste et la barre de progression —
+         * tout ce qui est publié APRÈS le démarrage — mais un seul bouton,
+         * « pause », le seul qu'Android déduit de lui-même de l'état de
+         * lecture. Les déclarer une fois la lecture lancée les fait exister
+         * pour le système.
+         *
+         * setActionHandler est idempotent : redéclarer écrase sans effet de
+         * bord, l'appel peut donc se répéter à chaque piste sans précaution.
+         */
+        brancherMediaSession();
         majPositionMedia();
     });
 
