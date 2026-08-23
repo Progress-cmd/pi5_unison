@@ -200,13 +200,56 @@ if ($lien === null || $lien === false) {
     include_once "../includes/config.php";
     $pdo = Config::getConnection();
 
-    $req = $pdo->prepare("SELECT title FROM tracks WHERE title = :title");
-    $req->bindParam(':title', $title);
-    $req->execute();
+    /*
+     * L'identité d'un titre, c'est la vidéo — pas son intitulé.
+     *
+     * Ce contrôle comparait « title = :title », si bien que deux
+     * enregistrements différents portant le même nom se bloquaient l'un
+     * l'autre : « Somewhere Only We Know » de Keane interdisait la reprise de
+     * Lily Allen. L'import réel, lui, a toujours comparé l'URL et le fichier
+     * (voir importTrackFromUrl) : les deux contrôles disaient des choses
+     * différentes, et c'est le plus grossier qui décidait.
+     */
+    $urlSoumise = filter_input(INPUT_POST, 'url', FILTER_VALIDATE_URL);
+    parse_str((string) parse_url((string) $urlSoumise, PHP_URL_QUERY), $parametresUrl);
+    $videoId = $parametresUrl['v'] ?? basename((string) parse_url((string) $urlSoumise, PHP_URL_PATH));
 
-    if (!$req->fetch()) {
+    // Le nom du fichier est « <video_id>.<extension> », l'extension dépendant
+    // de l'époque de l'import (m4a aujourd'hui, wav autrefois). Les jokers de
+    // LIKE sont échappés : un identifiant YouTube contient souvent « _ ».
+    $motifFichier = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $videoId) . '.%';
+
+    $req = $pdo->prepare(
+        "SELECT id, title FROM tracks
+         WHERE url = :url OR file LIKE :motif ESCAPE '\\\\'
+         LIMIT 1"
+    );
+    $req->execute([':url' => $urlSoumise, ':motif' => $motifFichier]);
+    $dejaImporte = $req->fetch(PDO::FETCH_ASSOC);
+
+    /*
+     * Même titre, même artiste, mais une autre vidéo : ce n'est pas forcément
+     * un doublon (version live, remasterisée…). On le signale sans interdire.
+     */
+    $req = $pdo->prepare("
+        SELECT tracks.id FROM tracks
+        JOIN artist__track ON artist__track.track_id = tracks.id
+        JOIN artists ON artists.id = artist__track.artist_id
+        WHERE tracks.title = :titre AND artists.name = :artiste
+        LIMIT 1
+    ");
+    $req->execute([':titre' => $title, ':artiste' => $artist]);
+    $memeTitreMemeArtiste = (bool) $req->fetch();
+
+    if (!$dejaImporte) {
         ?>
         <form data-action="../actions/import.php" id="import-check" class="containers" method="post">
+            <?php if ($memeTitreMemeArtiste): ?>
+                <p class="import-note">
+                    Un titre du même nom et du même artiste est déjà présent.
+                    Ce n'est pas forcément un doublon — vous pouvez importer quand même.
+                </p>
+            <?php endif; ?>
             <label>
                 <input type="text" class="alterable" value="<?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?>" name="title" readonly required>
             </label>
@@ -244,7 +287,8 @@ if ($lien === null || $lien === false) {
         <article class="containers">
             <div class="body-bar">
                 <div class="content">
-                    <em><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></em>&nbsp; existe déjà dans la bibliothèque.
+                    <em><?= htmlspecialchars($dejaImporte['title'] ?? $title, ENT_QUOTES, 'UTF-8') ?></em>&nbsp;
+                    a déjà été importé depuis cette même vidéo.
                 </div>
             </div>
         </article>

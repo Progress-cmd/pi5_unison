@@ -1454,6 +1454,19 @@ footer > #navbar {
     flex: 1;
 }
 
+/* Avertissement non bloquant du formulaire d'import : même titre et même
+   artiste déjà en base, mais une autre vidéo. */
+.import-note {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 #import-check {
     flex-direction: column;
     align-items: center;

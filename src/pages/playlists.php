@@ -11,19 +11,18 @@ include_once "../includes/rendu.php";
         include_once "../includes/viewMode.php";
         $pdo = Config::getConnection();
 
-        // En mode perso, on ne montre que les playlists de l'utilisateur courant
-        $onlyMine = isPersonalView();
-        $filtreProprio = $onlyMine ? " AND playlists.`created-by_id` = :uid" : "";
+        // File d'attente masquée, favoris limités au compte courant, et en
+        // mode perso les playlists des autres comptes en plus.
+        [$ouVisibles, $parametres] = clausePlaylistsVisibles(true);
 
         $req = $pdo->prepare("
                 SELECT playlists.id, name, users.id AS user_id
                 FROM playlists
                 LEFT JOIN users ON playlists.`created-by_id` = users.id
-                WHERE name != 'Wait Tracks'" . $filtreProprio . "
+                WHERE $ouVisibles
                 ORDER BY name
             ");
-        if ($onlyMine) { $req->bindValue(':uid', $_SESSION['user']['id'], PDO::PARAM_INT); }
-        $req->execute();
+        $req->execute($parametres);
 
         $playlists = $req->fetchAll();
 
