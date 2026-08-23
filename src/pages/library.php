@@ -178,12 +178,12 @@ $pdo = Config::getConnection();
     <div class="head-bar">Playlists<a href="?page=library/playlists" class="more-bar" data-page="library/playlists">Voir tout</a></div>
     <div class="body-bar">
         <?php
-        [$ouVisibles, $parametres] = clausePlaylistsVisibles(false);
+        [$conditionVisibilite, $parametres] = clausePlaylistsVisibles();
         $req = $pdo->prepare("
                 SELECT playlists.id, name, users.id AS user_id
                 FROM playlists
                 LEFT JOIN users ON playlists.`created-by_id` = users.id
-                WHERE $ouVisibles
+                WHERE $conditionVisibilite
                 ORDER BY name
                 LIMIT 4
             ");
