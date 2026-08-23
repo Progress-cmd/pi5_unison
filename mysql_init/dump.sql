@@ -350,7 +350,7 @@ ALTER TABLE `tag__track`
 --
 ALTER TABLE `tracks`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `tracks_title_index` (`title`) USING BTREE,
+  ADD KEY `tracks_title_index` (`title`) USING BTREE,
   ADD UNIQUE KEY `file` (`file`),
   ADD UNIQUE KEY `url` (`url`),
   ADD KEY `tracks_users_id_fk` (`added-by_id`);
