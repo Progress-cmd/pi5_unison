@@ -942,9 +942,28 @@ footer > #navbar {
     cursor: pointer;
 }
 
+/*
+ * Le bloc pochette + intitulés doit pouvoir rétrécir.
+ *
+ * Sans min-width: 0, un nom de playlist un peu long — il est en nowrap —
+ * rendait ce bloc incompressible et poussait .playlist-controls hors de la
+ * carte, jusqu'à sortir de la page. Mesuré à plus de 100 px de débordement
+ * sur l'accueil, la bibliothèque et la liste des playlists.
+ */
 .mini-playlist div:first-child {
     display: flex;
     justify-content: space-between;
+    min-width: 0;
+    flex: 1;
+}
+
+.mini-playlist .playlist-infos {
+    min-width: 0;
+}
+
+/* Les boutons gardent leur taille : c'est le texte qui cède. */
+.mini-playlist .playlist-controls {
+    flex-shrink: 0;
 }
 
 .playlists-bar .playlist-1, #playlists-list .playlist-1 {
@@ -972,6 +991,9 @@ footer > #navbar {
 
 .mini-playlist .playlist-info {
     font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .mini-playlist button {
@@ -2143,6 +2165,22 @@ footer > #navbar {
         display: flex;
         flex-direction: column;
         min-height: 0;
+
+        /*
+         * min-width: 0 est indispensable, pas décoratif.
+         *
+         * La grille parente est « 1fr var(--player-width) », et « 1fr » vaut
+         * en réalité « minmax(auto, 1fr) » : son minimum est le min-content de
+         * la colonne. Or les titres sont en white-space: nowrap — un titre
+         * assez long rendait donc la colonne de gauche incompressible, la
+         * piste s'élargissait au-delà de sa part, et la colonne de droite
+         * (playlists + lecteur) était poussée hors du cadre, coupée au bord de
+         * la fenêtre. Mesuré : un titre de 90 caractères débordait de 158 px.
+         *
+         * Avec min-width: 0, la colonne accepte de rétrécir et les titres se
+         * tronquent comme prévu (ils ont déjà text-overflow: ellipsis).
+         */
+        min-width: 0;
     }
 
     /* La liste d'attente prend la hauteur restante de sa colonne
