@@ -239,6 +239,13 @@ cmd_upgrade() {
 
     [ -x "$MIGRATIONS" ] && { "$MIGRATIONS" || avert "Migrations en échec"; }
 
+    # Le conteneur neuf repart du binaire figé dans l'image, dont la couche
+    # Docker est mise en cache : elle peut dater de plusieurs mois. yt-dlp s'y
+    # retrouvait périmé et les téléchargements échouaient en 403 — sans que
+    # rien ne l'indique, puisque la récupération des métadonnées, elle,
+    # continuait de fonctionner. On rattrape donc systématiquement ici.
+    cmd_ytdlp auto
+
     ok "Unison reconstruit et redémarré"
 }
 
@@ -292,12 +299,63 @@ cmd_backup() {
 #
 # La mise à jour se fait dans le conteneur en cours : elle est donc perdue à la
 # prochaine reconstruction, où il faudra la relancer.
+# Attend que le conteneur applicatif accepte des commandes.
+# « docker compose up -d » rend la main dès le conteneur créé, bien avant
+# qu'Apache et l'indexation Meilisearch soient prêts : sans cette attente, la
+# mise à jour de yt-dlp qui suit échouait sur « service app is not running ».
+attendre_app() {
+    local essais=${1:-30}
+
+    while [ "$essais" -gt 0 ]; do
+        dc exec -T app true >/dev/null 2>&1 && return 0
+        essais=$((essais - 1))
+        sleep 2
+    done
+
+    return 1
+}
+
+# Dernière version publiée, lue dans l'URL de redirection de GitHub : quelques
+# octets, au lieu des ~30 Mo du binaire. Chaîne vide si GitHub est injoignable.
+ytdlp_derniere_version() {
+    curl -fsSLI -o /dev/null -w '%{url_effective}' --connect-timeout 5 --max-time 15 \
+        https://github.com/yt-dlp/yt-dlp/releases/latest 2>/dev/null \
+        | sed -n 's#.*/tag/##p'
+}
+
+# $1 = "auto" pour un appel automatique : silencieux quand il n'y a rien à faire,
+# et jamais bloquant. Sans argument, c'est l'appel manuel « unison ytdlp ».
 cmd_ytdlp() {
-    titre "Mise à jour de yt-dlp"
+    local auto=${1:-}
+
+    [ "$auto" = auto ] || titre "Mise à jour de yt-dlp"
+
+    if ! attendre_app; then
+        avert "Conteneur applicatif indisponible — yt-dlp inchangé."
+        return 1
+    fi
 
     local avant
     avant=$(dc exec -T app /usr/local/bin/yt-dlp --version 2>/dev/null | tr -d '\r')
-    info "version actuelle : ${avant:-inconnue}"
+    [ "$auto" = auto ] || info "version actuelle : ${avant:-inconnue}"
+
+    # Comparaison préalable : inutile de retélécharger 30 Mo à chaque
+    # démarrage des conteneurs si la version en place est déjà la bonne.
+    local dernier
+    dernier=$(ytdlp_derniere_version)
+
+    if [ -z "$dernier" ]; then
+        if [ "$auto" = auto ]; then
+            avert "yt-dlp : version publiée non vérifiable (réseau ?) — binaire inchangé"
+            return 0
+        fi
+        avert "Impossible de joindre GitHub — tentative de téléchargement quand même."
+    elif [ "$dernier" = "$avant" ]; then
+        [ "$auto" = auto ] || ok "Déjà à jour ($avant)"
+        return 0
+    else
+        [ "$auto" = auto ] && titre "Mise à jour de yt-dlp ($avant → $dernier)"
+    fi
 
     # -u root : en production le conteneur tourne en www-data, qui ne peut pas
     # écrire dans /usr/local/bin.
@@ -316,7 +374,11 @@ cmd_ytdlp() {
         else
             ok "yt-dlp $avant → $apres"
         fi
-        avert "Perdu à la prochaine reconstruction : relancez « unison ytdlp » après un upgrade."
+        # « upgrade » et « start » relancent désormais cette mise à jour
+        # eux-mêmes : le binaire ne peut plus revenir en arrière sans qu'on
+        # s'en aperçoive. L'avertissement ne vaut que pour un docker compose
+        # lancé à la main, hors de cet outil.
+        info "Écrit dans le conteneur en cours ; une reconstruction lancée hors « unison » le remplacerait."
     else
         # Le binaire n'est remplacé qu'après vérification : en cas d'échec,
         # l'ancien yt-dlp est toujours en place et les imports continuent.
@@ -335,7 +397,14 @@ cmd_restart() {
     dc restart && ok "Conteneurs redémarrés"
 }
 
-cmd_start() { titre "Démarrage"; dc up -d && ok "Conteneurs démarrés"; }
+cmd_start() {
+    titre "Démarrage"
+    dc up -d || { ko "Démarrage en échec"; return 1; }
+    # « stop » supprime les conteneurs : celui-ci est neuf, donc reparti du
+    # yt-dlp de l'image. Même rattrapage que pour « upgrade ».
+    cmd_ytdlp auto
+    ok "Conteneurs démarrés"
+}
 
 cmd_stop() {
     titre "Arrêt des conteneurs"
