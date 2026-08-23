@@ -942,6 +942,12 @@ footer > #navbar {
     cursor: pointer;
 }
 
+/* La bordure sépare deux cartes : sur la dernière, elle ne sépare de rien et
+   se lit comme un trait qui pend — très visible quand il n'y en a qu'une. */
+.mini-playlist:last-child {
+    border-bottom: none;
+}
+
 /*
  * Le bloc pochette + intitulés doit pouvoir rétrécir.
  *
@@ -952,9 +958,19 @@ footer > #navbar {
  */
 .mini-playlist div:first-child {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     min-width: 0;
     flex: 1;
+
+    /*
+     * Surtout pas « justify-content: space-between » ici.
+     *
+     * Il ne se voyait pas tant que ce bloc était dimensionné par son contenu.
+     * En lui donnant « flex: 1 » pour qu'il puisse rétrécir, il s'est mis à
+     * occuper toute la largeur — et space-between a alors écarté la pochette
+     * du titre aux deux extrémités de la carte.
+     */
+    justify-content: flex-start;
 }
 
 .mini-playlist .playlist-infos {

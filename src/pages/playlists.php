@@ -13,13 +13,13 @@ include_once "../includes/rendu.php";
 
         // File d'attente masquée, favoris limités au compte courant, et en
         // mode perso les playlists des autres comptes en plus.
-        [$ouVisibles, $parametres] = clausePlaylistsVisibles(true);
+        [$conditionVisibilite, $parametres] = clausePlaylistsVisibles();
 
         $req = $pdo->prepare("
                 SELECT playlists.id, name, users.id AS user_id
                 FROM playlists
                 LEFT JOIN users ON playlists.`created-by_id` = users.id
-                WHERE $ouVisibles
+                WHERE $conditionVisibilite
                 ORDER BY name
             ");
         $req->execute($parametres);

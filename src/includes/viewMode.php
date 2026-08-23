@@ -23,37 +23,25 @@ function isPersonalView(): bool
  * Condition SQL sélectionnant les playlists à présenter dans un listing.
  *
  * Elle était recopiée sur trois pages sous la forme « name != 'Wait Tracks' »
- * suivie d'un filtre de propriétaire facultatif. Deux règles s'y ajoutent :
+ * suivie d'un filtre de propriétaire facultatif ; elle est ici en un seul
+ * endroit.
  *
- *  - la file d'attente reste masquée, comme avant ;
- *  - les favoris sont personnels. Ils étaient listés pour TOUS les comptes en
- *    mode commun : l'accueil affichait donc deux cartes « Favorite Tracks »
- *    identiques, dont celle — souvent vide — du second compte du foyer.
+ * Seule la file d'attente est masquée. Les favoris, eux, sont une playlist
+ * comme une autre : ceux du second compte du foyer doivent rester visibles en
+ * mode commun. Je les avais un temps réservés à leur propriétaire — c'était
+ * une mauvaise lecture de la demande, le vrai défaut étant l'affichage
+ * « 0 titre – 0:0 min » d'une playlist vide, corrigé par resumePlaylist().
  *
- * @param bool $avecFavoris false pour les masquer complètement, sur les pages
- *                          qui leur consacrent déjà une section.
- * @return array{0:string,1:array} la clause et ses paramètres
+ * @return array{0:string,1:array} la condition et ses paramètres
  */
-function clausePlaylistsVisibles(bool $avecFavoris = true): array
+function clausePlaylistsVisibles(): array
 {
-    $moi = (int) ($_SESSION['user']['id'] ?? 0);
-
     $conditions = ["playlists.name != 'Wait Tracks'"];
     $parametres = [];
 
-    if ($avecFavoris) {
-        // Deux noms de paramètre distincts : une requête préparée native
-        // n'accepte pas deux fois le même marqueur.
-        $conditions[] = "(playlists.name != 'Favorite Tracks'"
-                      . " OR playlists.`created-by_id` = :moi)";
-        $parametres[':moi'] = $moi;
-    } else {
-        $conditions[] = "playlists.name != 'Favorite Tracks'";
-    }
-
     if (isPersonalView()) {
         $conditions[] = "playlists.`created-by_id` = :uid";
-        $parametres[':uid'] = $moi;
+        $parametres[':uid'] = (int) ($_SESSION['user']['id'] ?? 0);
     }
 
     return [implode(' AND ', $conditions), $parametres];
