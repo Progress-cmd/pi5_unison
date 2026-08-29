@@ -315,6 +315,64 @@ attendre_app() {
     return 1
 }
 
+# ---------------------------------------------------------------------------
+# Cookies YouTube
+# ---------------------------------------------------------------------------
+# Depuis août 2026, YouTube répond « Sign in to confirm you're not a bot » même
+# à des requêtes espacées, et depuis n'importe quelle adresse. yt-dlp ne
+# connaît qu'une parade : les cookies d'une session connectée.
+#
+# Le fichier est déposé dans le volume des musiques, où il persiste aux
+# reconstructions et reste hors de la racine web.
+CHEMIN_COOKIES=/var/www/music_data/.config/cookies.txt
+
+cmd_cookies() {
+    local source=${1:-}
+
+    titre "Cookies YouTube"
+
+    if [ -z "$source" ]; then
+        if dc exec -T app test -r "$CHEMIN_COOKIES" 2>/dev/null; then
+            local lignes
+            lignes=$(dc exec -T app sh -c "grep -c youtube $CHEMIN_COOKIES" 2>/dev/null | tr -d '\r')
+            ok "Cookies en place (${lignes:-?} lignes YouTube)."
+            info "Les remplacer : unison cookies <fichier>"
+            info "Les retirer   : unison cookies --retirer"
+        else
+            avert "Aucun cookie déposé — les imports échoueront si YouTube l'exige."
+            info "Exportez cookies.txt depuis un navigateur connecté à YouTube,"
+            info "de préférence avec un compte secondaire, puis :"
+            info "  unison cookies /chemin/vers/cookies.txt"
+        fi
+        return 0
+    fi
+
+    if [ "$source" = "--retirer" ]; then
+        dc exec -T -u root app rm -f "$CHEMIN_COOKIES" \
+            && ok "Cookies supprimés." || ko "Suppression impossible"
+        return
+    fi
+
+    [ -r "$source" ] || { ko "Fichier illisible : $source"; return 1; }
+
+    # Contrôle sommaire du format Netscape attendu par yt-dlp : mieux vaut
+    # refuser tout de suite qu'échouer à chaque import sans comprendre.
+    if ! grep -qi "youtube" "$source"; then
+        ko "Ce fichier ne contient aucun cookie YouTube."
+        return 1
+    fi
+
+    attendre_app || { ko "Conteneur applicatif indisponible"; return 1; }
+
+    # 600 et propriété www-data : le fichier vaut une session, il ne doit être
+    # lisible que par le compte qui lance yt-dlp.
+    dc exec -T -u root app sh -c "mkdir -p $(dirname "$CHEMIN_COOKIES") && cat > $CHEMIN_COOKIES && chown www-data:www-data $CHEMIN_COOKIES && chmod 600 $CHEMIN_COOKIES" < "$source" \
+        || { ko "Copie dans le conteneur impossible"; return 1; }
+
+    ok "Cookies installés."
+    avert "Ils expirent : à refaire quand les imports redemanderont une confirmation."
+}
+
 # Dernière version publiée, lue dans l'URL de redirection de GitHub : quelques
 # octets, au lieu des ~30 Mo du binaire. Chaîne vide si GitHub est injoignable.
 ytdlp_derniere_version() {
@@ -464,19 +522,20 @@ menu() {
   ${GRAS}Exploitation${RAZ}
     6  Sauvegarder la base
     7  Mettre à jour yt-dlp     (imports YouTube en échec)
-    8  Journal applicatif
-    9  Logs Docker (suivi en direct)
-   10  Terminal SQL
-   11  Shell dans le conteneur
+    8  Cookies YouTube          (blocage anti-robot)
+    9  Journal applicatif
+   10  Logs Docker (suivi en direct)
+   11  Terminal SQL
+   12  Shell dans le conteneur
 
   ${GRAS}Conteneurs${RAZ}
-   12  Redémarrer
-   13  Démarrer
-   14  Arrêter
+   13  Redémarrer
+   14  Démarrer
+   15  Arrêter
 
   ${GRAS}Mise à jour automatique${RAZ}
-   15  Activer / désactiver le cron
-   16  Détail du cron
+   16  Activer / désactiver le cron
+   17  Détail du cron
 
     0  Quitter
 
@@ -492,15 +551,16 @@ MENU
             5)  cmd_migrations ;;
             6)  cmd_backup ;;
             7)  cmd_ytdlp ;;
-            8)  printf 'Combien d’événements ? [20] '; read -r n; cmd_journal "${n:-20}" ;;
-            9)  info "Ctrl+C pour revenir au menu"; cmd_logs ;;
-            10) cmd_sql ;;
-            11) cmd_shell ;;
-            12) cmd_restart ;;
-            13) cmd_start ;;
-            14) cmd_stop ;;
-            15) cron_basculer ;;
-            16) cron_afficher ;;
+            8)  printf 'Fichier cookies.txt (vide = état) : '; read -r f; cmd_cookies "$f" ;;
+            9)  printf 'Combien d’événements ? [20] '; read -r n; cmd_journal "${n:-20}" ;;
+            10) info "Ctrl+C pour revenir au menu"; cmd_logs ;;
+            11) cmd_sql ;;
+            12) cmd_shell ;;
+            13) cmd_restart ;;
+            14) cmd_start ;;
+            15) cmd_stop ;;
+            16) cron_basculer ;;
+            17) cron_afficher ;;
             0|q|Q) exit 0 ;;
             '')  ;;
             *)  ko "Choix inconnu : $choix" ;;
@@ -535,6 +595,8 @@ ${GRAS}unison${RAZ} — pilotage du serveur Unison
     backup               sauvegarde compressée de la base
     sql                  client SQL sur la base principale
     ytdlp                met à jour yt-dlp (imports YouTube en échec)
+    cookies [fichier]    état, ou dépose les cookies YouTube (anti-robot)
+    cookies --retirer    supprime les cookies déposés
     shell                shell dans le conteneur applicatif
 
   ${GRAS}Conteneurs${RAZ}
@@ -564,6 +626,7 @@ case "${1:-}" in
     backup|sauvegarde)  cmd_backup ;;
     logs)               cmd_logs "${2:-80}" ;;
     ytdlp)              cmd_ytdlp ;;
+    cookies)            cmd_cookies "${2:-}" ;;
     journal)            cmd_journal "${2:-20}" ;;
     sql)                cmd_sql ;;
     shell|bash)         cmd_shell ;;
