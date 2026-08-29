@@ -113,9 +113,38 @@ const YTDLP_OPTIONS_COMMUNES = [
     '--no-warnings',
 ];
 
+/**
+ * Fichier de cookies YouTube, s'il a été déposé.
+ *
+ * Placé dans un sous-dossier du volume des musiques : il y est persistant,
+ * hors de la racine web, et invisible de la page Stockage — analyserStockage()
+ * ignore les sous-dossiers, ce fichier ne sera donc jamais proposé à la
+ * suppression comme un « orphelin ».
+ *
+ * Le déposer : « unison cookies <fichier> ».
+ */
+const YTDLP_COOKIES = '/var/www/music_data/.config/cookies.txt';
+
+/**
+ * Options d'authentification, ou tableau vide.
+ *
+ * Depuis août 2026, YouTube répond « Sign in to confirm you're not a bot » à
+ * des requêtes pourtant espacées, y compris depuis une adresse qui n'a jamais
+ * rien téléchargé — ce n'est donc pas une question de rythme, et aucun réglage
+ * de --sleep n'y change quoi que ce soit. yt-dlp ne connaît qu'une réponse :
+ * s'authentifier avec les cookies d'une session connectée.
+ *
+ * Rien n'est imposé : sans fichier déposé, l'import fonctionne exactement
+ * comme avant, et échouera simplement quand YouTube l'exigera.
+ */
+function ytdlpOptionsCookies(): array
+{
+    return is_readable(YTDLP_COOKIES) ? ['--cookies', YTDLP_COOKIES] : [];
+}
+
 function executerYtDlp(array $arguments): array
 {
-    $arguments = array_merge(YTDLP_OPTIONS_COMMUNES, $arguments);
+    $arguments = array_merge(YTDLP_OPTIONS_COMMUNES, ytdlpOptionsCookies(), $arguments);
 
     $cmd = '/usr/local/bin/yt-dlp ' . implode(' ', array_map('escapeshellarg', $arguments));
 
