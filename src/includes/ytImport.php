@@ -189,6 +189,24 @@ function traduireErreurYtDlp(string $erreurs): string
         '/not available on this app|player response|failed to extract/i'
             => 'YouTube a changé son format : yt-dlp doit être mis à jour (unison ytdlp)',
 
+        /*
+         * Aucun flux audio proposé pour cette vidéo.
+         *
+         * À tester AVANT le motif générique ci-dessous, qui contient
+         * « is not available » et capterait donc « Requested format is not
+         * available » — en concluant à tort que la vidéo n'existe pas.
+         *
+         * Cas réel : « La vache enragée » (La Rue Kétanou). YouTube la donne
+         * pour publique et livre ses métadonnées, mais ne sert que des pistes
+         * de vignettes. L'ayant droit en bloque l'écoute hors de son
+         * application. Il n'y a rien à télécharger, et aucun réglage n'y
+         * changera quoi que ce soit : la seule issue est une autre mise en
+         * ligne du même morceau.
+         */
+        '/requested format is not available|no video formats found|only images are available/i'
+            => "Ce titre n'expose aucun flux audio : l'ayant droit en bloque le "
+             . "téléchargement. Cherchez une autre mise en ligne du morceau",
+
         // « Video unavailable » et « This video is unavailable » : yt-dlp
         // emploie les deux formes, le « is » optionnel couvre les deux.
         '/video (is )?unavailable|is not available/i'
@@ -292,12 +310,61 @@ function choisirMiniature(array $data, int $maxEssais = 3): string
  *
  * @param string|null $raison Reçoit la raison de l'échec le cas échéant.
  */
+/**
+ * Une vidéo déclarée « indisponible » l'est-elle vraiment ?
+ *
+ * Le client par défaut de yt-dlp répond « This video is not available » aussi
+ * bien pour une vidéo supprimée que pour une vidéo bien vivante dont l'ayant
+ * droit a retiré les flux audio — deux situations qui n'appellent pas du tout
+ * la même réaction de l'utilisateur.
+ *
+ * Un autre client, tolérant à l'absence de format, les départage : s'il rend
+ * un titre, la vidéo existe et c'est l'audio qui manque.
+ *
+ * Cette seconde requête n'est faite QUE sur ce diagnostic ambigu. Elle ne
+ * part donc pas quand YouTube limite le débit ou réclame une confirmation
+ * anti-robot — ce serait exactement le mauvais moment pour doubler le nombre
+ * d'appels.
+ */
+function videoSansFluxAudio(string $url): bool
+{
+    [$sortie, , $code] = executerYtDlp([
+        '--skip-download', '--no-playlist', '--ignore-no-formats-error',
+        '--extractor-args', 'youtube:player_client=web_music',
+        '--print', '%(title)s|%(duration)s',
+        $url,
+    ]);
+
+    if ($code !== 0) {
+        return false;
+    }
+
+    [$titre, $duree] = array_pad(explode('|', trim($sortie), 2), 2, '');
+
+    /*
+     * Un identifiant qui ne correspond à rien ne fait pas échouer cette
+     * commande : yt-dlp rend alors un titre de repli « youtube video #<id> »
+     * et une durée vide. C'est ce qui distingue une vidéo absente d'une vidéo
+     * bien présente dont l'audio a été retiré — sans quoi les deux recevaient
+     * le même diagnostic, et le mauvais.
+     */
+    return $titre !== ''
+        && !preg_match('/^youtube video #/i', $titre)
+        && (int) $duree > 0;
+}
+
 function extractYtMetadata(string $url, ?string &$raison = null): ?array
 {
     [$json, $erreurs, $code] = executerYtDlp(['--skip-download', '--no-playlist', '--dump-json', $url]);
 
     if (trim($json) === '') {
         $raison = traduireErreurYtDlp($erreurs);
+
+        // Seul cas où le message mérite d'être vérifié avant d'être affiché.
+        if ($raison === 'Vidéo indisponible' && videoSansFluxAudio($url)) {
+            $raison = "Ce titre n'expose aucun flux audio : l'ayant droit en bloque "
+                    . "le téléchargement. Cherchez une autre mise en ligne du morceau";
+        }
 
         // Phase d'analyse : l'échec est visible dans l'interface, mais sa cause
         // exacte n'existait nulle part une fois la page fermée.
