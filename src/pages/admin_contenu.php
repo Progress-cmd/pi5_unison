@@ -5,27 +5,18 @@ include_once "../includes/adminOutils.php";
 
 $pdo = Config::getConnection();
 
-// Le catalogue est petit (quelques centaines de lignes au plus) : on rend tout
-// et on filtre côté client, ce qui évite un aller-retour par frappe.
-$titres = $pdo->query("
-    SELECT tracks.id, tracks.title, tracks.duration, tracks.file,
-           GROUP_CONCAT(DISTINCT artists.name ORDER BY artists.name SEPARATOR ', ') AS artistes,
-           users.username AS ajoute_par
-    FROM tracks
-    LEFT JOIN artist__track ON artist__track.track_id = tracks.id
-    LEFT JOIN artists       ON artists.id = artist__track.artist_id
-    LEFT JOIN users         ON users.id = tracks.`added-by_id`
-    GROUP BY tracks.id, tracks.title, tracks.duration, tracks.file, users.username
-    ORDER BY tracks.title
-")->fetchAll(PDO::FETCH_ASSOC);
-
-$artistes = $pdo->query("
-    SELECT artists.id, artists.name, COUNT(artist__track.track_id) AS nb_titres
-    FROM artists
-    LEFT JOIN artist__track ON artist__track.artist_id = artists.id
-    GROUP BY artists.id, artists.name
-    ORDER BY nb_titres DESC, artists.name
-")->fetchAll(PDO::FETCH_ASSOC);
+/*
+ * Titres et artistes ne sont plus rendus ici.
+ *
+ * Ces deux tableaux étaient produits en entier, puis filtrés dans le DOM. À
+ * quelques centaines de lignes c'était confortable ; ça cesse de l'être quand
+ * la discothèque grandit — et le filtre ne pouvait de toute façon trouver que
+ * ce qui était déjà chargé. Ils sont désormais paginés et cherchés par la
+ * base, via actions/admin/contenu.php, comme la page Journal.
+ *
+ * Les tableaux ci-dessous restent rendus côté serveur : playlists, genres et
+ * tags se comptent en dizaines et ne suivent pas la croissance du catalogue.
+ */
 
 $playlists = $pdo->query("
     SELECT playlists.id, playlists.name, users.username AS auteur,
@@ -68,55 +59,41 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     </div>
 </article>
 
-<article class="containers">
-    <div class="head-bar">Titres<span class="result-section-nb"><?= count($titres) ?></span></div>
+<article class="containers" id="bloc-titres">
+    <div class="head-bar">Titres<span class="result-section-nb" id="nb-titres">…</span></div>
     <div class="body-bar">
         <input type="text" id="filtre-titres" class="admin-filtre"
-               placeholder="Filtrer par titre, artiste ou fichier…">
+               placeholder="Rechercher par titre ou artiste…">
         <div class="admin-table-enveloppe">
             <table class="admin-table" id="table-titres">
                 <thead>
                     <tr><th>Titre</th><th>Artistes</th><th>Ajouté par</th><th>Fichier</th><th></th></tr>
                 </thead>
-                <tbody>
-                <?php foreach ($titres as $t): ?>
-                    <tr data-id="<?= (int) $t['id'] ?>">
-                        <td class="principal" data-titre><?= $e($t['title']) ?></td>
-                        <td><?= $e($t['artistes'] ?: '—') ?></td>
-                        <td><?= $e($t['ajoute_par'] ?: '—') ?></td>
-                        <td><?= $e($t['file']) ?></td>
-                        <td class="admin-actions">
-                            <button class="admin-btn" data-action="renommer">Renommer</button>
-                            <button class="admin-btn danger" data-action="supprimer-titre">Supprimer</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
+                <tbody></tbody>
             </table>
-            <?php if (!$titres): ?><div class="admin-vide">Aucun titre.</div><?php endif; ?>
+        </div>
+        <div class="admin-pagination">
+            <button class="admin-btn" data-page-prec="titres" disabled>← Précédents</button>
+            <span data-page-libelle="titres">page 1</span>
+            <button class="admin-btn" data-page-suiv="titres" disabled>Suivants →</button>
         </div>
     </div>
 </article>
 
-<article class="containers">
-    <div class="head-bar">Artistes<span class="result-section-nb"><?= count($artistes) ?></span></div>
+<article class="containers" id="bloc-artistes">
+    <div class="head-bar">Artistes<span class="result-section-nb" id="nb-artistes">…</span></div>
     <div class="body-bar">
-        <input type="text" id="filtre-artistes" class="admin-filtre" placeholder="Filtrer…">
+        <input type="text" id="filtre-artistes" class="admin-filtre" placeholder="Rechercher un artiste…">
         <div class="admin-table-enveloppe">
             <table class="admin-table" id="table-artistes">
                 <thead><tr><th>Nom</th><th>Titres</th><th></th></tr></thead>
-                <tbody>
-                <?php foreach ($artistes as $a): ?>
-                    <tr data-id="<?= (int) $a['id'] ?>" data-type="artiste">
-                        <td class="principal" data-titre><?= $e($a['name']) ?></td>
-                        <td><?= (int) $a['nb_titres'] ?></td>
-                        <td class="admin-actions">
-                            <button class="admin-btn danger" data-action="supprimer-entite">Supprimer</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
+                <tbody></tbody>
             </table>
+        </div>
+        <div class="admin-pagination">
+            <button class="admin-btn" data-page-prec="artistes" disabled>← Précédents</button>
+            <span data-page-libelle="artistes">page 1</span>
+            <button class="admin-btn" data-page-suiv="artistes" disabled>Suivants →</button>
         </div>
     </div>
 </article>
@@ -184,8 +161,131 @@ $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
     const A = window.AdminUnison;
     if (!A) return;
 
-    A.brancherFiltre('filtre-titres', 'table-titres');
-    A.brancherFiltre('filtre-artistes', 'table-artistes');
+    /*
+     * Titres et artistes sont paginés par le serveur.
+     *
+     * La recherche part elle aussi au serveur : filtrer le DOM ne pouvait
+     * trouver que les lignes déjà chargées, ce qui devient faux dès la
+     * seconde page. Frappe temporisée pour ne pas lancer une requête par
+     * caractère.
+     */
+    function brancherTableau(type, config) {
+        const champ   = document.getElementById(config.champ);
+        const corps   = document.querySelector('#' + config.table + ' tbody');
+        const compteur = document.getElementById(config.compteur);
+        const libelle = document.querySelector('[data-page-libelle="' + type + '"]');
+        const btnPrec = document.querySelector('[data-page-prec="' + type + '"]');
+        const btnSuiv = document.querySelector('[data-page-suiv="' + type + '"]');
+        if (!corps) return;
+
+        let page = 1, pages = 1, minuteur = null;
+
+        function cellule(texte, classe) {
+            const td = document.createElement('td');
+            // textContent : titres et noms d'artistes viennent de YouTube.
+            td.textContent = texte;
+            if (classe) td.className = classe;
+            return td;
+        }
+
+        async function charger() {
+            const p = new URLSearchParams({ type, page: String(page), recherche: champ.value.trim() });
+
+            let data;
+            try {
+                const res = await fetch('actions/admin/contenu.php?' + p);
+                if (res.status === 404) {
+                    window.showToast && window.showToast(
+                        'Session non administratrice — reconnectez-vous', 'error', 0);
+                    return;
+                }
+                data = await res.json();
+            } catch (err) {
+                window.showToast && window.showToast('Erreur réseau', 'error');
+                return;
+            }
+            if (!data || !data.success) return;
+
+            page = data.page;
+            pages = data.pages;
+            compteur.textContent = data.total;
+            libelle.textContent = 'page ' + page + ' / ' + pages;
+            btnPrec.disabled = page <= 1;
+            btnSuiv.disabled = page >= pages;
+
+            corps.textContent = '';
+
+            if (data.lignes.length === 0) {
+                const tr = document.createElement('tr');
+                const td = cellule(champ.value.trim() ? 'Aucun résultat.' : 'Aucune ligne.');
+                td.colSpan = 5;
+                td.className = 'admin-vide';
+                tr.appendChild(td);
+                corps.appendChild(tr);
+                return;
+            }
+
+            data.lignes.forEach(l => corps.appendChild(config.ligne(l, cellule)));
+        }
+
+        champ.addEventListener('input', () => {
+            clearTimeout(minuteur);
+            // Tout changement de recherche ramène à la première page : rester
+            // page 4 d'un résultat qui n'en compte qu'une n'aurait aucun sens.
+            minuteur = setTimeout(() => { page = 1; charger(); }, 250);
+        });
+
+        btnPrec.addEventListener('click', () => { if (page > 1) { page--; charger(); } });
+        btnSuiv.addEventListener('click', () => { if (page < pages) { page++; charger(); } });
+
+        charger();
+    }
+
+    function actions(boutons) {
+        const td = document.createElement('td');
+        td.className = 'admin-actions';
+        boutons.forEach(([action, libelle, danger]) => {
+            const b = document.createElement('button');
+            b.className = 'admin-btn' + (danger ? ' danger' : '');
+            b.dataset.action = action;
+            b.textContent = libelle;
+            td.appendChild(b);
+        });
+        return td;
+    }
+
+    brancherTableau('titres', {
+        champ: 'filtre-titres', table: 'table-titres', compteur: 'nb-titres',
+        ligne(t, cellule) {
+            const tr = document.createElement('tr');
+            tr.dataset.id = t.id;
+            tr.append(
+                cellule(t.title, 'principal'),
+                cellule(t.artistes || '—'),
+                cellule(t.ajoute_par || '—'),
+                cellule(t.file),
+                actions([['renommer', 'Renommer', false], ['supprimer-titre', 'Supprimer', true]])
+            );
+            tr.querySelector('.principal').dataset.titre = '';
+            return tr;
+        },
+    });
+
+    brancherTableau('artistes', {
+        champ: 'filtre-artistes', table: 'table-artistes', compteur: 'nb-artistes',
+        ligne(a, cellule) {
+            const tr = document.createElement('tr');
+            tr.dataset.id = a.id;
+            tr.dataset.type = 'artiste';
+            tr.append(
+                cellule(a.name, 'principal'),
+                cellule(String(a.nb_titres)),
+                actions([['supprimer-entite', 'Supprimer', true]])
+            );
+            tr.querySelector('.principal').dataset.titre = '';
+            return tr;
+        },
+    });
 
     // Un seul écouteur pour toute la page : les lignes portent leur identité.
     document.getElementById('main-content').addEventListener('click', async (e) => {

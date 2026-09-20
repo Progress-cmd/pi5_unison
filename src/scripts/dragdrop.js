@@ -4,7 +4,25 @@
     let touchStartY = 0;
     let touchStartX = 0;
     let isDragging = false;
-    const DRAG_THRESHOLD = 10;
+    let dragAutorise = false;      // l'appui long a-t-il eu lieu ?
+    let minuteurAppui = null;
+
+    /*
+     * Le déplacement tactile ne s'engage plus à la distance parcourue.
+     *
+     * Le seuil précédent, unique, comparait 10 px aussi bien en X qu'en Y :
+     * un simple défilement dépasse 10 px verticaux dès le premier mouvement,
+     * le glisser s'armait donc immédiatement et le preventDefault() qui suit
+     * bloquait le scroll. La file d'attente devenait impossible à parcourir
+     * au doigt.
+     *
+     * Un appui maintenu lève l'ambiguïté : personne ne garde le doigt immobile
+     * une demi-seconde pour faire défiler une liste, alors que c'est le geste
+     * attendu pour saisir un élément. Tant qu'il n'a pas eu lieu, le navigateur
+     * garde la main et défile normalement.
+     */
+    const DUREE_APPUI = 450;       // ms avant que le déplacement soit permis
+    const TOLERANCE_APPUI = 10;    // px : au-delà, c'est un défilement
 
     window.enableDragDrop = function(container, playlistId) {
         if (!container) return;
@@ -23,9 +41,22 @@
             item.addEventListener('dragleave', handleDragLeave);
 
             // Events pour mobile
-            item.addEventListener('touchstart', handleTouchStart, false);
-            item.addEventListener('touchmove', handleTouchMove, false);
-            item.addEventListener('touchend', handleTouchEnd, false);
+            /*
+             * touchstart en écoute passive : il ne fait qu'armer un minuteur,
+             * jamais de preventDefault(). Le déclarer passif permet au
+             * navigateur de lancer le défilement sans attendre l'exécution du
+             * gestionnaire — c'est ce qui rend la liste fluide au doigt.
+             *
+             * touchmove ne peut pas l'être : il lui faut preventDefault() une
+             * fois le déplacement engagé.
+             */
+            item.addEventListener('touchstart', handleTouchStart, { passive: true });
+            item.addEventListener('touchmove', handleTouchMove, { passive: false });
+            item.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+            // Doigt interrompu par le système (appel entrant, geste de bord…) :
+            // sans ça, l'élément restait saisi et grisé indéfiniment.
+            item.addEventListener('touchcancel', handleTouchEnd, { passive: true });
         });
 
         container.dataset.playlistId = playlistId;
@@ -91,12 +122,30 @@
     }
 
     // ===== MOBILE TOUCH DRAG & DROP =====
+    function annulerAppui() {
+        if (minuteurAppui) {
+            clearTimeout(minuteurAppui);
+            minuteurAppui = null;
+        }
+    }
+
     function handleTouchStart(e) {
         draggedElement = this;
         draggedTrackId = this.dataset.trackId;
         touchStartY = e.touches[0].clientY;
         touchStartX = e.touches[0].clientX;
         isDragging = false;
+        dragAutorise = false;
+
+        const element = this;
+        annulerAppui();
+        minuteurAppui = setTimeout(() => {
+            dragAutorise = true;
+            // Retour tactile : sans lui, rien ne signale que l'élément est
+            // saisi, et l'utilisateur relâche avant d'avoir compris.
+            element.classList.add('drag-pret');
+            if (navigator.vibrate) navigator.vibrate(15);
+        }, DUREE_APPUI);
     }
 
     function handleTouchMove(e) {
@@ -106,7 +155,17 @@
         const distX = Math.abs(touch.clientX - touchStartX);
         const distY = Math.abs(touch.clientY - touchStartY);
 
-        if (!isDragging && distX < DRAG_THRESHOLD && distY < DRAG_THRESHOLD) {
+        /*
+         * Le doigt a bougé avant la fin de l'appui : c'est un défilement.
+         * On abandonne la saisie et on ne touche à rien — le navigateur fait
+         * défiler comme si ce script n'existait pas.
+         */
+        if (!dragAutorise) {
+            if (distX > TOLERANCE_APPUI || distY > TOLERANCE_APPUI) {
+                annulerAppui();
+                draggedElement.classList.remove('drag-pret');
+                draggedElement = null;
+            }
             return;
         }
 
@@ -131,10 +190,13 @@
     }
 
     function handleTouchEnd(e) {
+        annulerAppui();
+
         if (!draggedElement) return;
 
         draggedElement.style.opacity = '';
         draggedElement.classList.remove('dragging');
+        draggedElement.classList.remove('drag-pret');
 
         if (isDragging) {
             const touch = e.changedTouches[0];
@@ -165,6 +227,7 @@
 
         draggedElement = null;
         isDragging = false;
+        dragAutorise = false;
     }
 
     // ===== MISE À JOUR BDD =====

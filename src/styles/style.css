@@ -156,6 +156,22 @@ footer {
     cursor: grabbing;
 }
 
+/* Élément saisi après l'appui long, avant tout déplacement : il faut que le
+   doigt voie que la prise a eu lieu, sinon on relâche sans comprendre. */
+.mini-song.drag-pret {
+    background-color: var(--text-orange-light);
+    transform: scale(1.02);
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+/* Pendant la saisie, la sélection de texte native parasite le geste. */
+.mini-song.drag-pret,
+.mini-song.dragging {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
 .mini-song.dragging {
     opacity: 0.5;
     background-color: rgba(100, 100, 100, 0.2);
