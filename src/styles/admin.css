@@ -585,7 +585,10 @@
 
 /* --- Pagination --- */
 
-.journal-pagination {
+/* Même présentation pour le journal et pour les tableaux du catalogue : ce
+   sont les mêmes commandes, elles n'ont pas à se ressembler « à peu près ». */
+.journal-pagination,
+.admin-pagination {
     display: flex;
     align-items: center;
     gap: 12px;
