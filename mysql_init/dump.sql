@@ -270,6 +270,7 @@ CREATE TABLE `users` (
   `view_mode` varchar(10) NOT NULL DEFAULT 'mixed',
   `reset_token` varchar(250) DEFAULT NULL,
   `reset_token_expires` datetime DEFAULT NULL,
+  `jeton_session` varchar(64) DEFAULT NULL,
   `role` varchar(20) NOT NULL DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

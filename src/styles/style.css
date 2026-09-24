@@ -1036,6 +1036,171 @@ footer > #navbar {
     border: none;
 }
 
+/* ----- TABLEAU DE BORD : GRAPHIQUES ----- */
+.semaine-graphe {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 120px;
+}
+
+.semaine-jour {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 100%;
+}
+
+/* Le fond occupe toute la hauteur : c'est lui qui donne l'échelle, sinon une
+   barre courte et une barre absente se ressemblent. */
+.semaine-barre-fond {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    flex: 1;
+    background-color: var(--light-beige);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.semaine-barre {
+    width: 100%;
+    background-color: var(--text-orange);
+    border-radius: 4px;
+    transition: height 0.3s ease;
+}
+
+/*
+ * Un jour sans écoute ne dessine rien.
+ *
+ * Une hauteur minimale, posée pour qu'une seule écoute reste visible, traçait
+ * aussi un liseré sous les jours à zéro : on y lisait une écoute là où il n'y
+ * en avait aucune. Le minimum ne s'applique donc qu'aux barres non nulles,
+ * que leur attribut style rend reconnaissables.
+ */
+.semaine-barre:not([style*="height: 0%"]) {
+    min-height: 3px;
+}
+
+.semaine-libelle {
+    font-size: 11px;
+    color: var(--text-gray);
+    text-transform: uppercase;
+}
+
+.semaine-nombre {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.moment-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+}
+
+.moment-nom {
+    flex-shrink: 0;
+    width: 84px;
+    font-size: 13px;
+}
+
+.moment-jauge {
+    flex: 1;
+    height: 8px;
+    min-width: 0;
+    background-color: var(--light-beige);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.moment-remplie {
+    height: 100%;
+    background-color: var(--text-orange);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.moment-nombre {
+    flex-shrink: 0;
+    min-width: 24px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+#top-artistes .mini-song {
+    cursor: pointer;
+}
+
+#top-artistes .song-img {
+    border-radius: 50%;
+}
+
+
+/* ----- PAGE INFOS ----- */
+.infos-note {
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-gray);
+}
+
+.infos-champs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.infos-champs label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.infos-champs input {
+    padding: 8px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.infos-champs input:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+.infos-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.infos-valider {
+    background-color: var(--text-orange);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.infos-valider:hover {
+    background-color: var(--text-orange-hover);
+}
+
+.infos-actions .buttons:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+
 /* ----- ALBUMS ----- */
 .albums-grille {
     display: grid;

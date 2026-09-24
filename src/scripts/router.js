@@ -306,6 +306,25 @@ document.addEventListener('click', (e) => {
     if (typeof loadTrack === 'function') loadTrack(id);
 });
 
+/**
+ * Reflète le mode d'affichage sur les deux cercles de l'en-tête.
+ *
+ * Ceux-ci vivent hors de #main-content : une navigation ne les redessine pas,
+ * et la page Paramètres pouvait donc changer le mode sans que l'en-tête en
+ * sache rien — les cercles restaient sur l'ancien état jusqu'au rechargement
+ * complet. Exposée globalement pour que les deux chemins de bascule, l'en-tête
+ * et les paramètres, passent par le même code.
+ */
+window.majBasculeAffichage = function (mode) {
+    const bascule = document.getElementById('persons');
+    if (!bascule) return;   // absent hors foyer : aucun partenaire à distinguer
+
+    const perso = mode === 'personal';
+    bascule.classList.toggle('is-personal', perso);
+    bascule.classList.toggle('is-mixed', !perso);
+    bascule.setAttribute('aria-checked', perso ? 'true' : 'false');
+};
+
 // Bascule du mode d'affichage via les deux cercles du header :
 // les deux allumés = contenu commun, seul le mien = contenu perso
 const personsSwitch = document.getElementById('persons');
@@ -313,10 +332,7 @@ if (personsSwitch) {
     personsSwitch.addEventListener('click', async () => {
         const nextMode = personsSwitch.classList.contains('is-personal') ? 'mixed' : 'personal';
 
-        // Bascule visuelle immédiate
-        personsSwitch.classList.toggle('is-personal', nextMode === 'personal');
-        personsSwitch.classList.toggle('is-mixed', nextMode === 'mixed');
-        personsSwitch.setAttribute('aria-checked', nextMode === 'personal' ? 'true' : 'false');
+        window.majBasculeAffichage(nextMode);
 
         try {
             await fetch('actions/set_view_mode.php', {
