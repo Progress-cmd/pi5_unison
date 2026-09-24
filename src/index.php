@@ -112,19 +112,21 @@ $admin = estAdmin();
         <section id="persons" class="<?= $isPersonal ? 'is-personal' : 'is-mixed' ?>"
                  role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
                  title="Afficher le contenu commun ou seulement le mien">
-            <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">OO</div>
+            <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">
+                <span class="cercle-initiale"><?= htmlspecialchars(initialeMembre((int) $_SESSION['user']['id']), ENT_QUOTES) ?></span>
+            </div>
             <?php
             /*
-             * Le cercle du partenaire porte son état : hors ligne (rien), en
-             * ligne (point), en écoute (vague animée). Rempli par
-             * scripts/presence.js ; « OO » reste le contenu par défaut, celui
-             * qu'on voit avant le premier battement et si la présence est
-             * indisponible.
+             * L'initiale dit qui ; la pastille en bas à droite dit dans quel
+             * état. Les deux coexistent — remplacer l'initiale par l'état
+             * faisait perdre le « qui » au moment précis où l'autre devient
+             * intéressant. Pastilles remplies par scripts/presence.js ;
+             * aucune visible = hors ligne, ou présence indisponible.
              */
             ?>
             <div class="second-person user-<?= $partenaire ?>"
                  id="presence-partenaire" data-user-id="<?= (int) $partenaire ?>">
-                <span class="presence-defaut">OO</span>
+                <span class="cercle-initiale"><?= htmlspecialchars(initialeMembre((int) $partenaire), ENT_QUOTES) ?></span>
                 <span class="presence-point" hidden></span>
                 <span class="presence-vague" hidden><i></i><i></i><i></i></span>
             </div>

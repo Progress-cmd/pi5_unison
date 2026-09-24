@@ -1,8 +1,9 @@
 /**
  * Présence du second compte du foyer, affichée dans son cercle de l'en-tête.
  *
- * Trois états, lisibles d'un coup d'œil :
- *   hors ligne  « OO », comme avant
+ * L'initiale du prénom occupe le cercle en permanence ; l'état se lit à la
+ * pastille posée dans son coin :
+ *   hors ligne  aucune pastille
  *   en ligne    un point plein
  *   en écoute   trois barres animées, une vague
  *
@@ -19,9 +20,8 @@
     const cercle = document.getElementById('presence-partenaire');
     if (!cercle) return;   // hors foyer : aucun partenaire à afficher
 
-    const defaut = cercle.querySelector('.presence-defaut');
-    const point  = cercle.querySelector('.presence-point');
-    const vague  = cercle.querySelector('.presence-vague');
+    const point = cercle.querySelector('.presence-point');
+    const vague = cercle.querySelector('.presence-vague');
 
     const INTERVALLE = 15000;
 
@@ -74,9 +74,10 @@
         const enLigne  = !!(etat && etat.en_ligne);
         const enEcoute = !!(etat && etat.en_ecoute);
 
-        defaut.hidden = enLigne;
-        point.hidden  = !enLigne || enEcoute;
-        vague.hidden  = !enEcoute;
+        // L'initiale reste toujours visible : elle dit qui est ce cercle.
+        // Seule la pastille d'état change.
+        point.hidden = !enLigne || enEcoute;
+        vague.hidden = !enEcoute;
 
         cercle.classList.toggle('est-en-ligne', enLigne);
         cercle.classList.toggle('est-en-ecoute', enEcoute);

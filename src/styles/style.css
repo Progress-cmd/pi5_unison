@@ -239,21 +239,50 @@ header {
         border: 2px solid var(--blue);
     }
 
-    /* --- Présence du partenaire --- */
-    /* Le cercle porte trois états : « OO » hors ligne, un point en ligne,
-       une vague animée pendant l'écoute. */
+    /* --- Initiale du cercle --- */
+    /*
+     * L'initiale dit qui est ce cercle, la bordure colorée le redit. Le texte
+     * reste sombre plutôt que coloré : le bleu du compte 2 sur ce fond beige
+     * tombe sous le seuil de contraste AA pour du texte de cette taille.
+     */
+    .cercle-initiale {
+        font-family: var(--serif);
+        font-size: 21px;
+        line-height: 1;
+        color: var(--text-dark);
+        user-select: none;
+    }
 
-    /* `hidden` ne suffit pas : le `display: flex` ci-dessous est une règle
-       d'auteur et l'emporte sur le `display: none` de la feuille du
+    /* --- Présence du partenaire --- */
+    /*
+     * L'état est une pastille dans le coin, pas un remplacement de l'initiale :
+     * on doit pouvoir lire *qui* et *quoi* d'un même coup d'œil.
+     */
+    .second-person {
+        position: relative;
+    }
+
+    /* `hidden` ne suffit pas : les `display` ci-dessous sont des règles
+       d'auteur et l'emportent sur le `display: none` de la feuille du
        navigateur. Sans ce rappel, point et vague s'affichent ensemble. */
-    .presence-defaut[hidden],
     .presence-point[hidden],
     .presence-vague[hidden] {
         display: none;
     }
+
+    .presence-point,
+    .presence-vague {
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        /* Liseré couleur du fond : détache la pastille de la bordure du
+           cercle, qu'elle chevauche. */
+        box-shadow: 0 0 0 2px var(--light-beige);
+    }
+
     .presence-point {
-        width: 9px;
-        height: 9px;
+        width: 11px;
+        height: 11px;
         border-radius: 50%;
         background-color: var(--light-success);
     }
@@ -261,14 +290,18 @@ header {
     .presence-vague {
         display: flex;
         align-items: center;
-        gap: 2px;
-        height: 16px;
+        justify-content: center;
+        gap: 1.5px;
+        height: 15px;
+        padding: 0 3.5px;
+        border-radius: 8px;
+        background-color: var(--text-orange-light);
     }
 
     .presence-vague i {
-        width: 3px;
-        height: 4px;
-        border-radius: 2px;
+        width: 2px;
+        height: 3px;
+        border-radius: 1px;
         background-color: var(--text-orange);
         animation: presence-onde 1s ease-in-out infinite;
     }
@@ -295,8 +328,8 @@ header {
 }
 
 @keyframes presence-onde {
-    0%, 100% { height: 4px; }
-    50%      { height: 14px; }
+    0%, 100% { height: 3px; }
+    50%      { height: 9px; }
 }
 
 /*
@@ -307,7 +340,7 @@ header {
 @media (prefers-reduced-motion: reduce) {
     .presence-vague i {
         animation: none;
-        height: 10px;
+        height: 6px;
     }
 }
 
