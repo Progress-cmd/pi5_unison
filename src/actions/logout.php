@@ -15,6 +15,29 @@ demarrerSession();
 if (isset($_SESSION['user']['id'])) {
     journalInfo('auth', 'deconnexion',
         'Déconnexion de « ' . ($_SESSION['user']['username'] ?? '?') . ' »');
+
+    /*
+     * La présence part avec la session.
+     *
+     * Sans cela, la ligne survit à la déconnexion : `vu-a` reste frais pendant
+     * tout le délai d'expiration, et l'autre continue de voir un point vert —
+     * voire une vague, si la dernière chanson tournait encore au moment du
+     * départ. Supprimer la ligne, plutôt que passer `en_ecoute` à 0, fait
+     * disparaître les deux d'un coup : plus de ligne, plus de présence.
+     *
+     * Jamais bloquant : une déconnexion doit aboutir même si la base tousse.
+     */
+    if (!estDemo()) {
+        try {
+            require_once __DIR__ . '/../includes/config.php';
+            $req = Config::getConnection()->prepare(
+                "DELETE FROM presence WHERE user_id = :moi"
+            );
+            $req->execute([':moi' => (int) $_SESSION['user']['id']]);
+        } catch (Throwable $e) {
+            error_log('Présence non purgée à la déconnexion : ' . $e->getMessage());
+        }
+    }
 }
 
 $_SESSION = [];

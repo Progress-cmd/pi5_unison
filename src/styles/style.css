@@ -226,15 +226,64 @@ header {
         margin-left: -15px;
     }
 
-    .user-1 {
-        border: 2px solid var(--orange);
+    .first-person {
         position: relative;
         z-index: 1;
+    }
+
+    .user-1 {
+        border: 2px solid var(--orange);
     }
 
     .user-2 {
         border: 2px solid var(--blue);
     }
+
+    /* --- Présence du partenaire --- */
+    /* Le cercle porte trois états : « OO » hors ligne, un point en ligne,
+       une vague animée pendant l'écoute. */
+
+    /* `hidden` ne suffit pas : le `display: flex` ci-dessous est une règle
+       d'auteur et l'emporte sur le `display: none` de la feuille du
+       navigateur. Sans ce rappel, point et vague s'affichent ensemble. */
+    .presence-defaut[hidden],
+    .presence-point[hidden],
+    .presence-vague[hidden] {
+        display: none;
+    }
+    .presence-point {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: var(--light-success);
+    }
+
+    .presence-vague {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 16px;
+    }
+
+    .presence-vague i {
+        width: 3px;
+        height: 4px;
+        border-radius: 2px;
+        background-color: var(--text-orange);
+        animation: presence-onde 1s ease-in-out infinite;
+    }
+
+    /* Décalage des trois barres : sans lui, elles montent et descendent
+       ensemble, ce qui se lit comme un clignotement, pas comme un son. */
+    .presence-vague i:nth-child(2) { animation-delay: 0.2s; }
+    .presence-vague i:nth-child(3) { animation-delay: 0.4s; }
+
+    /*
+     * La bordure garde la couleur du compte (.user-1 orange, .user-2 bleu) :
+     * c'est elle qui dit *qui* est ce cercle. La repeindre pendant l'écoute
+     * lui donnait la couleur de l'autre membre du foyer — on croyait à un
+     * changement de personne, pas d'état. L'écoute se lit à la vague.
+     */
 
     /* En mode perso, l'autre utilisateur (second-person) est estompé
        pour signaler que seul mon contenu est affiché */
@@ -242,6 +291,23 @@ header {
         opacity: 0.4;
         filter: grayscale(1);
         border-color: var(--dark-beige);
+    }
+}
+
+@keyframes presence-onde {
+    0%, 100% { height: 4px; }
+    50%      { height: 14px; }
+}
+
+/*
+ * Mouvement supprimé pour qui l'a demandé au système : une animation
+ * perpétuelle dans l'en-tête est exactement ce que ce réglage vise. L'état
+ * reste lisible — les barres gardent une hauteur intermédiaire fixe.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .presence-vague i {
+        animation: none;
+        height: 10px;
     }
 }
 

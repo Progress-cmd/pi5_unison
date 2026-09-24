@@ -113,7 +113,21 @@ $admin = estAdmin();
                  role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
                  title="Afficher le contenu commun ou seulement le mien">
             <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">OO</div>
-            <div class="second-person user-<?= $partenaire ?>">OO</div>
+            <?php
+            /*
+             * Le cercle du partenaire porte son état : hors ligne (rien), en
+             * ligne (point), en écoute (vague animée). Rempli par
+             * scripts/presence.js ; « OO » reste le contenu par défaut, celui
+             * qu'on voit avant le premier battement et si la présence est
+             * indisponible.
+             */
+            ?>
+            <div class="second-person user-<?= $partenaire ?>"
+                 id="presence-partenaire" data-user-id="<?= (int) $partenaire ?>">
+                <span class="presence-defaut">OO</span>
+                <span class="presence-point" hidden></span>
+                <span class="presence-vague" hidden><i></i><i></i><i></i></span>
+            </div>
         </section>
         <?php endif; ?>
     </header>
@@ -351,6 +365,9 @@ $admin = estAdmin();
     <script src="<?= assetVersionne('scripts/admin.js') ?>"></script>
     <?php endif; ?>
     <script src="<?= assetVersionne('scripts/router.js') ?>"></script>
+    <?php if (!$admin && $partenaire !== null): ?>
+    <script src="<?= assetVersionne('scripts/presence.js') ?>"></script>
+    <?php endif; ?>
     <?php if (!$admin): ?>
     <script src="<?= assetVersionne('scripts/bulk-import.js') ?>"></script>
     <?php endif; ?>

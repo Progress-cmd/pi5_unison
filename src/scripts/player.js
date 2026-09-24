@@ -15,6 +15,14 @@
     // --- Audio setup ---
     const audio = new Audio();
 
+    /*
+     * Exposé en lecture pour qui doit savoir si un son joue — la présence
+     * partagée, aujourd'hui. L'élément n'est pas dans le DOM (new Audio),
+     * donc introuvable autrement ; et reconstituer l'état ailleurs, à partir
+     * des seuls événements, produirait une seconde vérité qui dériverait.
+     */
+    window.unisonAudio = audio;
+
     // Envoie les secondes réellement écoutées au serveur (par lots)
     function flusherTemps(avecBeacon = false) {
         const s = Math.floor(secondesAFlusher);

@@ -214,6 +214,19 @@ CREATE TABLE `tag__track` (
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `presence`
+--
+
+CREATE TABLE `presence` (
+  `user_id` int(11) NOT NULL,
+  `vu-a` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `track_id` int(11) DEFAULT NULL,
+  `en_ecoute` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `tracks`
 --
 
@@ -413,6 +426,13 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `users_pk_2` (`email`);
 
 --
+-- Index pour la table `presence`
+--
+ALTER TABLE `presence`
+  ADD PRIMARY KEY (`user_id`),
+  ADD KEY `presence_tracks_id_fk` (`track_id`);
+
+--
 -- Index pour la table `artist__favorite`
 --
 ALTER TABLE `artist__favorite`
@@ -484,6 +504,13 @@ ALTER TABLE `albums`
 --
 -- Contraintes pour les tables déchargées
 --
+
+--
+-- Contraintes pour la table `presence`
+--
+ALTER TABLE `presence`
+  ADD CONSTRAINT `presence_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `presence_tracks_id_fk` FOREIGN KEY (`track_id`) REFERENCES `tracks` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Contraintes pour la table `artist__favorite`
