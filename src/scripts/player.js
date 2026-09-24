@@ -23,6 +23,66 @@
      */
     window.unisonAudio = audio;
 
+    /*
+     * Réglages propres à l'appareil (scripts/prefs.js) : volume mémorisé,
+     * reprise, aléatoire par défaut. L'objet peut manquer si le script n'a pas
+     * chargé — tout ce qui suit le tolère et retombe sur le comportement
+     * d'origine.
+     */
+    const prefs = window.unisonPrefs;
+
+    // Volume retenu de la dernière fois, avant toute lecture.
+    if (prefs && prefs.lire('memoriserVolume')) {
+        const v = prefs.volume();
+        if (v !== null) audio.volume = v;
+    }
+
+    /** Retient le volume courant, si l'utilisateur l'a demandé. */
+    function retenirVolume() {
+        if (prefs && prefs.lire('memoriserVolume')) prefs.poserVolume(audio.volume);
+    }
+
+    audio.addEventListener('volumechange', retenirVolume);
+
+    /*
+     * Position à restaurer sur le prochain titre chargé, en secondes.
+     * Posée par la reprise, consommée par `loadedmetadata` : avant que la
+     * durée soit connue, écrire `currentTime` n'a aucun effet.
+     */
+    let positionAReprendre = 0;
+    let derniereSauvegarde = 0;
+
+    audio.addEventListener('loadedmetadata', () => {
+        if (positionAReprendre > 0 && audio.duration
+            && positionAReprendre < audio.duration - 1) {
+            audio.currentTime = positionAReprendre;
+        }
+        positionAReprendre = 0;
+    });
+
+    /** Note où on en est, pour pouvoir y revenir au prochain démarrage. */
+    function retenirPosition() {
+        if (!prefs || !prefs.lire('reprise') || !currentTrackId) return;
+        prefs.poserDerniereEcoute(currentTrackId, audio.currentTime);
+    }
+
+    // Une fin de titre remet le compteur à zéro : reprendre à la dernière
+    // seconde d'un morceau terminé n'aurait aucun sens.
+    audio.addEventListener('ended', () => {
+        if (prefs && prefs.lire('reprise')) prefs.poserDerniereEcoute(currentTrackId, 0);
+    });
+    audio.addEventListener('pause', retenirPosition);
+
+    /** Mélange une liste sans toucher à l'originale (Fisher-Yates). */
+    function melanger(liste) {
+        const copie = liste.slice();
+        for (let i = copie.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [copie[i], copie[j]] = [copie[j], copie[i]];
+        }
+        return copie;
+    }
+
     // Envoie les secondes réellement écoutées au serveur (par lots)
     function flusherTemps(avecBeacon = false) {
         const s = Math.floor(secondesAFlusher);
@@ -127,11 +187,36 @@
             return;
         }
 
+        /*
+         * Lecture aléatoire par défaut : la file est mélangée à son arrivée,
+         * et seulement si rien ne joue encore. Mélanger une file en cours
+         * d'écoute déplacerait le titre courant sous les pieds de l'auditeur.
+         */
+        if (!currentTrackId && prefs && prefs.lire('aleatoire') && playlist.length > 1) {
+            playlist = melanger(playlist);
+        }
+
         window.waitPlaylist = playlist;
 
         if (!currentTrackId) {
-            loadTrack(playlist[0]['id'], false);
-            window.currentIndex = 0;
+            /*
+             * Reprise : on repart du titre laissé en plan s'il est encore dans
+             * la file. Sinon on prend le premier, comme avant — un titre
+             * supprimé ou une file changée ne doit pas laisser le player muet.
+             */
+            let depart = 0;
+            const derniere = prefs && prefs.lire('reprise') ? prefs.derniereEcoute() : null;
+
+            if (derniere) {
+                const i = playlist.findIndex(t => Number(t.id) === derniere.id);
+                if (i !== -1) {
+                    depart = i;
+                    positionAReprendre = derniere.position;
+                }
+            }
+
+            loadTrack(playlist[depart]['id'], false);
+            window.currentIndex = depart;
         } else {
             const idx = playlist.findIndex(t => t.id == currentTrackId);
             window.currentIndex = idx !== -1 ? idx : 0;
@@ -225,6 +310,17 @@
             secondesAFlusher += delta;
         }
         dernierTemps = audio.currentTime;
+
+        /*
+         * Position retenue une fois par seconde, pas à chaque timeupdate :
+         * l'événement tombe environ quatre fois par seconde, et écrire autant
+         * dans localStorage ne sert à rien.
+         */
+        if (audio.currentTime - derniereSauvegarde > 1
+            || derniereSauvegarde > audio.currentTime) {
+            derniereSauvegarde = audio.currentTime;
+            retenirPosition();
+        }
 
         // Une écoute compte après 30 s réelles (80 % de la durée pour les titres courts)
         const seuil = audio.duration < 30 ? audio.duration * 0.8 : 30;

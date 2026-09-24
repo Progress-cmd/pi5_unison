@@ -217,8 +217,8 @@ $totalMoments = array_sum($moments);
 <article class="containers" id="account-boutons">
     <div class="body-bar">
         <div class="content">
-            <a class="redirect buttons" href="?page=account/infos" data-page="account/infos">
-                <span>Infos</span>
+            <a class="redirect buttons" href="?page=account/parametres" data-page="account/parametres">
+                <span>Paramètres</span>
             </a>
         </div>
     </div>

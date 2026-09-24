@@ -98,6 +98,7 @@ try {
     // valeur reçue — et INTERVAL n'accepte pas de paramètre lié.
     $req = $pdo->prepare("
         SELECT users.id AS user_id, users.username,
+               users.presence_visible, users.presence_partage_titre,
                presence.en_ecoute,
                TIMESTAMPDIFF(SECOND, presence.`vu-a`, NOW()) AS silence,
                tracks.title AS titre,
@@ -109,7 +110,10 @@ try {
           LEFT JOIN artists       ON artists.id = artist__track.artist_id
          WHERE presence.user_id != :moi
            AND users.role != 'admin'
-         GROUP BY users.id, users.username, presence.en_ecoute, presence.`vu-a`, tracks.title
+           AND users.presence_visible = 1
+         GROUP BY users.id, users.username, users.presence_visible,
+                  users.presence_partage_titre, presence.en_ecoute,
+                  presence.`vu-a`, tracks.title
     ");
     $req->execute([':moi' => $moi]);
 
@@ -117,15 +121,24 @@ try {
     foreach ($req->fetchAll(PDO::FETCH_ASSOC) as $l) {
         $enLigne = (int) $l['silence'] <= PRESENCE_DELAI;
 
+        /*
+         * « Partager ce que j'écoute » désactivé : on reste visible, mais
+         * l'écoute est tue. Le filtrage se fait ici et non côté client — une
+         * préférence de discrétion qui n'existerait que dans le navigateur
+         * d'en face ne protégerait rien.
+         */
+        $partage  = (bool) $l['presence_partage_titre'];
+        $enEcoute = $enLigne && $partage && (bool) $l['en_ecoute'];
+
         $autres[] = [
             'user_id'   => (int) $l['user_id'],
             'username'  => $l['username'],
             'en_ligne'  => $enLigne,
             // Hors ligne, l'écoute n'a plus de sens : le dernier titre connu
             // ne doit pas donner l'illusion d'une lecture en cours.
-            'en_ecoute' => $enLigne && (bool) $l['en_ecoute'],
-            'titre'     => $enLigne && $l['en_ecoute'] ? $l['titre'] : null,
-            'artiste'   => $enLigne && $l['en_ecoute'] ? $l['artiste'] : null,
+            'en_ecoute' => $enEcoute,
+            'titre'     => $enEcoute ? $l['titre'] : null,
+            'artiste'   => $enEcoute ? $l['artiste'] : null,
         ];
     }
 

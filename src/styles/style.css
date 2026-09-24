@@ -1,39 +1,78 @@
 /* ===== VARIABLES ===== */
+/*
+ * Thème clair et sombre dans une seule déclaration, via light-dark().
+ *
+ * La valeur retenue dépend du `color-scheme` de l'élément : c'est lui, posé
+ * plus bas selon l'attribut data-theme de <html>, qui fait la bascule. Un bloc
+ * sombre séparé aurait obligé à dupliquer chaque couleur — une fois sous
+ * `[data-theme="sombre"]`, une fois sous `prefers-color-scheme` pour le mode
+ * « système » — avec la dérive que cela promet au premier ajustement.
+ *
+ * Le sombre est chaud et non gris : l'identité de l'application est beige, un
+ * gris neutre en aurait fait une autre application.
+ */
 :root {
+    /* Laisse le mode système décider par défaut ; surchargé juste après. */
+    color-scheme: light dark;
+
     /* --- Couleurs principales */
-    /* extraite avec "https://imagecolorpicker.com" depuis "https://scontent-cdg6-1.xx.fbcdn.net/v/t39.30808-6/480688480_620794483982311_4519310306668356374_n.jpg?stp=dst-jpg_s590x590_tt6&_nc_cat=106&ccb=1-7&_nc_sid=7b2446&_nc_ohc=TqK0GhQb2IEQ7kNvwGnYKEl&_nc_oc=AdrhOMOrBOjczrqZnkphZMhaZxlrQAXnPBJ_xbSxGIzHZn8zZcJUK_9OgZXOczSGoBUXDCi2o-hCl2Ai7xY6I7rj&_nc_zt=23&_nc_ht=scontent-cdg6-1.xx&_nc_gid=E379Z38Qmirv40fl-txCJQ&_nc_ss=7a389&oh=00_Af2waLKKNiyiMWOrI_0RHEO0Amq-BYqCk5lELVB9PqWpbQ&oe=69E926B6" */
-    --blue: #0583ab;
-    --orange: #b94e18;
+    /* extraite avec "https://imagecolorpicker.com" depuis une photo */
+    --blue: light-dark(#0583ab, #2ba7ce);
+    --orange: light-dark(#b94e18, #d9683a);
 
-    --light-beige: #f8f7f5;
-    --dark-beige: #dfcbc0;
+    /* Fond de page et des cartes. En clair les deux sont presque confondus
+       (beige / blanc) ; en sombre la carte est plus claire que le fond, sans
+       quoi rien ne se détache. */
+    --light-beige: light-dark(#f8f7f5, #17150f);
+    --surface: light-dark(#ffffff, #221e19);
+    /* Bordures et séparateurs. */
+    --dark-beige: light-dark(#dfcbc0, #3b322a);
 
+    /* --white reste le blanc littéral : il sert de texte sur les boutons
+       colorés, où il doit rester blanc dans les deux thèmes. */
     --white: #ffffff;
     --black: #000000;
-    --golden: #bd9d60;
+    --golden: light-dark(#bd9d60, #d4b87c);
 
 
     /* --- Couleurs d'états --- */
     /* pour les popups d'information */
-    --light-error: #D32F2F;
-    --dark-error: #f6d5d5;
-    --light-success: #2E7D32;
-    --dark-success: #d5e5d6;
+    --light-error: light-dark(#D32F2F, #e57373);
+    --dark-error: light-dark(#f6d5d5, #4a2020);
+    --light-success: light-dark(#2E7D32, #66bb6a);
+    --dark-success: light-dark(#d5e5d6, #1f3a21);
 
 
     /* --- Couleurs textuelles --- */
     /* pour tout ce qui concerne l'écriture */
-    --text-orange: #C8593A;
-    --text-orange-hover: #B44C30;
-    --text-orange-light: #FAE9E4;
-    --text-gray: #7A736C;
-    --text-dark: #1C1916;
+    /*
+     * Aplat d'accent : le fond des boutons pleins, qui portent du texte blanc.
+     * Distinct de --text-orange, qui doit au contraire s'éclaircir en sombre
+     * pour rester lisible *en tant que texte*. Une seule variable pour les
+     * deux usages donnait soit un texte illisible, soit un bouton délavé.
+     */
+    --accent-plein: light-dark(#C8593A, #b5502f);
+    --text-orange: light-dark(#C8593A, #e0785c);
+    --text-orange-hover: light-dark(#B44C30, #ec8a6e);
+    --text-orange-light: light-dark(#FAE9E4, #3a2620);
+    --text-gray: light-dark(#7A736C, #a79d92);
+    --text-dark: light-dark(#1C1916, #ece7e0);
 
 
     /* --- Typographie --- */
     --serif: 'Cormorant Garamond', serif;
     --sans: 'DM Sans', sans-serif;
 }
+
+/*
+ * La bascule. `data-theme` est posé sur <html> par index.php, côté serveur,
+ * pour éviter le clignotement au chargement ; la page Paramètres le change à
+ * chaud. Tout le reste de la feuille ignore le thème : les variables suffisent.
+ */
+:root[data-theme="clair"]  { color-scheme: light; }
+:root[data-theme="sombre"] { color-scheme: dark; }
+:root[data-theme="systeme"] { color-scheme: light dark; }
+
 
 
 /* ===== LAYOUT GLOBAL ===== */
@@ -58,7 +97,7 @@ button {
     padding: 18px;
     width: 100%;
     margin: 0 0 10px 0 ;
-    background-color: var(--white);
+    background-color: var(--surface);
     border: 1px solid var(--dark-beige);
     border-radius: 10px;
     box-sizing: border-box;
@@ -610,7 +649,7 @@ footer > #navbar {
     grid-auto-columns: 1fr;
     justify-content: space-around;
     align-items: center;
-    background-color: var(--white);
+    background-color: var(--surface);
     border-top: 1px solid var(--dark-beige);
     box-sizing: border-box;
     height: 75px;
@@ -686,7 +725,7 @@ footer > #navbar {
 }
 
 .modale-contenu {
-    background-color: var(--white);
+    background-color: var(--surface);
     color: var(--text-dark);
     border: 1px solid var(--dark-beige);
     border-radius: 12px;
@@ -752,7 +791,7 @@ footer > #navbar {
 .modale-fermer {
     width: 100%;
     padding: 10px;
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border: none;
     border-radius: 8px;
@@ -810,7 +849,7 @@ footer > #navbar {
     gap: 8px;
     border: none;
     align-items: center;
-    background: var(--white);
+    background: var(--surface);
     border-radius: 6px;
     padding: 0 10px 0 0;
     overflow: hidden;
@@ -975,7 +1014,7 @@ footer > #navbar {
     width: 100%;
     padding: 14px 16px;
     box-sizing: border-box;
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border-radius: 10px;
     cursor: pointer;
@@ -1285,7 +1324,7 @@ footer > #navbar {
 }
 
 .infos-valider {
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border-color: var(--text-orange);
 }
@@ -1297,6 +1336,130 @@ footer > #navbar {
 .infos-actions .buttons:disabled {
     opacity: 0.6;
     cursor: progress;
+}
+
+
+/* ===== PAGE PARAMÈTRES ===== */
+
+/*
+ * Une ligne de réglage : le texte prend la place disponible, le contrôle reste
+ * à droite à sa taille. `min-width: 0` sur la colonne de texte, sinon une
+ * explication longue refuse de se replier et pousse l'interrupteur hors du
+ * cadre — la grille comme le flex donnent `auto` par défaut.
+ */
+.reglage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.reglage:last-child {
+    border-bottom: none;
+}
+
+.reglage-texte {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.reglage-titre {
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.reglage-note {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-gray);
+}
+
+.param-select {
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.param-select:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+/* --- Interrupteur --- */
+/*
+ * La case native est masquée mais reste dans le flux et focalisable : c'est
+ * elle qui porte l'état, le clavier et l'accessibilité. Seule son apparence
+ * est remplacée. `appearance: none` plutôt que `display: none`, qui la
+ * sortirait de l'ordre de tabulation.
+ */
+.interrupteur {
+    flex-shrink: 0;
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.interrupteur input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.interrupteur-piste {
+    display: block;
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--dark-beige);
+    transition: background-color 0.2s ease;
+}
+
+.interrupteur-piste::after {
+    content: '';
+    display: block;
+    width: 18px;
+    height: 18px;
+    margin: 3px;
+    border-radius: 50%;
+    background-color: var(--surface);
+    transition: transform 0.2s ease;
+}
+
+.interrupteur input:checked + .interrupteur-piste {
+    background-color: var(--text-orange);
+}
+
+.interrupteur input:checked + .interrupteur-piste::after {
+    transform: translateX(18px);
+}
+
+/* Le focus clavier doit se voir : la case native étant transparente, c'est la
+   piste qui porte l'anneau. */
+.interrupteur input:focus-visible + .interrupteur-piste {
+    outline: 2px solid var(--text-orange);
+    outline-offset: 2px;
+}
+
+.interrupteur input:disabled {
+    cursor: progress;
+}
+
+.interrupteur input:disabled + .interrupteur-piste {
+    opacity: 0.6;
 }
 
 
@@ -1378,7 +1541,7 @@ footer > #navbar {
     display: flex;
     align-items: center;
     gap: 6px;
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border-color: var(--text-orange);
 }
@@ -1561,7 +1724,7 @@ footer > #navbar {
 }
 
 .search-onglet.actif {
-    background: var(--text-orange);
+    background: var(--accent-plein);
     border-color: var(--text-orange);
     color: var(--white);
 }
@@ -1698,7 +1861,7 @@ footer > #navbar {
 
 .search-vide-icone {
     font-size: 40px;
-    color: var(--dark-beige);
+    color: var(--text-gray);
 }
 
 .search-vide-titre {
@@ -1965,7 +2128,7 @@ footer > #navbar {
 }
 
 #bulk-import-btn {
-    background: var(--text-orange);
+    background: var(--accent-plein);
     color: var(--white);
     border: none;
     padding: 9px 18px;
@@ -2105,7 +2268,7 @@ footer > #navbar {
 }
 
 .bulk-conf-valider {
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border-color: var(--text-orange);
 }
@@ -2288,8 +2451,8 @@ footer > #navbar {
 #track-context-menu {
     display: none;
     position: fixed;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--surface);
+    border: 1px solid var(--dark-beige);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     z-index: 9999;
@@ -2307,8 +2470,8 @@ footer > #navbar {
 }
 
 .context-menu-item:hover {
-    background-color: rgba(200, 93, 58, 0.1);
-    color: #C8593A;
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
 }
 
 .context-menu-item:first-child {

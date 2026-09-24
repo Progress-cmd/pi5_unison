@@ -17,9 +17,19 @@ $demo = estDemo();
  * tout simplement pas envoyé.
  */
 $admin = estAdmin();
+
+/*
+ * Le thème est posé sur <html> côté serveur, et non par un script : appliqué
+ * après coup, la page s'afficherait d'abord en clair avant de basculer, ce qui
+ * se voit — surtout le soir, précisément quand on a choisi le mode sombre.
+ */
+$theme = $_SESSION['user']['theme'] ?? 'systeme';
+if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
+    $theme = 'systeme';
+}
 ?>
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="<?= $theme ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,6 +52,14 @@ $admin = estAdmin();
     ?>
     <script>window.UNISON_CSRF = <?= json_encode(jetonCsrf()) ?>;</script>
     <script src="<?= assetVersionne('scripts/csrf.js') ?>"></script>
+
+    <?php
+    /*
+     * Réglages propres à l'appareil (volume mémorisé, reprise) : chargé avant
+     * player.js, qui les lit à son démarrage.
+     */
+    ?>
+    <script src="<?= assetVersionne('scripts/prefs.js') ?>"></script>
 </head>
 <body class="<?= $demo ? 'is-demo' : '' ?>">
     <?php if ($demo): ?>

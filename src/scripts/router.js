@@ -17,7 +17,10 @@ const routes = {
     'player/queue': 'pages/queue.php',
     'import':      'pages/import.php',
     'account':  'pages/account.php',
-    'account/infos': 'pages/infos.php',
+    'account/parametres': 'pages/parametres.php',
+    // Ancien nom de la page, conservé : « Infos » contenait déjà les réglages.
+    // Un lien ou un onglet ouvert avant le renommage doit continuer d'ouvrir.
+    'account/infos': 'pages/parametres.php',
     'library/edit-playlist': 'pages/edit_playlist.php',
     'library/titre': 'pages/titre.php',
     'library/artiste': 'pages/artiste.php',

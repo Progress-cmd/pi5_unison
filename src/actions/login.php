@@ -23,6 +23,9 @@ if (filter_input(INPUT_POST, 'demo', FILTER_VALIDATE_BOOL)) {
         'username'  => DEMO_USERNAME,
         'email'     => null,
         'view_mode' => 'mixed',
+        'presence_visible'       => 1,
+        'presence_partage_titre' => 1,
+        'theme'                  => 'systeme',
         'is_demo'   => true,
         'role'      => 'user',   // une démonstration n'administre jamais rien
     ];
@@ -111,7 +114,7 @@ if ($modeAdmin) {
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
 
-$req = $pdo->prepare("SELECT id, username, email, `password-hash`, view_mode, role, jeton_session FROM users WHERE username = :username");
+$req = $pdo->prepare("SELECT id, username, email, `password-hash`, view_mode, presence_visible, presence_partage_titre, theme, role, jeton_session FROM users WHERE username = :username");
 $req->bindValue(':username', $username);
 $req->execute();
 
@@ -182,6 +185,11 @@ $_SESSION['user'] = [
     'username'  => $user['username'],
     'email'     => $user['email'],
     'view_mode' => $user['view_mode'] ?? 'mixed',
+    // Préférences de la page Paramètres, mises en session pour que chaque page
+    // les lise sans requête supplémentaire.
+    'presence_visible'       => (int) ($user['presence_visible'] ?? 1),
+    'presence_partage_titre' => (int) ($user['presence_partage_titre'] ?? 1),
+    'theme'                  => $user['theme'] ?? 'systeme',
     'is_demo'   => false,
     'role'      => $user['role'] ?? 'user',
 ];
