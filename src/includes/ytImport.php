@@ -61,6 +61,89 @@ function identifiantVideoValide(string $videoId): bool
 }
 
 /**
+ * Ce titre est-il déjà dans la discothèque ? Si oui, sa ligne.
+ *
+ * L'identité est la vidéo : son URL, ou le fichier qui en porte le nom.
+ * Le titre ne peut pas servir — deux morceaux différents peuvent le partager,
+ * c'est ce qui empêchait d'importer une reprise.
+ *
+ * Interroger la base coûte une milliseconde, là où extractYtMetadata() coûte
+ * quatre secondes de dialogue avec YouTube. Poser la question AVANT l'analyse
+ * évite donc l'essentiel du travail quand le titre est déjà là.
+ *
+ * @return array|null la ligne (id, title, file), ou null
+ */
+function titreDejaImporte(PDO $pdo, string $url): ?array
+{
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
+    $videoId = $params['v'] ?? basename((string) parse_url($url, PHP_URL_PATH));
+
+    if (!identifiantVideoValide((string) $videoId)) {
+        return null;
+    }
+
+    // Les jokers de LIKE sont échappés : un identifiant YouTube contient
+    // souvent « _ », qui vaut « un caractère quelconque » sans échappement.
+    $motif = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], (string) $videoId) . '.%';
+
+    $req = $pdo->prepare(
+        "SELECT id, title, file FROM tracks
+          WHERE url = :url OR file LIKE :motif ESCAPE '\\\\'
+          LIMIT 1"
+    );
+    $req->execute([':url' => $url, ':motif' => $motif]);
+
+    return $req->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
+/**
+ * Cette playlist est-elle un album ? Si oui, son intitulé.
+ *
+ * YouTube Music préfixe le titre de ses playlists d'album par « Album - ».
+ * C'est le seul marqueur fiable dont on dispose : le champ `album` des titres
+ * n'est renseigné que sur les pistes officielles, et résoudre un lien
+ * /browse/MPREb_… en playlist échoue régulièrement côté yt-dlp.
+ *
+ * Renvoie le nom de l'album débarrassé du préfixe, ou null si la playlist
+ * n'en est pas un — une compilation personnelle reste une simple liste.
+ */
+function albumDepuisPlaylist(?string $titrePlaylist): ?string
+{
+    $titrePlaylist = trim((string) $titrePlaylist);
+
+    if ($titrePlaylist === '') {
+        return null;
+    }
+
+    if (preg_match('/^Album\s*[-–—]\s*(.+)$/iu', $titrePlaylist, $m)) {
+        return trim($m[1]) ?: null;
+    }
+
+    return null;
+}
+
+/**
+ * Ce lien désigne-t-il une playlist entière plutôt qu'un titre ?
+ *
+ * Deux formes à distinguer, et la nuance compte :
+ *   .../playlist?list=…            une playlist, à développer ;
+ *   .../watch?v=…&list=…           un titre DANS une playlist — on ne prend
+ *                                  que le titre, c'est ce qu'on a demandé.
+ *
+ * Le test vivait en double, dans import_expand.php et nulle part ailleurs :
+ * le formulaire unitaire, lui, acceptait les liens de playlist et partait
+ * télécharger la page entière comme si c'était une vidéo.
+ */
+function lienEstPlaylist(string $url): bool
+{
+    if (strpos($url, '/playlist') !== false) {
+        return true;
+    }
+
+    return strpos($url, 'list=') !== false && strpos($url, 'v=') === false;
+}
+
+/**
  * Dernières lignes utiles de la sortie d'erreur de yt-dlp.
  *
  * C'est la seule information qui permette de trancher entre une limitation de
@@ -381,9 +464,54 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
         return null;
     }
 
+    /*
+     * --dump-json peut rendre PLUSIEURS objets, un par ligne.
+     *
+     * C'est le cas dès que yt-dlp décide qu'il a affaire à plusieurs entrées
+     * malgré --no-playlist : certaines pages de YouTube Music, les mixes
+     * automatiques, les chaînes. json_decode() sur l'ensemble échoue alors —
+     * deux objets accolés ne forment pas un JSON valide — et l'import
+     * s'arrêtait sur « Réponse illisible », sans que rien n'en garde trace.
+     *
+     * On prend la première entrée exploitable : avec --no-playlist, c'est la
+     * vidéo demandée.
+     */
     $data = json_decode($json, true);
+
+    if (!is_array($data)) {
+        foreach (preg_split('/\r?\n/', trim($json)) as $ligne) {
+            $ligne = trim($ligne);
+            if ($ligne === '' || $ligne[0] !== '{') {
+                continue;
+            }
+            $candidat = json_decode($ligne, true);
+            if (is_array($candidat)) {
+                $data = $candidat;
+                break;
+            }
+        }
+    }
+
     if (!is_array($data)) {
         $raison = 'Réponse illisible de yt-dlp';
+
+        /*
+         * Cette branche ne journalisait rien : un échec ici ne laissait
+         * aucune trace, et le message affiché ne disait pas ce que yt-dlp
+         * avait réellement répondu. Un extrait borné suffit à trancher entre
+         * une sortie vide, un JSON tronqué et un message d'erreur glissé sur
+         * la sortie standard.
+         */
+        journalErreur('import', 'metadonnees_illisibles',
+            'Sortie de yt-dlp non exploitable',
+            [
+                'url'          => $url,
+                'code_sortie'  => $code,
+                'octets'       => strlen($json),
+                'debut_sortie' => mb_substr(trim($json), 0, 300),
+                'sortie_ytdlp' => extraitErreurYtDlp($erreurs),
+            ]);
+
         return null;
     }
 
@@ -434,6 +562,9 @@ function extractYtMetadata(string $url, ?string &$raison = null): ?array
         'genre'     => $genreBrut,
         'duration'  => intval($data['duration'] ?? 0),
         'miniature' => $thumb,
+        // Renseignée par YouTube Music sur les pistes officielles : c'est la
+        // seule source d'année dont on dispose pour dater un album.
+        'annee'     => isset($data['release_year']) ? (int) $data['release_year'] : null,
     ];
 }
 

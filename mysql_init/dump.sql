@@ -24,6 +24,23 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `albums`
+--
+
+CREATE TABLE `albums` (
+  `id` int(11) NOT NULL,
+  `title` varchar(150) NOT NULL,
+  `artist_id` int(11) DEFAULT NULL,
+  `annee` int(11) DEFAULT NULL,
+  `img` varchar(250) DEFAULT NULL,
+  `source_url` varchar(250) DEFAULT NULL,
+  `added-by_id` int(11) NOT NULL,
+  `created-at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `artists`
 --
 
@@ -196,7 +213,10 @@ CREATE TABLE `tracks` (
   `url` varchar(150) NOT NULL,
   `img` varchar(250) DEFAULT NULL,
   `created-at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `added-by_id` int(11) NOT NULL
+  `added-by_id` int(11) NOT NULL,
+  `album_id` int(11) DEFAULT NULL,
+  `album_source_id` int(11) DEFAULT NULL,
+  `track_number` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -353,7 +373,9 @@ ALTER TABLE `tracks`
   ADD KEY `tracks_title_index` (`title`) USING BTREE,
   ADD UNIQUE KEY `file` (`file`),
   ADD UNIQUE KEY `url` (`url`),
-  ADD KEY `tracks_users_id_fk` (`added-by_id`);
+  ADD KEY `tracks_users_id_fk` (`added-by_id`),
+  ADD KEY `tracks_album_id_fk` (`album_id`),
+  ADD KEY `tracks_album_source_id_fk` (`album_source_id`);
 
 --
 -- Index pour la table `track__genre`
@@ -376,6 +398,16 @@ ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `users_pk` (`username`),
   ADD UNIQUE KEY `users_pk_2` (`email`);
+
+--
+-- Index pour la table `albums`
+--
+ALTER TABLE `albums`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `albums_source_url` (`source_url`),
+  ADD KEY `albums_title_index` (`title`),
+  ADD KEY `albums_artists_id_fk` (`artist_id`),
+  ADD KEY `albums_users_id_fk` (`added-by_id`);
 
 --
 -- AUTO_INCREMENT pour les tables déchargées
@@ -424,8 +456,21 @@ ALTER TABLE `users`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT pour la table `albums`
+--
+ALTER TABLE `albums`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- Contraintes pour les tables déchargées
 --
+
+--
+-- Contraintes pour la table `albums`
+--
+ALTER TABLE `albums`
+  ADD CONSTRAINT `albums_artists_id_fk` FOREIGN KEY (`artist_id`) REFERENCES `artists` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `albums_users_id_fk` FOREIGN KEY (`added-by_id`) REFERENCES `users` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 --
 -- Contraintes pour la table `artist__genre`
@@ -500,6 +545,8 @@ ALTER TABLE `tag__track`
 -- Contraintes pour la table `tracks`
 --
 ALTER TABLE `tracks`
+  ADD CONSTRAINT `tracks_album_id_fk` FOREIGN KEY (`album_id`) REFERENCES `albums` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `tracks_album_source_id_fk` FOREIGN KEY (`album_source_id`) REFERENCES `albums` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `tracks_users_id_fk` FOREIGN KEY (`added-by_id`) REFERENCES `users` (`id`);
 
 --

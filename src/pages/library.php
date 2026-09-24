@@ -91,6 +91,52 @@ $nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
     })();
 </script>
 
+<?php
+// Aperçu des albums. La liste complète est sur library/albums.
+$req = $pdo->query("
+    SELECT albums.id, albums.title, albums.img, albums.annee, artists.name AS artiste
+      FROM albums
+      LEFT JOIN artists ON artists.id = albums.artist_id
+     ORDER BY albums.`created-at` DESC, albums.id DESC
+     LIMIT 6
+");
+$apercuAlbums = $req->fetchAll(PDO::FETCH_ASSOC);
+$nombreAlbums = (int) $pdo->query("SELECT COUNT(*) FROM albums")->fetchColumn();
+?>
+
+<?php if ($nombreAlbums > 0): ?>
+<article id="albums-bar" class="containers">
+    <div class="head-bar">Albums<a href="?page=library/albums" class="more-bar" data-page="library/albums">Voir tout (<?= $nombreAlbums ?>)</a></div>
+    <div class="body-bar">
+        <div class="albums-grille">
+            <?php foreach ($apercuAlbums as $a): ?>
+                <div class="album-carte" data-album-id="<?= (int) $a['id'] ?>">
+                    <img src="<?= htmlspecialchars($a['img'] ?? '', ENT_QUOTES) ?>" class="album-img" alt="">
+                    <div class="album-titre"><?= htmlspecialchars($a['title'], ENT_QUOTES) ?></div>
+                    <div class="album-infos">
+                        <?= htmlspecialchars($a['artiste'] ?: 'Artiste inconnu', ENT_QUOTES) ?>
+                        <?php if ($a['annee']): ?> · <?= (int) $a['annee'] ?><?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</article>
+
+<script>
+    (function () {
+        const bar = document.getElementById('albums-bar');
+        if (!bar) return;
+        bar.addEventListener('click', (e) => {
+            const carte = e.target.closest('.album-carte[data-album-id]');
+            if (!carte) return;
+            sessionStorage.setItem('album_id', carte.dataset.albumId);
+            navigateTo('library/album');
+        });
+    })();
+</script>
+<?php endif; ?>
+
 <article id="artist-bar" class="containers">
     <?php
     include_once "../includes/config.php";

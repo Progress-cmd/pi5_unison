@@ -11,13 +11,29 @@
         currentIndex: -1,
         ok: 0,
         fail: 0,
+        existants: 0,     // déjà en base : ni importés, ni en échec
         termine: false,   // un import s'est achevé : le bilan reste affiché
+
+        /*
+         * Analyse terminée, téléchargement pas encore lancé.
+         *
+         * L'analyse et le téléchargement s'enchaînaient sans respiration : un
+         * lien de playlist collé par mégarde partait chercher trente titres
+         * avant qu'on ait pu réagir. La liste développée est désormais
+         * présentée, et rien n'est téléchargé tant qu'elle n'est pas validée.
+         */
+        enAttente: false,
+        aConfirmer: [],   // { title, url } développés, prêts à partir
+        album: null,      // { titre, artiste, source } si la playlist en est un
     };
 
     window.BulkImport = {
         state,
         start,
+        confirmer,
+        annuler,
         isRunning: () => state.running,
+        enAttente: () => state.enAttente,
         echecs: () => state.items.filter(i => i.status === 'error'),
     };
 
@@ -26,7 +42,7 @@
     }
 
     async function start(text) {
-        if (state.running) {
+        if (state.running || state.enAttente) {
             window.showToast && window.showToast('Un import est déjà en cours', 'error');
             return;
         }
@@ -41,12 +57,17 @@
         state.currentIndex = -1;
         state.ok = 0;
         state.fail = 0;
+        state.existants = 0;
         state.termine = false;
+        state.enAttente = false;
+        state.aConfirmer = [];
+        state.album = null;
         emit();
 
         // 1) Développe les liens (playlists incluses) en liste de vidéos
         let tracks = [];
         let echecsAnalyse = [];
+        let album = null;
         try {
             const res = await fetch('actions/import_expand.php', {
                 method: 'POST',
@@ -56,6 +77,9 @@
             const data = await res.json();
             tracks = data.tracks || [];
             echecsAnalyse = data.echecs || [];
+            // Un seul album par lot : plusieurs liens d'albums collés ensemble
+            // restent importés, mais seul le premier est reconstitué comme album.
+            album = (data.albums && data.albums[0]) || null;
         } catch (e) {
             state.running = false;
             state.termine = true;
@@ -78,9 +102,11 @@
         }));
         state.fail = state.items.length;
 
-        const debut = state.items.length;
-        state.items.push(...tracks.map(t => ({ title: t.title, url: t.url, status: 'pending' })));
-        emit();
+        state.items.push(...tracks.map(t => ({
+            title: t.title, url: t.url, status: 'pending', piste: t.piste,
+        })));
+
+        state.album = album;
 
         if (tracks.length === 0) {
             state.running = false;
@@ -91,6 +117,29 @@
             return;
         }
 
+        /*
+         * Arrêt ici : rien n'est téléchargé tant que la liste n'est pas
+         * validée. « running » redevient faux pour que l'indicateur global
+         * ne prétende pas qu'un import tourne — il n'en tourne aucun.
+         */
+        state.running = false;
+        state.enAttente = true;
+        state.aConfirmer = tracks;
+        emit();
+    }
+
+    /** Lance le téléchargement de la liste développée et validée. */
+    async function confirmer() {
+        if (!state.enAttente) return;
+
+        const tracks = state.aConfirmer;
+        const debut = state.items.length - tracks.length;
+
+        state.enAttente = false;
+        state.aConfirmer = [];
+        state.running = true;
+        emit();
+
         // 2) Importe chaque vidéo séquentiellement (un seul téléchargement à la fois)
         for (let i = 0; i < tracks.length; i++) {
             const idx = debut + i;
@@ -98,18 +147,35 @@
             state.items[idx].status = 'loading';
             emit();
             try {
+                const corps = new URLSearchParams({ url: state.items[idx].url });
+                if (state.album) {
+                    corps.set('album_titre', state.album.titre || '');
+                    corps.set('album_artiste', state.album.artiste || '');
+                    if (state.album.source) corps.set('album_source', state.album.source);
+                    if (state.items[idx].piste) corps.set('album_piste', String(state.items[idx].piste));
+                }
+
                 const res = await fetch('actions/import_bulk.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'url=' + encodeURIComponent(tracks[i].url)
+                    body: corps,
                 });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
 
                 const data = await res.json();
                 if (data.success) {
-                    state.items[idx].status = 'done';
-                    if (data.title) state.items[idx].title = data.title + ' — ' + data.artist;
-                    state.ok++;
+                    /*
+                     * Un titre déjà présent n'est pas un import : le distinguer
+                     * évite de croire qu'on vient de télécharger douze morceaux
+                     * alors qu'on n'a rien récupéré.
+                     */
+                    state.items[idx].status = data.existant ? 'existant' : 'done';
+                    if (data.title) {
+                        state.items[idx].title = data.artist
+                            ? data.title + ' — ' + data.artist
+                            : data.title;
+                    }
+                    if (data.existant) { state.existants++; } else { state.ok++; }
                 } else {
                     state.items[idx].status = 'error';
                     state.items[idx].raison = data.message || 'Échec sans détail';
@@ -130,11 +196,35 @@
         annoncerBilan();
     }
 
+    /** Abandonne avant tout téléchargement : rien n'a été récupéré. */
+    function annuler() {
+        if (!state.enAttente) return;
+
+        const echecs = state.items.filter(i => i.status === 'error');
+
+        state.enAttente = false;
+        state.aConfirmer = [];
+        state.running = false;
+        state.termine = false;
+        state.currentIndex = -1;
+        // Les échecs d'analyse restent : ils renseignent sur les liens fautifs.
+        state.items = echecs;
+        emit();
+
+        window.showToast && window.showToast('Import annulé', 'success', 3000);
+    }
+
     function annoncerBilan() {
         if (!window.showToast) return;
 
+        // « Déjà en base » n'est ni un succès ni un échec : le taire ferait
+        // croire à un import silencieusement incomplet.
+        const dejaLa = state.existants
+            ? `, ${state.existants} déjà en base`
+            : '';
+
         if (!state.fail) {
-            window.showToast(`${state.ok} titre(s) importé(s)`, 'success');
+            window.showToast(`${state.ok} titre(s) importé(s)${dejaLa}`, 'success');
             return;
         }
 
@@ -146,7 +236,7 @@
             : `${state.fail} échecs — voir le détail sur la page Importation`;
 
         window.showToast(
-            `${state.ok} importé(s), ${state.fail} échec(s).<br>${detail}`,
+            `${state.ok} importé(s)${dejaLa}, ${state.fail} échec(s).<br>${detail}`,
             'error',
             0
         );

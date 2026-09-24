@@ -7,6 +7,8 @@ const routes = {
     'home/queue': '',
     'library':  'pages/library.php',
     'library/titres': 'pages/titres.php',
+    'library/albums': 'pages/albums.php',
+    'library/album': 'pages/album.php',
     'library/artists': 'pages/artists.php',
     'library/playlists': 'pages/playlists.php',
     'library/playlists/add_playlist': 'pages/add_playlist.php',
@@ -204,6 +206,11 @@ async function navigateTo(page) {
     if (page === 'library/artiste') {
         const artisteId = sessionStorage.getItem('artiste_id');
         if (artisteId) extraParams.set('id', artisteId);
+    }
+
+    if (page === 'library/album') {
+        const albumId = sessionStorage.getItem('album_id');
+        if (albumId) extraParams.set('id', albumId);
     }
 
     const fetchUrl = extraParams.toString() ? `${url}?${extraParams}` : url;

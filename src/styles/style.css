@@ -1036,6 +1036,103 @@ footer > #navbar {
     border: none;
 }
 
+/* ----- ALBUMS ----- */
+.albums-grille {
+    display: grid;
+    /* auto-fill + minmax : le nombre de colonnes suit la largeur disponible,
+       sans point de rupture à maintenir. */
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+}
+
+.album-carte {
+    cursor: pointer;
+    min-width: 0;
+}
+
+.album-img,
+.album-img-grande {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    background-color: var(--dark-beige);
+}
+
+.album-titre {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    /* Les titres d'album sont parfois longs : ils se tronquent au lieu de
+       déformer la grille. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.album-infos {
+    font-size: 12px;
+    color: var(--text-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Page d'un album --- */
+.album-entete {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.album-img-grande {
+    width: 140px;
+    flex-shrink: 0;
+}
+
+.album-entete-infos {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.album-entete-titre {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.album-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.album-lire {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--text-orange);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.album-lire:hover {
+    background-color: var(--text-orange-hover);
+}
+
+.album-supprimer {
+    color: var(--light-error);
+}
+
+.album-supprimer:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+
 /* --- ARTISTS --- */
 #artist-list > .body-bar {
     display: grid;
@@ -1672,11 +1769,88 @@ footer > #navbar {
 .bulk-error .bulk-status::before { content: 'error'; color: var(--light-error); }
 .bulk-error { color: var(--light-error); }
 
+/* Déjà en base : ni un succès — rien n'a été téléchargé — ni un échec.
+   Une teinte neutre, distincte du vert des imports réels. */
+.bulk-existant .bulk-status::before { content: 'library_add_check'; color: var(--text-gray); }
+.bulk-existant { color: var(--text-gray); }
+
 @keyframes bulk-spin {
     to { transform: rotate(360deg); }
 }
 
 /* --- Bilan des échecs d'import --- */
+/* --- Confirmation avant import de masse --- */
+#bulk-confirmation {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+}
+
+.bulk-conf-tete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-family: var(--sans);
+}
+
+.bulk-conf-tete .material-symbols-outlined {
+    color: var(--text-orange);
+}
+
+/* La liste défile : une playlist peut en compter des dizaines, et les boutons
+   doivent rester atteignables sans faire défiler toute la page. */
+.bulk-conf-sous {
+    margin: -6px 0 10px 28px;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.bulk-conf-liste {
+    max-height: 260px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    margin-bottom: 12px;
+}
+
+.bulk-conf-ligne {
+    display: flex;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.bulk-conf-ligne:last-child {
+    border-bottom: none;
+}
+
+.bulk-conf-num {
+    flex-shrink: 0;
+    min-width: 26px;
+    text-align: right;
+    color: var(--text-gray);
+}
+
+.bulk-conf-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.bulk-conf-valider {
+    background-color: var(--text-orange);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.bulk-conf-valider:hover {
+    background-color: var(--text-orange-hover);
+}
+
+
 #bulk-echecs {
     margin-bottom: 14px;
     padding: 12px;
