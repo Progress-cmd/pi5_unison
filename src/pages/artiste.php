@@ -57,6 +57,12 @@ $req = $pdo->prepare("
 ");
 $req->execute([':id' => $id]);
 $titres = $req->fetchAll(PDO::FETCH_ASSOC);
+
+// Favori de l'utilisateur courant : l'état est rendu avec la page, pour que
+// le cœur soit juste dès le premier affichage plutôt qu'après un aller-retour.
+$req = $pdo->prepare("SELECT 1 FROM artist__favorite WHERE user_id = :user AND artist_id = :artiste");
+$req->execute([':user' => (int) $_SESSION['user']['id'], ':artiste' => $id]);
+$estFavori = (bool) $req->fetchColumn();
 ?>
 
 <article id="artiste-detail" class="containers">
@@ -77,6 +83,20 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
                     <?php if ($totalEcoutes > 1) { echo $totalEcoutes.' écoutes'; } else { echo $totalEcoutes.' écoute'; } ?>
                     - <?php if (count($titres) > 1) { echo count($titres).' titres'; } else { echo count($titres).' titre'; } ?>
                 </div>
+
+                <div class="artiste-actions">
+                    <?php if ($titres): ?>
+                        <button type="button" class="buttons artiste-lire" id="artiste-lire">
+                            <span class="material-symbols-outlined">play_arrow</span> Tout écouter
+                        </button>
+                    <?php endif; ?>
+                    <button type="button" class="buttons artiste-favori<?= $estFavori ? ' actif' : '' ?>"
+                            id="artiste-favori" data-favori="<?= $estFavori ? '1' : '0' ?>"
+                            aria-pressed="<?= $estFavori ? 'true' : 'false' ?>"
+                            title="<?= $estFavori ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>">
+                        <span class="material-symbols-outlined">favorite</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -87,6 +107,74 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
         <?php if (!$titres): ?><?= ligneVide('Aucun titre pour cet artiste') ?><?php endif; ?>
     </div>
 </article>
+
+<script>
+    (function () {
+        const bloc = document.getElementById('artiste-detail');
+        if (!bloc) return;
+        const artisteId = <?= (int) $id ?>;
+
+        // --- Tout écouter : remplace la file d'attente
+        const lire = document.getElementById('artiste-lire');
+        if (lire) {
+            lire.addEventListener('click', async () => {
+                try {
+                    const res = await fetch('actions/artiste_lire.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'artist_id=' + artisteId,
+                    });
+                    const data = await res.json();
+
+                    if (!data.success || !data.tracks || data.tracks.length === 0) {
+                        window.showToast(data.message || 'Aucun titre', 'error');
+                        return;
+                    }
+
+                    window.waitPlaylist = data.tracks;
+                    window.sourcePlaylistId = null;
+                    window.currentIndex = 0;
+                    loadTrack(data.tracks[0].id, true);
+                    window.showToast(data.tracks.length + ' titres en lecture', 'success');
+                } catch (e) {
+                    window.showToast('Erreur réseau', 'error');
+                }
+            });
+        }
+
+        // --- Favori
+        const favori = document.getElementById('artiste-favori');
+        favori.addEventListener('click', async () => {
+            if (favori.disabled) return;
+            favori.disabled = true;
+            try {
+                const res = await fetch('actions/toggle_favorite_artiste.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'artist_id=' + artisteId,
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    window.showToast(data.message || 'Action impossible', 'error');
+                    return;
+                }
+
+                // L'état vient du serveur, jamais d'une bascule locale : deux
+                // onglets ouverts ne doivent pas diverger.
+                favori.classList.toggle('actif', data.favori);
+                favori.dataset.favori = data.favori ? '1' : '0';
+                favori.setAttribute('aria-pressed', data.favori ? 'true' : 'false');
+                favori.title = data.favori ? 'Retirer des favoris' : 'Ajouter aux favoris';
+                window.showToast(data.favori ? 'Artiste ajouté aux favoris' : 'Retiré des favoris', 'success', 3000);
+            } catch (e) {
+                window.showToast('Erreur réseau', 'error');
+            } finally {
+                favori.disabled = false;
+            }
+        });
+    })();
+</script>
 
 <style>
     #artiste-detail .artiste-entete {
@@ -101,6 +189,44 @@ $titres = $req->fetchAll(PDO::FETCH_ASSOC);
         height: 120px;
         object-fit: cover;
         border-radius: 50%;
+    }
+
+    #artiste-detail .artiste-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    #artiste-detail .artiste-lire {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background-color: var(--text-orange);
+        color: var(--white);
+        border-color: var(--text-orange);
+    }
+
+    #artiste-detail .artiste-lire:hover {
+        background-color: var(--text-orange-hover);
+    }
+
+    /* Le cœur est creux tant que l'artiste n'est pas en favori : c'est la
+       graduation « FILL » de Material Symbols qui le remplit, pas une autre
+       icône — la transition reste ainsi continue. */
+    #artiste-detail .artiste-favori {
+        color: var(--text-gray);
+        transition: color 0.2s ease;
+    }
+
+    #artiste-detail .artiste-favori.actif {
+        color: var(--text-orange);
+        font-variation-settings: 'FILL' 1;
+    }
+
+    #artiste-detail .artiste-favori:disabled {
+        opacity: 0.6;
+        cursor: progress;
     }
 
     #artiste-detail .artiste-nom {

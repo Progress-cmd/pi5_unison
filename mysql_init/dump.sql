@@ -53,6 +53,18 @@ CREATE TABLE `artists` (
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `artist__favorite`
+--
+
+CREATE TABLE `artist__favorite` (
+  `user_id` int(11) NOT NULL,
+  `artist_id` int(11) NOT NULL,
+  `created-at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `artist__genre`
 --
 
@@ -400,6 +412,13 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `users_pk_2` (`email`);
 
 --
+-- Index pour la table `artist__favorite`
+--
+ALTER TABLE `artist__favorite`
+  ADD PRIMARY KEY (`user_id`,`artist_id`),
+  ADD KEY `artist__favorite_artists_id_fk` (`artist_id`);
+
+--
 -- Index pour la table `albums`
 --
 ALTER TABLE `albums`
@@ -464,6 +483,13 @@ ALTER TABLE `albums`
 --
 -- Contraintes pour les tables déchargées
 --
+
+--
+-- Contraintes pour la table `artist__favorite`
+--
+ALTER TABLE `artist__favorite`
+  ADD CONSTRAINT `artist__favorite_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `artist__favorite_artists_id_fk` FOREIGN KEY (`artist_id`) REFERENCES `artists` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Contraintes pour la table `albums`
