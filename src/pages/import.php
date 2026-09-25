@@ -30,7 +30,8 @@ if ($lien === null || $lien === false) {
             <textarea id="bulk-urls" placeholder="Collez un lien YouTube par ligne&#10;ou un lien de playlist à importer en entier..."></textarea>
             <div id="bulk-actions">
                 <span id="bulk-hint">Playlists développées automatiquement</span>
-                <button type="button" id="bulk-import-btn" class="buttons">Importer tout</button>
+                <button type="button" id="bulk-import-btn" class="buttons"
+                        title="Ctrl + Entrée depuis la zone de saisie">Importer tout</button>
             </div>
             <div id="bulk-progress"></div>
         </div>
@@ -189,6 +190,25 @@ if ($lien === null || $lien === false) {
         window.addEventListener('bulkimport:update', window._bulkPageHandler);
 
         btn.addEventListener('click', () => window.BulkImport.start(textarea.value));
+
+        /*
+         * Ctrl + Entrée (Cmd sur Mac) lance l'import depuis la zone de saisie,
+         * sans aller chercher le bouton à la souris — on vient justement d'y
+         * coller ses liens.
+         *
+         * Entrée seule reste un retour à la ligne : la zone accepte un lien
+         * par ligne, la détourner rendrait la saisie multiple impossible.
+         *
+         * Le raccourci passe par le bouton plutôt que d'appeler BulkImport
+         * directement : il hérite ainsi de son état désactivé, et ne peut pas
+         * relancer un import déjà en cours.
+         */
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+
+            e.preventDefault();
+            if (!btn.disabled) btn.click();
+        });
     })();
     </script>
 <?php } else {
