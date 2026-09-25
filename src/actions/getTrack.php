@@ -24,13 +24,13 @@ if (!$id) {
  * que le lecteur essayait de jouer, au lieu de répondre « rien ».
  */
 $req = $pdo->prepare("
-    SELECT tracks.id, tracks.file, tracks.title, tracks.img, tracks.duration,
+    SELECT tracks.id, tracks.file, tracks.title, tracks.img, tracks.duration, tracks.onde,
            GROUP_CONCAT(DISTINCT artists.name ORDER BY artists.name SEPARATOR ', ') AS artists_names
     FROM tracks
     LEFT JOIN artist__track ON artist__track.track_id = tracks.id
     LEFT JOIN artists ON artists.id = artist__track.artist_id
     WHERE tracks.id = :id
-    GROUP BY tracks.id, tracks.file, tracks.title, tracks.img, tracks.duration
+    GROUP BY tracks.id, tracks.file, tracks.title, tracks.img, tracks.duration, tracks.onde
     LIMIT 1
 ");
 $req->bindValue(':id', $id, PDO::PARAM_INT);
@@ -50,5 +50,8 @@ echo json_encode([
     "title" => $track["title"],
     "artist" => $track["artists_names"],
     "img" => $track["img"],
-    "duration" => $track["duration"]
+    "duration" => $track["duration"],
+    // 120 amplitudes en base64, ou null pour un titre importé avant la
+    // migration 011 : la barre reprend alors son apparence unie.
+    "onde" => $track["onde"],
 ]);

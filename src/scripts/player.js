@@ -45,6 +45,19 @@
     audio.addEventListener('volumechange', retenirVolume);
 
     /*
+     * Un seul drapeau sur <body> dit « ça joue ». Le CSS s'en sert pour faire
+     * respirer la pochette et animer la vague de la ligne en cours, où qu'elle
+     * soit dans la page — la poser sur le lecteur n'aurait pas permis
+     * d'atteindre les listes.
+     */
+    function majDrapeauLecture() {
+        document.body.classList.toggle('lecture-en-cours', !audio.paused && !audio.ended);
+    }
+
+    ['play', 'pause', 'ended', 'emptied'].forEach(e =>
+        audio.addEventListener(e, majDrapeauLecture));
+
+    /*
      * Position à restaurer sur le prochain titre chargé, en secondes.
      * Posée par la reprise, consommée par `loadedmetadata` : avant que la
      * durée soit connue, écrire `currentTime` n'a aucun effet.
@@ -72,6 +85,262 @@
         if (prefs && prefs.lire('reprise')) prefs.poserDerniereEcoute(currentTrackId, 0);
     });
     audio.addEventListener('pause', retenirPosition);
+
+    /* ---------- Onde vivante de la barre de progression ---------- */
+
+    /*
+     * Les barres bougent avec le son, comme dans les applications de musique.
+     *
+     * Un AnalyserNode lit ce qui sort vraiment du lecteur : ce n'est pas une
+     * animation décorative posée par-dessus, ce sont les fréquences du morceau
+     * en train de jouer. À l'arrêt, les barres retombent sur la forme
+     * pré-calculée du titre (includes/ondeAudio.php) — la pause montre alors
+     * le morceau entier, au lieu d'une rangée morte.
+     *
+     * Deux couches identiques se superposent : la grise en fond, la colorée
+     * rognée à la position de lecture. Les deux reçoivent les mêmes hauteurs à
+     * chaque image, ce qui laisse le rognage dire la progression.
+     */
+    const ONDE_BARRES = 48;
+
+    let ondeRepos = null;     // forme pré-calculée, ramenée à ONDE_BARRES
+    let ondeNiveaux = new Array(ONDE_BARRES).fill(0);
+    let ondeImage = null;     // identifiant de requestAnimationFrame
+    let analyseur = null;
+    let analyseTentee = false;
+    let spectre = null;
+    let bandes = null;        // bornes des intervalles logarithmiques
+
+    /**
+     * Branche l'analyseur sur l'élément audio, une seule fois.
+     *
+     * Appelé au premier `play` et non au chargement : un AudioContext créé
+     * sans geste de l'utilisateur naît suspendu, et le navigateur refuse de le
+     * reprendre. En cas d'échec — API absente, contexte refusé — on repart sur
+     * une animation de secours plutôt que de laisser la barre inerte.
+     */
+    function brancherAnalyseur() {
+        if (analyseTentee) return;
+        analyseTentee = true;
+
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+
+        try {
+            const ctx = new Ctx();
+            const source = ctx.createMediaElementSource(audio);
+            const an = ctx.createAnalyser();
+
+            an.fftSize = 1024;            // 512 bandes de fréquence
+            an.smoothingTimeConstant = 0.72;
+
+            /*
+             * La sortie doit être rebranchée sur les haut-parleurs : passer par
+             * un AudioContext détourne le son de l'élément, et l'oublier le
+             * rendrait muet. C'est le piège classique de cette API.
+             */
+            source.connect(an);
+            an.connect(ctx.destination);
+
+            ctx.resume().catch(() => {});
+
+            analyseur = an;
+            spectre = new Uint8Array(an.frequencyBinCount);
+
+            /*
+             * Découpage logarithmique, calculé une fois.
+             *
+             * L'oreille entend les hauteurs en octaves, pas en hertz : entre
+             * 100 et 200 Hz il y a autant de musique qu'entre 5 000 et
+             * 10 000 Hz. Un découpage linéaire entasse donc presque tout le
+             * morceau dans les premières barres et laisse le reste à plat —
+             * c'est ce qui donnait un analyseur de laboratoire au lieu d'un
+             * visualiseur. Ici chaque barre couvre un intervalle musical
+             * constant.
+             */
+            const premiere = 2;                      // ~40 Hz, sous le grave utile
+            const derniere = Math.floor(an.frequencyBinCount * 0.42);   // ~9 kHz
+            bandes = new Array(ONDE_BARRES + 1).fill(0).map((_, i) =>
+                Math.round(premiere * Math.pow(derniere / premiere, i / ONDE_BARRES)));
+        } catch (e) {
+            // Déjà branché, ou contexte refusé : l'animation de secours prend
+            // le relais. Le son, lui, n'a pas été touché.
+            analyseur = null;
+        }
+    }
+
+    /** Hauteurs cibles : le son en cours, ou une houle de secours. */
+    function niveauxCibles() {
+        if (analyseur && spectre && bandes) {
+            analyseur.getByteFrequencyData(spectre);
+
+            return ondeNiveaux.map((_, i) => {
+                const debut = bandes[i];
+                const fin = Math.max(debut + 1, bandes[i + 1]);
+
+                // La crête de l'intervalle, pas sa moyenne : une note qui perce
+                // doit faire bondir sa barre, pas se diluer dans ses voisines.
+                let crete = 0;
+                for (let j = debut; j < fin && j < spectre.length; j++) {
+                    if (spectre[j] > crete) crete = spectre[j];
+                }
+
+                /*
+                 * Courbe de contraste, puis léger gain vers les aigus.
+                 *
+                 * Les données de fréquence sont déjà comprimées par le
+                 * navigateur : appliquer un gain seul saturait toutes les
+                 * barres au plafond, et le tracé devenait un bloc plein. La
+                 * puissance creuse les écarts — les bandes faibles retombent,
+                 * les crêtes ressortent — ce qui rend le mouvement lisible.
+                 */
+                const gain = 0.95 + (i / ONDE_BARRES) * 0.55;
+                return Math.min(1, Math.pow(crete / 255, 1.8) * gain);
+            });
+        }
+
+        // Secours : une houle entretenue, sans rapport avec le son mais vivante.
+        const t = performance.now() / 1000;
+        return ondeNiveaux.map((_, i) =>
+            0.35 + 0.3 * Math.sin(t * 3 + i * 0.45) + 0.15 * Math.sin(t * 5.3 + i * 0.9));
+    }
+
+    function appliquerNiveaux() {
+        const fond = document.querySelectorAll('#extend .player-onde--fond i');
+        const lu = document.querySelectorAll('#extend .player-onde--lu i');
+        if (!fond.length) return;
+
+        for (let i = 0; i < ondeNiveaux.length; i++) {
+            const h = Math.max(6, Math.min(100, Math.round(ondeNiveaux[i] * 100))) + '%';
+            if (fond[i]) fond[i].style.height = h;
+            if (lu[i]) lu[i].style.height = h;
+        }
+    }
+
+    function boucleOnde() {
+        const cibles = niveauxCibles();
+
+        /*
+         * Lissage : sans lui les barres sautent d'une image à l'autre et
+         * l'ensemble scintille. La montée est plus vive que la descente, pour
+         * que les attaques se voient et que la retombée reste douce.
+         */
+        for (let i = 0; i < ondeNiveaux.length; i++) {
+            const c = cibles[i];
+            const f = c > ondeNiveaux[i] ? 0.55 : 0.12;
+            ondeNiveaux[i] += (c - ondeNiveaux[i]) * f;
+        }
+
+        appliquerNiveaux();
+        ondeImage = requestAnimationFrame(boucleOnde);
+    }
+
+    function demarrerOnde() {
+        if (ondeImage !== null) return;
+        if (!document.querySelector('#extend .player-onde')) return;
+        brancherAnalyseur();
+        ondeImage = requestAnimationFrame(boucleOnde);
+    }
+
+    function arreterOnde() {
+        if (ondeImage === null) return;
+        cancelAnimationFrame(ondeImage);
+        ondeImage = null;
+
+        /*
+         * Retour au repos en douceur : les barres rejoignent la forme du
+         * morceau plutôt que de se figer là où la musique les a laissées.
+         */
+        let pas = 0;
+        const repos = () => {
+            let bouge = false;
+
+            for (let i = 0; i < ondeNiveaux.length; i++) {
+                const c = ondeRepos ? ondeRepos[i] : 0.12;
+                ondeNiveaux[i] += (c - ondeNiveaux[i]) * 0.18;
+                if (Math.abs(c - ondeNiveaux[i]) > 0.01) bouge = true;
+            }
+
+            appliquerNiveaux();
+            if (bouge && ++pas < 90 && ondeImage === null) requestAnimationFrame(repos);
+        };
+        requestAnimationFrame(repos);
+    }
+
+    /**
+     * Construit les barres pour le titre courant.
+     *
+     * `onde` est la forme pré-calculée en base64 (120 valeurs). Elle sert de
+     * position de repos ; absente, les barres reposent à plat.
+     */
+    function dessinerOnde(onde) {
+        const barre = document.querySelector('#extend .player-progress_bar');
+        if (!barre) return;
+
+        arreterOnde();
+        barre.querySelectorAll('.player-onde').forEach(e => e.remove());
+
+        ondeRepos = null;
+        try {
+            if (onde) {
+                const brut = atob(onde);
+                const src = Array.from(brut, ch => ch.charCodeAt(0) / 255);
+
+                // Ramenée de 120 à ONDE_BARRES par moyenne de tranche : prendre
+                // une valeur sur deux ferait clignoter le repos d'un titre à
+                // l'autre selon l'endroit où tombe l'échantillon.
+                ondeRepos = new Array(ONDE_BARRES).fill(0).map((_, i) => {
+                    const d = Math.floor(i * src.length / ONDE_BARRES);
+                    const f = Math.max(d + 1, Math.floor((i + 1) * src.length / ONDE_BARRES));
+                    const tranche = src.slice(d, f);
+                    // Réduite : au repos la forme s'indique, elle ne s'impose pas.
+                    return tranche.reduce((a, b) => a + b, 0) / tranche.length * 0.55;
+                });
+            }
+        } catch (e) {
+            ondeRepos = null;
+        }
+
+        const couche = (classe) => {
+            const c = document.createElement('div');
+            c.className = 'player-onde ' + classe;
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < ONDE_BARRES; i++) frag.appendChild(document.createElement('i'));
+            c.appendChild(frag);
+            return c;
+        };
+
+        barre.append(couche('player-onde--fond'), couche('player-onde--lu'));
+        barre.classList.add('a-onde');
+
+        ondeNiveaux = new Array(ONDE_BARRES).fill(0);
+        appliquerNiveaux();
+        majOnde(0);
+
+        if (!audio.paused) demarrerOnde();
+    }
+
+    /** Avance le rognage de la couche colorée. */
+    function majOnde(pct) {
+        const lu = document.querySelector('#extend .player-onde--lu');
+        if (lu) lu.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+    }
+
+    audio.addEventListener('play', demarrerOnde);
+    ['pause', 'ended', 'emptied'].forEach(e => audio.addEventListener(e, arreterOnde));
+
+    /*
+     * Onglet masqué : requestAnimationFrame s'arrête de lui-même, mais on coupe
+     * explicitement pour ne pas laisser une boucle en attente sur un téléphone
+     * dont l'écran vient de s'éteindre.
+     */
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (!audio.paused) demarrerOnde();
+        } else {
+            arreterOnde();
+        }
+    });
 
     /** Mélange une liste sans toucher à l'originale (Fisher-Yates). */
     function melanger(liste) {
@@ -163,6 +432,10 @@
          * plutôt que de garder brièvement celui de la piste précédente.
          */
         majMetadonneesMedia(track);
+
+        // Onde du nouveau titre : redessinée à chaque chargement, parce que
+        // chaque morceau a la sienne.
+        dessinerOnde(track.onde);
 
         audio.load();
         if (autoplay) {
@@ -342,6 +615,8 @@
 
         const expBar = document.querySelector('#extend .player-progress_current');
         if (expBar) expBar.style.width = pct + '%';
+
+        majOnde(pct);
 
         document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
         document.querySelector('.time-total').textContent = formatTime(audio.duration);

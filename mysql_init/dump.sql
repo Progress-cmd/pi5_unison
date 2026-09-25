@@ -234,6 +234,7 @@ CREATE TABLE `tracks` (
   `id` int(11) NOT NULL,
   `title` varchar(50) NOT NULL,
   `duration` int(11) NOT NULL,
+  `onde` varchar(255) DEFAULT NULL,
   `file` varchar(250) NOT NULL,
   `url` varchar(150) NOT NULL,
   `img` varchar(250) DEFAULT NULL,

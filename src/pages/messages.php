@@ -26,7 +26,14 @@ if ($partenaire !== null) {
 <article class="containers" id="chat">
     <div class="head-bar">
         Messages
-        <span class="more-bar"><?= htmlspecialchars($nomPartenaire ?: '—', ENT_QUOTES) ?></span>
+        <?php
+        /*
+         * Seul chemin vers le fil d'activité sur mobile, où la barre du bas
+         * n'a pas la place de le porter. Sur bureau il a son entrée dans la
+         * colonne, mais le lien ne gêne pas.
+         */
+        ?>
+        <a href="?page=activite" class="more-bar" data-page="activite">Activité</a>
     </div>
 
     <?php if ($partenaire === null): ?>

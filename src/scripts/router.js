@@ -238,6 +238,20 @@ async function navigateTo(page) {
     }
 
     mainContent.innerHTML = html;
+
+    /*
+     * Fondu d'entrée : le remplacement du contenu était sec, la navigation
+     * donnait l'impression de sauter d'un écran à l'autre. La classe est
+     * retirée à la fin de l'animation pour ne pas laisser de transformation
+     * en place — elle créerait un contexte d'empilement qui casserait le
+     * positionnement fixe des menus contextuels.
+     */
+    mainContent.classList.remove('page-entre');
+    void mainContent.offsetWidth;   // force le redémarrage de l'animation
+    mainContent.classList.add('page-entre');
+    mainContent.addEventListener('animationend',
+        () => mainContent.classList.remove('page-entre'), { once: true });
+
     window.corrigerImagesVides(mainContent);
 
     reinjectScripts(mainContent);

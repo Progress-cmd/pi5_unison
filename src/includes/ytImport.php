@@ -692,6 +692,15 @@ function importTrackFromUrl(PDO $pdo, string $url, array $meta, int $userId, boo
                        ':url' => $url, ':img' => $miniature, ':user' => $userId]);
         $track_id = intval($pdo->lastInsertId());
         $is_new = true;
+
+        /*
+         * Forme d'onde, pour la barre de progression. Calculée ici, une fois,
+         * plutôt qu'à chaque lecture : ~200 ms, négligeable à côté du
+         * téléchargement qui précède. Un échec ne remet rien en cause — la
+         * barre reprend simplement son apparence unie.
+         */
+        require_once __DIR__ . '/ondeAudio.php';
+        enregistrerOnde($pdo, $track_id, Config::cheminMusiques() . $file);
     }
 
     $result['track_id'] = $track_id;

@@ -74,7 +74,6 @@
 :root[data-theme="systeme"] { color-scheme: light dark; }
 
 
-
 /* ===== LAYOUT GLOBAL ===== */
 * {
     margin: 0;
@@ -587,6 +586,58 @@ header {
             border-radius: 2px;
         }
 
+        /*
+         * Avec une onde, la barre s'épaissit pour lui laisser la place et perd
+         * son fond uni : ce sont les barres qui dessinent la progression.
+         * `position: relative` ancre les deux couches ; le clic pour naviguer
+         * reste sur ce conteneur, qui les couvre toutes les deux.
+         */
+        .player-progress_bar.a-onde {
+            position: relative;
+            height: 24px;
+            background-color: transparent;
+            border-radius: 0;
+        }
+
+        .a-onde .player-progress_current {
+            display: none;
+        }
+
+        .player-onde {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            /* Les barres ne doivent pas intercepter le clic : c'est le
+               conteneur qui porte la navigation. */
+            pointer-events: none;
+        }
+
+        .player-onde i {
+            flex: 1;
+            min-width: 0;
+            border-radius: 2px;
+            /* Aucune transition sur la hauteur : elle est réécrite à chaque
+               image par la boucle d'animation, une transition CSS lutterait
+               contre elle et traînerait derrière le son. */
+        }
+
+        .player-onde--fond i {
+            background-color: var(--text-gray);
+            opacity: 0.45;
+        }
+
+        .player-onde--lu i {
+            background-color: var(--text-orange);
+        }
+
+        /* Le rognage suit la lecture ; la transition lisse les à-coups entre
+           deux `timeupdate`, qui n'arrivent que quatre fois par seconde. */
+        .player-onde--lu {
+            transition: clip-path 0.12s linear;
+        }
+
         .player-progress_current {
             width: 0;
             height: 4px;
@@ -721,6 +772,7 @@ footer > #navbar {
     footer > #navbar a > div {
         font-size: 28px;
     }
+
 
     /* La pastille de messages porte un chiffre : elle doit rester lisible. */
     #nav-messages-pastille {
@@ -1386,6 +1438,19 @@ footer > #navbar {
 
 /* ===== BARRE : PASTILLE ET PROFIL DÉPLIANT ===== */
 
+/*
+ * Activité et Quitter : réservées à la barre latérale du bureau.
+ *
+ * Sur mobile la barre compte déjà six entrées dans 390 px — deux de plus et
+ * les libellés se touchent. Elles restent atteignables autrement : l'activité
+ * par un lien dans l'en-tête des Messages, la déconnexion par Paramètres.
+ */
+/* Sélecteur volontairement lourd : la barre déclare `#navbar a { display:
+   flex }`, dont l'identifiant l'emporte sur une simple classe. */
+footer > #navbar .nav-bureau {
+    display: none;
+}
+
 #nav-messages {
     position: relative;
 }
@@ -1422,57 +1487,80 @@ footer > #navbar {
  * au-dessus à l'appui long. `position: relative` sur le conteneur, absolu sur
  * le lien — sans quoi la barre s'agrandirait en révélant l'entrée.
  */
-.nav-repli {
-    position: relative;
-    display: flex;
-    flex-direction: column;
+
+
+/* ===== DYNAMISME ===== */
+
+/*
+ * Fondu d'entrée des pages, posé par le routeur. Léger déplacement vers le
+ * haut : le mouvement donne un sens à l'arrivée, là où un simple fondu se
+ * remarque à peine.
+ */
+@keyframes page-entre {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.page-entre {
+    animation: page-entre 0.16s ease-out;
+}
+
+/*
+ * La pochette respire pendant la lecture. L'amplitude est volontairement
+ * minuscule — à 2 % on la sent sans la voir.
+ */
+@keyframes pochette-respire {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
+}
+
+body.lecture-en-cours #player-img {
+    animation: pochette-respire 4s ease-in-out infinite;
+
     /*
-     * Pas d'`align-items` : le lien doit remplir la case, comme les autres
-     * entrées. Centré, il se décalait vers la droite dans la barre latérale
-     * du bureau, qui aligne tout à gauche — le conteneur imposait sa propre
-     * mise en page à la place de celle de la barre.
+     * `will-change` promeut la pochette sur sa propre couche de composition.
+     * Sans lui, le navigateur ré-arrondit la taille rendue à des pixels
+     * entiers : entre 200 et 204 px il n'y a que quatre valeurs possibles, et
+     * la respiration se voyait comme trois paliers au lieu d'un mouvement
+     * continu. Posé seulement pendant la lecture — une couche permanente
+     * consomme de la mémoire graphique pour rien.
      */
-}
-
-/* L'entrée cachée, révélée au-dessus de la principale par l'appui long. */
-.nav-replie {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    padding: 8px 14px;
-    border-radius: 12px;
-    background-color: var(--surface);
-    border: 1px solid var(--dark-beige);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-    white-space: nowrap;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 /*
- * Le profil est la dernière entrée de la barre : une bulle centrée sur lui
- * sortait de l'écran. Les autres restent centrées sur leur icône.
+ * Vague sur la ligne du titre en cours, à la place du badge « EN COURS » :
+ * trois barres animées, les mêmes que la présence du partenaire.
  */
-.nav-profil > .nav-replie {
-    left: auto;
-    right: 0;
-    transform: none;
-}
-
-/*
- * Sélecteur volontairement lourd : la barre déclare `#navbar a { display:
- * flex }`, dont l'identifiant l'emporte sur une simple classe. Sans le
- * `#navbar` ici, l'entrée cachée resterait affichée malgré son attribut
- * `hidden` — c'est exactement ce qui est arrivé en passant de
- * `#nav-deconnexion[hidden]` à une classe partagée.
- */
-footer > #navbar .nav-replie[hidden] {
+.onde-lecture {
     display: none;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
-/* L'entrée principale se signale pendant que sa cachée est ouverte. */
-.nav-repli.est-ouvert > .nav-principale {
-    color: var(--text-orange);
+.selected > .onde-lecture {
+    display: flex;
+}
+
+.onde-lecture i {
+    width: 2px;
+    height: 3px;
+    border-radius: 1px;
+    background-color: var(--text-orange);
+    animation: presence-onde 1s ease-in-out infinite;
+}
+
+.onde-lecture i:nth-child(2) { animation-delay: 0.2s; }
+.onde-lecture i:nth-child(3) { animation-delay: 0.4s; }
+
+/* En pause, la vague se fige : une ligne qui s'agite alors que rien ne joue
+   est un mensonge discret mais constant. La classe est posée sur <body> par
+   player.js — la vague peut vivre n'importe où dans la page. */
+body:not(.lecture-en-cours) .onde-lecture i {
+    animation-play-state: paused;
 }
 
 
@@ -3178,6 +3266,13 @@ footer > #navbar .nav-replie[hidden] {
     #main-content {
         padding-bottom: 20px;
     }
+
+    /* La colonne a la hauteur qu'il faut : les deux entrées reprennent leur
+       place, chacune sur sa ligne comme les autres. */
+    footer > #navbar .nav-bureau {
+        display: flex;
+    }
+
 
     footer > #navbar {
         display: flex;

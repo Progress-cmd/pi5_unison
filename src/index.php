@@ -377,18 +377,25 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
              */
             ?>
             <?php if ($partenaire !== null): ?>
-            <div class="nav-repli">
-                <a href="?page=activite" data-page="activite" aria-label="Activité" class="nav-replie" hidden>
-                    <div class="icons material-symbols-outlined">history</div>
-                    Activité
-                </a>
-                <a href="?page=messages" data-page="messages" aria-label="Messages" id="nav-messages"
-                   class="nav-principale">
-                    <div class="icons material-symbols-outlined">forum</div>
-                    Messages
-                    <span id="nav-messages-pastille" hidden></span>
-                </a>
-            </div>
+            <a href="?page=messages" data-page="messages" aria-label="Messages" id="nav-messages">
+                <div class="icons material-symbols-outlined">forum</div>
+                Messages
+                <span id="nav-messages-pastille" hidden></span>
+            </a>
+
+            <?php
+            /*
+             * Activité et Quitter ne sont rendues que sur la barre latérale du
+             * bureau, où la place ne manque pas (voir `.nav-bureau` dans
+             * style.css). Sur mobile, huit entrées dans une barre de 390 px se
+             * touchent : on y accède autrement — l'activité par un lien dans
+             * l'en-tête des Messages, la déconnexion par Paramètres.
+             */
+            ?>
+            <a href="?page=activite" data-page="activite" aria-label="Activité" class="nav-bureau">
+                <div class="icons material-symbols-outlined">history</div>
+                Activité
+            </a>
             <?php endif; ?>
 
             <?php
@@ -405,16 +412,23 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
              * caché ne doit jamais être le seul chemin vers une fonction.
              */
             ?>
-            <div class="nav-repli nav-profil">
-                <a href="actions/logout.php" id="nav-deconnexion" class="nav-replie" hidden>
-                    <div class="icons material-symbols-outlined">logout</div>
-                    Quitter
-                </a>
-                <a href="?page=account" data-page="account" aria-label="Compte" class="nav-principale">
-                    <div class="icons material-symbols-outlined">person</div>
-                    Compte
-                </a>
-            </div>
+            <a href="?page=account" data-page="account" aria-label="Compte">
+                <div class="icons material-symbols-outlined">person</div>
+                Compte
+            </a>
+
+            <?php
+            /*
+             * Vraie navigation, sans data-page : le routeur ne l'intercepte
+             * pas. La confirmation reste — l'entrée est voisine de celles
+             * qu'on touche en permanence.
+             */
+            ?>
+            <a href="actions/logout.php" id="nav-deconnexion" aria-label="Se déconnecter"
+               class="nav-bureau" onclick="return confirm('Se déconnecter ?')">
+                <div class="icons material-symbols-outlined">logout</div>
+                Quitter
+            </a>
             <?php endif; ?>
         </nav>
     </footer>

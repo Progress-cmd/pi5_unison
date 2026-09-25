@@ -50,10 +50,17 @@
         ligne.appendChild(infos);
 
         if (opts.badge) {
-            const badge = document.createElement('div');
-            badge.className = 'running badge';
-            badge.textContent = 'EN COURS';
-            ligne.appendChild(badge);
+            /*
+             * Une vague animée plutôt que le texte « EN COURS » : elle dit la
+             * même chose, sans mot à lire, et s'arrête quand la lecture
+             * s'arrête — ce que le badge ne faisait pas. Les trois barres sont
+             * celles de la présence du partenaire, mêmes keyframes.
+             */
+            const onde = document.createElement('div');
+            onde.className = 'onde-lecture';
+            onde.setAttribute('aria-label', 'Titre en cours de lecture');
+            for (let i = 0; i < 3; i++) onde.appendChild(document.createElement('i'));
+            ligne.appendChild(onde);
         }
 
         if (opts.menu !== false) {
