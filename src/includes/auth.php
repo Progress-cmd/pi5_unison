@@ -144,6 +144,70 @@ function exigerConnexion(bool $json = false, bool $depuisAdmin = false): void
         }
         exit;
     }
+
+    sessionToujoursValide($json);
+}
+
+/**
+ * La session porte-t-elle encore le jeton en cours pour ce compte ?
+ *
+ * « Déconnecter les autres appareils » régénère le jeton en base : toutes les
+ * sessions qui portent l'ancien deviennent caduques à leur requête suivante.
+ * C'est le seul moyen de fermer une session dont on n'a pas le fichier sous la
+ * main — celles-ci vivent dans /tmp, sans lien avec le compte.
+ *
+ * Une session de démonstration n'est pas concernée : elle n'appartient à
+ * personne et son compte n'existe que dans la base de démonstration.
+ *
+ * Tolérante par construction : si la colonne manque (migration non appliquée)
+ * ou si la base est injoignable, la session reste valide. Cette vérification
+ * est un confort de sécurité, pas la garde d'authentification — la déconnexion
+ * en masse d'utilisateurs légitimes serait pire que le risque couvert.
+ */
+function sessionToujoursValide(bool $json = false): void
+{
+    if (estDemo() || empty($_SESSION['jeton_session'])) {
+        return;
+    }
+
+    try {
+        require_once __DIR__ . '/config.php';
+        $pdo = Config::getConnectionPrincipale();
+
+        $req = $pdo->prepare("SELECT jeton_session FROM users WHERE id = :id");
+        $req->execute([':id' => (int) $_SESSION['user']['id']]);
+        $attendu = $req->fetchColumn();
+    } catch (Throwable $e) {
+        return;
+    }
+
+    if ($attendu === false || $attendu === null || $attendu === '') {
+        return;
+    }
+
+    if (hash_equals((string) $attendu, (string) $_SESSION['jeton_session'])) {
+        return;
+    }
+
+    journalInfo('auth', 'session_revoquee',
+        'Session fermée : déconnexion demandée depuis un autre appareil',
+        ['user_id' => (int) $_SESSION['user']['id']]);
+
+    $_SESSION = [];
+    session_destroy();
+
+    http_response_code(401);
+    if ($json) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Session fermée depuis un autre appareil. Reconnectez-vous.',
+        ]);
+    } else {
+        echo '<p class="error">Session fermée depuis un autre appareil. '
+           . '<a href="login.php">Se reconnecter</a></p>';
+    }
+    exit;
 }
 
 /** La session courante est-elle une session de démonstration ? */
@@ -265,6 +329,73 @@ function idPartenaire(): ?int
     }
 
     return null;
+}
+
+/**
+ * Nom affiché d'un membre du foyer.
+ *
+ * Mis en cache par requête, comme l'initiale : les deux sont demandés au même
+ * endroit et il n'y a aucune raison d'interroger la base deux fois.
+ */
+function nomMembre(int $id): string
+{
+    static $cache = [];
+
+    if (isset($cache[$id])) {
+        return $cache[$id];
+    }
+
+    if ((int) ($_SESSION['user']['id'] ?? 0) === $id) {
+        return $cache[$id] = (string) ($_SESSION['user']['username'] ?? '');
+    }
+
+    try {
+        require_once __DIR__ . '/config.php';
+        $req = Config::getConnection()->prepare("SELECT username FROM users WHERE id = :id");
+        $req->execute([':id' => $id]);
+        return $cache[$id] = (string) $req->fetchColumn();
+    } catch (Throwable $e) {
+        // Un nom manquant ne doit pas empêcher la page de s'afficher.
+        return $cache[$id] = '';
+    }
+}
+
+/**
+ * Initiale d'un membre du foyer, pour le cercle de l'en-tête.
+ *
+ * Rendue côté serveur : elle doit être là au premier affichage, avant même
+ * que la présence ait répondu. Le nom est lu une fois par requête — il ne
+ * change jamais en cours de page.
+ *
+ * `mb_substr` et non `[0]` : un prénom accentué commençant par « É » occupe
+ * deux octets, et `$nom[0]` en renverrait la moitié.
+ */
+function initialeMembre(int $id): string
+{
+    static $cache = [];
+
+    if (isset($cache[$id])) {
+        return $cache[$id];
+    }
+
+    // Le sien est déjà en session : inutile d'interroger la base pour lui.
+    if ((int) ($_SESSION['user']['id'] ?? 0) === $id) {
+        $nom = (string) ($_SESSION['user']['username'] ?? '');
+    } else {
+        try {
+            require_once __DIR__ . '/config.php';
+            $req = Config::getConnection()->prepare(
+                "SELECT username FROM users WHERE id = :id"
+            );
+            $req->execute([':id' => $id]);
+            $nom = (string) $req->fetchColumn();
+        } catch (Throwable $e) {
+            // Une initiale manquante ne doit pas empêcher la page de s'afficher.
+            $nom = '';
+        }
+    }
+
+    return $cache[$id] = mb_strtoupper(mb_substr(trim($nom), 0, 1));
 }
 
 /**

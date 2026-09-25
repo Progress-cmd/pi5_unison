@@ -30,7 +30,8 @@ if ($lien === null || $lien === false) {
             <textarea id="bulk-urls" placeholder="Collez un lien YouTube par ligne&#10;ou un lien de playlist à importer en entier..."></textarea>
             <div id="bulk-actions">
                 <span id="bulk-hint">Playlists développées automatiquement</span>
-                <button type="button" id="bulk-import-btn" class="buttons">Importer tout</button>
+                <button type="button" id="bulk-import-btn" class="buttons"
+                        title="Ctrl + Entrée depuis la zone de saisie">Importer tout</button>
             </div>
             <div id="bulk-progress"></div>
         </div>
@@ -50,6 +51,78 @@ if ($lien === null || $lien === false) {
             progress.innerHTML = '';
 
             const echecs = state.items.filter(i => i.status === 'error');
+
+            /*
+             * Écran de confirmation : l'analyse est finie, rien n'est encore
+             * téléchargé. Un lien de playlist collé par mégarde ne doit pas
+             * partir chercher trente titres sans qu'on ait pu réagir.
+             */
+            if (state.enAttente) {
+                const bloc = document.createElement('div');
+                bloc.id = 'bulk-confirmation';
+
+                const n = state.aConfirmer.length;
+                const tete = document.createElement('div');
+                tete.className = 'bulk-conf-tete';
+                tete.innerHTML = '<span class="material-symbols-outlined">'
+                               + (state.album ? 'album' : 'playlist_add_check') + '</span>';
+                const libelle = document.createElement('b');
+
+                // Un album est annoncé comme tel : c'est une autre décision que
+                // d'importer une liste de titres sans lien entre eux.
+                if (state.album) {
+                    libelle.textContent = state.album.titre
+                        + (state.album.artiste ? ' — ' + state.album.artiste : '');
+                } else {
+                    libelle.textContent = n + (n > 1 ? ' titres à importer' : ' titre à importer');
+                }
+                tete.appendChild(libelle);
+                bloc.appendChild(tete);
+
+                if (state.album) {
+                    const sous = document.createElement('div');
+                    sous.className = 'bulk-conf-sous';
+                    sous.textContent = 'Album · ' + n + (n > 1 ? ' titres' : ' titre');
+                    bloc.appendChild(sous);
+                }
+
+                const liste = document.createElement('div');
+                liste.className = 'bulk-conf-liste';
+                state.aConfirmer.forEach((t, i) => {
+                    const l = document.createElement('div');
+                    l.className = 'bulk-conf-ligne';
+                    const num = document.createElement('span');
+                    num.className = 'bulk-conf-num';
+                    num.textContent = (i + 1) + '.';
+                    const nom = document.createElement('span');
+                    // textContent : ces titres viennent de YouTube.
+                    nom.textContent = t.title;
+                    l.append(num, nom);
+                    liste.appendChild(l);
+                });
+                bloc.appendChild(liste);
+
+                const actions = document.createElement('div');
+                actions.className = 'bulk-conf-actions';
+
+                const annuler = document.createElement('button');
+                annuler.type = 'button';
+                annuler.className = 'buttons';
+                annuler.textContent = 'Annuler';
+                annuler.addEventListener('click', () => window.BulkImport.annuler());
+
+                const valider = document.createElement('button');
+                valider.type = 'button';
+                valider.className = 'buttons bulk-conf-valider';
+                valider.textContent = state.album
+                    ? "Importer l'album (" + n + ")"
+                    : 'Télécharger ' + n + (n > 1 ? ' titres' : ' titre');
+                valider.addEventListener('click', () => window.BulkImport.confirmer());
+
+                actions.append(annuler, valider);
+                bloc.appendChild(actions);
+                progress.appendChild(bloc);
+            }
 
             // Bilan des échecs en tête de liste : c'est ce qu'on doit voir en
             // premier en revenant sur la page, pas ce qu'on doit aller chercher
@@ -90,6 +163,9 @@ if ($lien === null || $lien === false) {
                               + '<span class="bulk-textes"><span class="bulk-label"></span>'
                               + '<span class="bulk-raison"></span></span>';
                 div.querySelector('.bulk-label').textContent = it.title;
+                if (it.status === 'existant') {
+                    div.querySelector('.bulk-raison').textContent = 'Déjà en base';
+                }
                 if (it.status === 'error') {
                     div.querySelector('.bulk-raison').textContent = it.raison || 'Raison inconnue';
                 }
@@ -114,9 +190,53 @@ if ($lien === null || $lien === false) {
         window.addEventListener('bulkimport:update', window._bulkPageHandler);
 
         btn.addEventListener('click', () => window.BulkImport.start(textarea.value));
+
+        /*
+         * Ctrl + Entrée (Cmd sur Mac) lance l'import depuis la zone de saisie,
+         * sans aller chercher le bouton à la souris — on vient justement d'y
+         * coller ses liens.
+         *
+         * Entrée seule reste un retour à la ligne : la zone accepte un lien
+         * par ligne, la détourner rendrait la saisie multiple impossible.
+         *
+         * Le raccourci passe par le bouton plutôt que d'appeler BulkImport
+         * directement : il hérite ainsi de son état désactivé, et ne peut pas
+         * relancer un import déjà en cours.
+         */
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+
+            e.preventDefault();
+            if (!btn.disabled) btn.click();
+        });
     })();
     </script>
 <?php } else {
+    require_once "../includes/ytImport.php";
+
+    /*
+     * Refus des liens de playlist, AVANT toute vérification de jeton.
+     *
+     * Ce contrôle était placé plus bas, après la consommation du jeton à usage
+     * unique. Le message s'affichait donc une fois, puis le formulaire de la
+     * page — resté à l'écran avec son ancien jeton — se faisait refuser en
+     * « Token invalide » à chaque tentative suivante : plus aucune explication,
+     * l'utilisateur ne comprenait pas pourquoi son lien ne donnait plus rien.
+     *
+     * Rien n'est consommé ici : refuser un lien n'est pas une action, et
+     * recoller le même lien doit redonner le même message.
+     */
+    if (lienEstPlaylist($lien)) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => "Ceci est un lien de playlist ou d'album. "
+                       . "Collez-le dans « Import multiple » juste en dessous : "
+                       . "il sera développé en titres, et vous validerez avant téléchargement.",
+        ]);
+        exit;
+    }
+
     if (
             !isset($_POST['token'], $_SESSION['token']) ||
             $_POST['token'] !== $_SESSION['token']
@@ -130,74 +250,36 @@ if ($lien === null || $lien === false) {
     $_SESSION['token'] = bin2hex(random_bytes(32));
     $token = $_SESSION['token'];
 
-    $cmd = "yt-dlp --skip-download --no-playlist --dump-json ".escapeshellarg($lien);
-    $lien = null;
+    /*
+     * Les métadonnées passent par extractYtMetadata(), comme l'import en masse.
+     *
+     * Cette page en réimplémentait une copie : même déduction « Artiste -
+     * Titre », même nettoyage des « (Official Video) », même repli sur le nom
+     * de chaîne. Les deux versions avaient commencé à diverger — celle-ci
+     * lisait « thumbnails[count(thumbnails)-1] », qui déclenche un
+     * avertissement dès que yt-dlp n'en renvoie aucune, et repartait sans
+     * pochette. Elle appelait en plus shell_exec(), qui jette la sortie
+     * d'erreur : un échec de yt-dlp devenait « Lien invalide », sans jamais
+     * dire pourquoi.
+     */
+    require_once "../includes/ytImport.php";
+    include_once "../includes/config.php";
 
-    $json = shell_exec($cmd);
-    if (is_null($json)) {
+    $raison = null;
+    $meta = extractYtMetadata($lien, $raison);
+
+    if ($meta === null) {
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => "Lien invalide, aucune musique trouvée"]);
+        echo json_encode(['success' => false, 'message' => $raison ?: 'Lien invalide']);
         exit;
     }
-    $data = json_decode($json, true);
 
-    // yt-dlp ne renseigne 'track'/'artist' que pour de rares vidéos disposant
-    // d'un encart Content ID ; pour l'immense majorité des imports (y compris
-    // depuis music.youtube.com), ces champs sont vides. On retombe alors sur
-    // la convention de titre "Artiste - Titre" puis sur le nom de la chaîne.
-    $trackTitle  = $data['track'] ?? null;
-    $trackArtist = $data['artist'] ?? null;
-    if (!$trackArtist && !empty($data['artists']) && is_array($data['artists'])) {
-        $trackArtist = implode(', ', $data['artists']);
-    }
-    if (!$trackArtist && !empty($data['creators']) && is_array($data['creators'])) {
-        $trackArtist = implode(', ', $data['creators']);
-    }
+    $title    = $meta['title'];
+    $artist   = $meta['artist'];
+    $duration = $meta['duration'];
+    $thumb    = $meta['miniature'];
+    $genre    = $meta['genre'];
 
-    if (!$trackTitle || !$trackArtist) {
-        $videoTitle = $data['fulltitle'] ?? $data['title'] ?? '';
-        // Retire les mentions parasites du type "(Official Video)", "[Lyrics]", "(4K Remaster)"
-        $cleanTitle = preg_replace(
-            '/\s*[\(\[][^\)\]]*(official|lyric|audio|video|visualizer|mv|remaster|hd|4k)[^\)\]]*[\)\]]\s*/i',
-            ' ',
-            $videoTitle
-        );
-        $cleanTitle = trim(preg_replace('/\s+/', ' ', $cleanTitle));
-
-        if (preg_match('/^(.+?)\s+[-–—]\s+(.+)$/', $cleanTitle, $m)) {
-            if (!$trackArtist) { $trackArtist = trim($m[1]); }
-            if (!$trackTitle)  { $trackTitle  = trim($m[2]); }
-        } elseif (!$trackTitle) {
-            $trackTitle = $cleanTitle;
-        }
-    }
-
-    if (!$trackArtist) {
-        $channelName = $data['channel'] ?? $data['uploader'] ?? '';
-        $trackArtist = preg_replace('/\s*-\s*Topic$/i', '', $channelName) ?: null;
-    }
-
-    /*
-     * Valeurs gardées telles quelles.
-     *
-     * Elles étaient échappées ici, en amont — donc renvoyées échappées dans
-     * les champs du formulaire, repostées échappées, et finalement écrites
-     * ainsi en base : « Rock & Roll » y devenait « Rock &amp; Roll ». L'import
-     * en masse, lui, n'échappait rien : le même morceau était enregistré
-     * différemment selon la porte d'entrée. L'échappement appartient à
-     * l'affichage, et c'est là qu'il a lieu maintenant (voir plus bas).
-     */
-    $title    = $trackTitle  ?: "Aucun titre";
-    $artist   = $trackArtist ?: "Aucun artiste";
-    $duration = $data['duration'] ?? "Aucune information";
-    $thumb    = $data['thumbnails'][count($data['thumbnails'])-1]['url'] ?? '';
-
-    // Le genre est parfois fourni par yt-dlp (tableau "genres" ou chaîne "genre")
-    $genre = $data['genres'] ?? $data['genre'] ?? '';
-    if (is_array($genre)) { $genre = implode(', ', $genre); }
-
-
-    include_once "../includes/config.php";
     $pdo = Config::getConnection();
 
     /*
@@ -226,6 +308,22 @@ if ($lien === null || $lien === false) {
     );
     $req->execute([':url' => $urlSoumise, ':motif' => $motifFichier]);
     $dejaImporte = $req->fetch(PDO::FETCH_ASSOC);
+
+    /*
+     * Titre déjà présent, venu d'un album : le réimport manuel le rend
+     * indépendant de cet album.
+     *
+     * C'est une prise de possession — « ce titre m'intéresse pour lui-même,
+     * pas parce qu'il venait d'un album ». Il reste affiché dans l'album,
+     * mais ne sera plus supprimé avec lui.
+     *
+     * Rien n'est retéléchargé : le fichier est déjà sur le disque.
+     */
+    $detacheDe = null;
+    if ($dejaImporte) {
+        require_once "../includes/albums.php";
+        $detacheDe = albumDetacherTitre($pdo, (int) $dejaImporte['id']);
+    }
 
     /*
      * Même titre, même artiste, mais une autre vidéo : ce n'est pas forcément
@@ -287,8 +385,16 @@ if ($lien === null || $lien === false) {
         <article class="containers">
             <div class="body-bar">
                 <div class="content">
-                    <em><?= htmlspecialchars($dejaImporte['title'] ?? $title, ENT_QUOTES, 'UTF-8') ?></em>&nbsp;
-                    a déjà été importé depuis cette même vidéo.
+                    <?php if ($detacheDe): ?>
+                        <em><?= htmlspecialchars($dejaImporte['title'] ?? $title, ENT_QUOTES, 'UTF-8') ?></em>
+                        était déjà présent, venu de l'album
+                        <em><?= htmlspecialchars($detacheDe['title'], ENT_QUOTES, 'UTF-8') ?></em>.<br>
+                        Il en est maintenant indépendant : il y reste affiché, mais ne sera plus
+                        supprimé avec lui.
+                    <?php else: ?>
+                        <em><?= htmlspecialchars($dejaImporte['title'] ?? $title, ENT_QUOTES, 'UTF-8') ?></em>&nbsp;
+                        a déjà été importé depuis cette même vidéo.
+                    <?php endif; ?>
                 </div>
             </div>
         </article>

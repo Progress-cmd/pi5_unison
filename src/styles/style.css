@@ -1,39 +1,77 @@
 /* ===== VARIABLES ===== */
+/*
+ * Thème clair et sombre dans une seule déclaration, via light-dark().
+ *
+ * La valeur retenue dépend du `color-scheme` de l'élément : c'est lui, posé
+ * plus bas selon l'attribut data-theme de <html>, qui fait la bascule. Un bloc
+ * sombre séparé aurait obligé à dupliquer chaque couleur — une fois sous
+ * `[data-theme="sombre"]`, une fois sous `prefers-color-scheme` pour le mode
+ * « système » — avec la dérive que cela promet au premier ajustement.
+ *
+ * Le sombre est chaud et non gris : l'identité de l'application est beige, un
+ * gris neutre en aurait fait une autre application.
+ */
 :root {
+    /* Laisse le mode système décider par défaut ; surchargé juste après. */
+    color-scheme: light dark;
+
     /* --- Couleurs principales */
-    /* extraite avec "https://imagecolorpicker.com" depuis "https://scontent-cdg6-1.xx.fbcdn.net/v/t39.30808-6/480688480_620794483982311_4519310306668356374_n.jpg?stp=dst-jpg_s590x590_tt6&_nc_cat=106&ccb=1-7&_nc_sid=7b2446&_nc_ohc=TqK0GhQb2IEQ7kNvwGnYKEl&_nc_oc=AdrhOMOrBOjczrqZnkphZMhaZxlrQAXnPBJ_xbSxGIzHZn8zZcJUK_9OgZXOczSGoBUXDCi2o-hCl2Ai7xY6I7rj&_nc_zt=23&_nc_ht=scontent-cdg6-1.xx&_nc_gid=E379Z38Qmirv40fl-txCJQ&_nc_ss=7a389&oh=00_Af2waLKKNiyiMWOrI_0RHEO0Amq-BYqCk5lELVB9PqWpbQ&oe=69E926B6" */
-    --blue: #0583ab;
-    --orange: #b94e18;
+    /* extraite avec "https://imagecolorpicker.com" depuis une photo */
+    --blue: light-dark(#0583ab, #2ba7ce);
+    --orange: light-dark(#b94e18, #d9683a);
 
-    --light-beige: #f8f7f5;
-    --dark-beige: #dfcbc0;
+    /* Fond de page et des cartes. En clair les deux sont presque confondus
+       (beige / blanc) ; en sombre la carte est plus claire que le fond, sans
+       quoi rien ne se détache. */
+    --light-beige: light-dark(#f8f7f5, #17150f);
+    --surface: light-dark(#ffffff, #221e19);
+    /* Bordures et séparateurs. */
+    --dark-beige: light-dark(#dfcbc0, #3b322a);
 
+    /* --white reste le blanc littéral : il sert de texte sur les boutons
+       colorés, où il doit rester blanc dans les deux thèmes. */
     --white: #ffffff;
     --black: #000000;
-    --golden: #bd9d60;
+    --golden: light-dark(#bd9d60, #d4b87c);
 
 
     /* --- Couleurs d'états --- */
     /* pour les popups d'information */
-    --light-error: #D32F2F;
-    --dark-error: #f6d5d5;
-    --light-success: #2E7D32;
-    --dark-success: #d5e5d6;
+    --light-error: light-dark(#D32F2F, #e57373);
+    --dark-error: light-dark(#f6d5d5, #4a2020);
+    --light-success: light-dark(#2E7D32, #66bb6a);
+    --dark-success: light-dark(#d5e5d6, #1f3a21);
 
 
     /* --- Couleurs textuelles --- */
     /* pour tout ce qui concerne l'écriture */
-    --text-orange: #C8593A;
-    --text-orange-hover: #B44C30;
-    --text-orange-light: #FAE9E4;
-    --text-gray: #7A736C;
-    --text-dark: #1C1916;
+    /*
+     * Aplat d'accent : le fond des boutons pleins, qui portent du texte blanc.
+     * Distinct de --text-orange, qui doit au contraire s'éclaircir en sombre
+     * pour rester lisible *en tant que texte*. Une seule variable pour les
+     * deux usages donnait soit un texte illisible, soit un bouton délavé.
+     */
+    --accent-plein: light-dark(#C8593A, #b5502f);
+    --text-orange: light-dark(#C8593A, #e0785c);
+    --text-orange-hover: light-dark(#B44C30, #ec8a6e);
+    --text-orange-light: light-dark(#FAE9E4, #3a2620);
+    --text-gray: light-dark(#7A736C, #a79d92);
+    --text-dark: light-dark(#1C1916, #ece7e0);
 
 
     /* --- Typographie --- */
     --serif: 'Cormorant Garamond', serif;
     --sans: 'DM Sans', sans-serif;
 }
+
+/*
+ * La bascule. `data-theme` est posé sur <html> par index.php, côté serveur,
+ * pour éviter le clignotement au chargement ; la page Paramètres le change à
+ * chaud. Tout le reste de la feuille ignore le thème : les variables suffisent.
+ */
+:root[data-theme="clair"]  { color-scheme: light; }
+:root[data-theme="sombre"] { color-scheme: dark; }
+:root[data-theme="systeme"] { color-scheme: light dark; }
 
 
 /* ===== LAYOUT GLOBAL ===== */
@@ -58,7 +96,7 @@ button {
     padding: 18px;
     width: 100%;
     margin: 0 0 10px 0 ;
-    background-color: var(--white);
+    background-color: var(--surface);
     border: 1px solid var(--dark-beige);
     border-radius: 10px;
     box-sizing: border-box;
@@ -226,15 +264,97 @@ header {
         margin-left: -15px;
     }
 
-    .user-1 {
-        border: 2px solid var(--orange);
+    .first-person {
         position: relative;
         z-index: 1;
+    }
+
+    .user-1 {
+        border: 2px solid var(--orange);
     }
 
     .user-2 {
         border: 2px solid var(--blue);
     }
+
+    /* --- Initiale du cercle --- */
+    /*
+     * L'initiale dit qui est ce cercle, la bordure colorée le redit. Le texte
+     * reste sombre plutôt que coloré : le bleu du compte 2 sur ce fond beige
+     * tombe sous le seuil de contraste AA pour du texte de cette taille.
+     */
+    .cercle-initiale {
+        font-family: var(--serif);
+        font-size: 21px;
+        line-height: 1;
+        color: var(--text-dark);
+        user-select: none;
+    }
+
+    /* --- Présence du partenaire --- */
+    /*
+     * L'état est une pastille dans le coin, pas un remplacement de l'initiale :
+     * on doit pouvoir lire *qui* et *quoi* d'un même coup d'œil.
+     */
+    .second-person {
+        position: relative;
+    }
+
+    /* `hidden` ne suffit pas : les `display` ci-dessous sont des règles
+       d'auteur et l'emportent sur le `display: none` de la feuille du
+       navigateur. Sans ce rappel, point et vague s'affichent ensemble. */
+    .presence-point[hidden],
+    .presence-vague[hidden] {
+        display: none;
+    }
+
+    .presence-point,
+    .presence-vague {
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        /* Liseré couleur du fond : détache la pastille de la bordure du
+           cercle, qu'elle chevauche. */
+        box-shadow: 0 0 0 2px var(--light-beige);
+    }
+
+    .presence-point {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background-color: var(--light-success);
+    }
+
+    .presence-vague {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5px;
+        height: 15px;
+        padding: 0 3.5px;
+        border-radius: 8px;
+        background-color: var(--text-orange-light);
+    }
+
+    .presence-vague i {
+        width: 2px;
+        height: 3px;
+        border-radius: 1px;
+        background-color: var(--text-orange);
+        animation: presence-onde 1s ease-in-out infinite;
+    }
+
+    /* Décalage des trois barres : sans lui, elles montent et descendent
+       ensemble, ce qui se lit comme un clignotement, pas comme un son. */
+    .presence-vague i:nth-child(2) { animation-delay: 0.2s; }
+    .presence-vague i:nth-child(3) { animation-delay: 0.4s; }
+
+    /*
+     * La bordure garde la couleur du compte (.user-1 orange, .user-2 bleu) :
+     * c'est elle qui dit *qui* est ce cercle. La repeindre pendant l'écoute
+     * lui donnait la couleur de l'autre membre du foyer — on croyait à un
+     * changement de personne, pas d'état. L'écoute se lit à la vague.
+     */
 
     /* En mode perso, l'autre utilisateur (second-person) est estompé
        pour signaler que seul mon contenu est affiché */
@@ -242,6 +362,23 @@ header {
         opacity: 0.4;
         filter: grayscale(1);
         border-color: var(--dark-beige);
+    }
+}
+
+@keyframes presence-onde {
+    0%, 100% { height: 3px; }
+    50%      { height: 9px; }
+}
+
+/*
+ * Mouvement supprimé pour qui l'a demandé au système : une animation
+ * perpétuelle dans l'en-tête est exactement ce que ce réglage vise. L'état
+ * reste lisible — les barres gardent une hauteur intermédiaire fixe.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .presence-vague i {
+        animation: none;
+        height: 6px;
     }
 }
 
@@ -449,6 +586,58 @@ header {
             border-radius: 2px;
         }
 
+        /*
+         * Avec une onde, la barre s'épaissit pour lui laisser la place et perd
+         * son fond uni : ce sont les barres qui dessinent la progression.
+         * `position: relative` ancre les deux couches ; le clic pour naviguer
+         * reste sur ce conteneur, qui les couvre toutes les deux.
+         */
+        .player-progress_bar.a-onde {
+            position: relative;
+            height: 24px;
+            background-color: transparent;
+            border-radius: 0;
+        }
+
+        .a-onde .player-progress_current {
+            display: none;
+        }
+
+        .player-onde {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            /* Les barres ne doivent pas intercepter le clic : c'est le
+               conteneur qui porte la navigation. */
+            pointer-events: none;
+        }
+
+        .player-onde i {
+            flex: 1;
+            min-width: 0;
+            border-radius: 2px;
+            /* Aucune transition sur la hauteur : elle est réécrite à chaque
+               image par la boucle d'animation, une transition CSS lutterait
+               contre elle et traînerait derrière le son. */
+        }
+
+        .player-onde--fond i {
+            background-color: var(--text-gray);
+            opacity: 0.45;
+        }
+
+        .player-onde--lu i {
+            background-color: var(--text-orange);
+        }
+
+        /* Le rognage suit la lecture ; la transition lisse les à-coups entre
+           deux `timeupdate`, qui n'arrivent que quatre fois par seconde. */
+        .player-onde--lu {
+            transition: clip-path 0.12s linear;
+        }
+
         .player-progress_current {
             width: 0;
             height: 4px;
@@ -511,7 +700,7 @@ footer > #navbar {
     grid-auto-columns: 1fr;
     justify-content: space-around;
     align-items: center;
-    background-color: var(--white);
+    background-color: var(--surface);
     border-top: 1px solid var(--dark-beige);
     box-sizing: border-box;
     height: 75px;
@@ -555,8 +744,9 @@ footer > #navbar {
 }
 
 
-/* Six entrées au lieu de cinq depuis l'ajout de la déconnexion : sur les
-   écrans les plus étroits, les libellés se touchaient. */
+/* Six entrées dans la barre : sur les écrans étroits, « Bibliothèque » et
+   « Importation » remplissent leur cellule au pixel près et les libellés
+   finissent par se toucher. */
 @media (max-width: 400px) {
     footer > #navbar a {
         font-size: 10px;
@@ -564,6 +754,29 @@ footer > #navbar {
 
     footer > #navbar a > div {
         font-size: 26px;
+    }
+}
+
+/*
+ * En dessous de 360 px, plus aucune taille de texte ne tient : « Bibliothèque »
+ * mesure encore 52 px pour une cellule de 53. Les libellés cèdent la place aux
+ * icônes seules, agrandies pour rester confortables au pouce. Les entrées
+ * gardent leur intitulé accessible par `aria-label`, posé côté serveur.
+ */
+@media (max-width: 359px) {
+    footer > #navbar a {
+        font-size: 0;
+        gap: 0;
+    }
+
+    footer > #navbar a > div {
+        font-size: 28px;
+    }
+
+
+    /* La pastille de messages porte un chiffre : elle doit rester lisible. */
+    #nav-messages-pastille {
+        font-size: 10.5px;
     }
 }
 
@@ -587,7 +800,7 @@ footer > #navbar {
 }
 
 .modale-contenu {
-    background-color: var(--white);
+    background-color: var(--surface);
     color: var(--text-dark);
     border: 1px solid var(--dark-beige);
     border-radius: 12px;
@@ -653,7 +866,7 @@ footer > #navbar {
 .modale-fermer {
     width: 100%;
     padding: 10px;
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border: none;
     border-radius: 8px;
@@ -711,7 +924,7 @@ footer > #navbar {
     gap: 8px;
     border: none;
     align-items: center;
-    background: var(--white);
+    background: var(--surface);
     border-radius: 6px;
     padding: 0 10px 0 0;
     overflow: hidden;
@@ -876,7 +1089,7 @@ footer > #navbar {
     width: 100%;
     padding: 14px 16px;
     box-sizing: border-box;
-    background-color: var(--text-orange);
+    background-color: var(--accent-plein);
     color: var(--white);
     border-radius: 10px;
     cursor: pointer;
@@ -1035,6 +1248,1005 @@ footer > #navbar {
     background: none;
     border: none;
 }
+
+/* ----- TABLEAU DE BORD : GRAPHIQUES ----- */
+.semaine-graphe {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 120px;
+}
+
+.semaine-jour {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 100%;
+}
+
+/* Le fond occupe toute la hauteur : c'est lui qui donne l'échelle, sinon une
+   barre courte et une barre absente se ressemblent. */
+.semaine-barre-fond {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    flex: 1;
+    background-color: var(--light-beige);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.semaine-barre {
+    width: 100%;
+    background-color: var(--text-orange);
+    border-radius: 4px;
+    transition: height 0.3s ease;
+}
+
+/*
+ * Un jour sans écoute ne dessine rien.
+ *
+ * Une hauteur minimale, posée pour qu'une seule écoute reste visible, traçait
+ * aussi un liseré sous les jours à zéro : on y lisait une écoute là où il n'y
+ * en avait aucune. Le minimum ne s'applique donc qu'aux barres non nulles,
+ * que leur attribut style rend reconnaissables.
+ */
+.semaine-barre:not([style*="height: 0%"]) {
+    min-height: 3px;
+}
+
+.semaine-libelle {
+    font-size: 11px;
+    color: var(--text-gray);
+    text-transform: uppercase;
+}
+
+.semaine-nombre {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.moment-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+}
+
+.moment-nom {
+    flex-shrink: 0;
+    width: 84px;
+    font-size: 13px;
+}
+
+.moment-jauge {
+    flex: 1;
+    height: 8px;
+    min-width: 0;
+    background-color: var(--light-beige);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.moment-remplie {
+    height: 100%;
+    background-color: var(--text-orange);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.moment-nombre {
+    flex-shrink: 0;
+    min-width: 24px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+#top-artistes .mini-song {
+    cursor: pointer;
+}
+
+#top-artistes .song-img {
+    border-radius: 50%;
+}
+
+
+/* ----- PAGE INFOS ----- */
+.infos-note {
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-gray);
+}
+
+.infos-champs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.infos-champs label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.infos-champs input {
+    padding: 8px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.infos-champs input:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+.infos-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Ce qui suit un groupe de boutons respire : sans cela l'e-mail se collait
+   au bouton « Enregistrer », au point de paraître en faire partie. */
+.infos-actions + .content {
+    margin-top: 14px;
+}
+
+.infos-valider {
+    background-color: var(--accent-plein);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.infos-valider:hover {
+    background-color: var(--text-orange-hover);
+}
+
+.infos-actions .buttons:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+
+/*
+ * Séparateur de jour dans l'historique. Discret : c'est un repère qu'on
+ * balaie du regard en défilant, pas un titre de section.
+ */
+.historique-jour {
+    padding: 14px 0 6px;
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--text-gray);
+}
+
+.historique-jour:first-child {
+    padding-top: 4px;
+}
+
+
+/* ===== BARRE : PASTILLE ET PROFIL DÉPLIANT ===== */
+
+/*
+ * Activité et Quitter : réservées à la barre latérale du bureau.
+ *
+ * Sur mobile la barre compte déjà six entrées dans 390 px — deux de plus et
+ * les libellés se touchent. Elles restent atteignables autrement : l'activité
+ * par un lien dans l'en-tête des Messages, la déconnexion par Paramètres.
+ */
+/* Sélecteur volontairement lourd : la barre déclare `#navbar a { display:
+   flex }`, dont l'identifiant l'emporte sur une simple classe. */
+footer > #navbar .nav-bureau {
+    display: none;
+}
+
+#nav-messages {
+    position: relative;
+}
+
+/*
+ * Pastille de non-lus. Positionnée sur l'entrée et non sur l'icône : l'icône
+ * est un <div> centré dont la largeur suit le glyphe, la pastille sauterait
+ * d'un ou deux pixels selon le chiffre affiché.
+ */
+#nav-messages-pastille {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    margin-left: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background-color: var(--accent-plein);
+    color: var(--white);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#nav-messages-pastille[hidden] {
+    display: none;
+}
+
+/*
+ * Profil et déconnexion partagent une case de la barre : la déconnexion sort
+ * au-dessus à l'appui long. `position: relative` sur le conteneur, absolu sur
+ * le lien — sans quoi la barre s'agrandirait en révélant l'entrée.
+ */
+
+
+/* ===== DYNAMISME ===== */
+
+/*
+ * Fondu d'entrée des pages, posé par le routeur. Léger déplacement vers le
+ * haut : le mouvement donne un sens à l'arrivée, là où un simple fondu se
+ * remarque à peine.
+ */
+@keyframes page-entre {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.page-entre {
+    animation: page-entre 0.16s ease-out;
+}
+
+/*
+ * La pochette respire pendant la lecture. L'amplitude est volontairement
+ * minuscule — à 2 % on la sent sans la voir.
+ */
+@keyframes pochette-respire {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
+}
+
+body.lecture-en-cours #player-img {
+    animation: pochette-respire 4s ease-in-out infinite;
+
+    /*
+     * `will-change` promeut la pochette sur sa propre couche de composition.
+     * Sans lui, le navigateur ré-arrondit la taille rendue à des pixels
+     * entiers : entre 200 et 204 px il n'y a que quatre valeurs possibles, et
+     * la respiration se voyait comme trois paliers au lieu d'un mouvement
+     * continu. Posé seulement pendant la lecture — une couche permanente
+     * consomme de la mémoire graphique pour rien.
+     */
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/*
+ * Vague sur la ligne du titre en cours, à la place du badge « EN COURS » :
+ * trois barres animées, les mêmes que la présence du partenaire.
+ */
+.onde-lecture {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.selected > .onde-lecture {
+    display: flex;
+}
+
+.onde-lecture i {
+    width: 2px;
+    height: 3px;
+    border-radius: 1px;
+    background-color: var(--text-orange);
+    animation: presence-onde 1s ease-in-out infinite;
+}
+
+.onde-lecture i:nth-child(2) { animation-delay: 0.2s; }
+.onde-lecture i:nth-child(3) { animation-delay: 0.4s; }
+
+/* En pause, la vague se fige : une ligne qui s'agite alors que rien ne joue
+   est un mensonge discret mais constant. La classe est posée sur <body> par
+   player.js — la vague peut vivre n'importe où dans la page. */
+body:not(.lecture-en-cours) .onde-lecture i {
+    animation-play-state: paused;
+}
+
+
+/* ===== FIL D'ACTIVITÉ ===== */
+
+.activite-ligne {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.activite-ligne:last-child {
+    border-bottom: none;
+}
+
+.activite-ligne.est-cliquable {
+    cursor: pointer;
+}
+
+.activite-icone {
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 20px;
+    color: var(--text-orange);
+}
+
+/* `min-width: 0` sans quoi une phrase longue refuse de se replier et pousse
+   la ligne hors du cadre — le défaut `auto` d'un élément flex. */
+.activite-texte {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.activite-cible {
+    color: var(--text-orange);
+    overflow-wrap: anywhere;
+}
+
+.activite-heure {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: var(--text-gray);
+}
+
+
+/* ===== CHAT ===== */
+
+#chat {
+    display: flex;
+    flex-direction: column;
+    /*
+     * Le fil occupe la hauteur disponible et défile seul : sans hauteur
+     * bornée, c'est la page entière qui défile et la zone de saisie part vers
+     * le bas, hors d'atteinte.
+     */
+    /*
+     * 150 px de chrome en bas, ~170 px d'en-tête et de gouttières au-dessus.
+     * Le but est que la zone de saisie reste visible sans défiler : c'est une
+     * conversation, on écrit sans avoir à chercher le champ.
+     */
+    max-height: calc(100dvh - 320px);
+}
+
+#chat-fil {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chat-jour {
+    align-self: center;
+    padding: 10px 0 8px;
+}
+
+.chat-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 78%;
+    margin-bottom: 6px;
+}
+
+.chat-msg--moi {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.chat-msg--lui {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.chat-bulle {
+    padding: 8px 12px;
+    border-radius: 14px;
+    background-color: var(--light-beige);
+    border: 1px solid var(--dark-beige);
+}
+
+/*
+ * Mes messages prennent l'aplat d'accent, ceux de l'autre restent sur le fond
+ * clair : c'est le repère le plus rapide pour savoir qui parle, plus rapide
+ * que l'alignement seul.
+ */
+.chat-msg--moi .chat-bulle {
+    background-color: var(--accent-plein);
+    border-color: var(--accent-plein);
+    color: var(--white);
+}
+
+.chat-texte {
+    font-size: 14px;
+    line-height: 1.45;
+    /* Les retours à la ligne saisis sont conservés, et un lien collé sans
+       espace ne déborde pas de la bulle. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-heure {
+    margin: 2px 4px 0;
+    font-size: 11px;
+    color: var(--text-gray);
+}
+
+/* --- Titre joint --- */
+
+.chat-piece-jointe {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--surface);
+    font-family: var(--sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-msg--moi .chat-piece-jointe {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.chat-piece-jointe img {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.chat-piece-jointe > div {
+    min-width: 0;
+}
+
+.chat-pj-titre {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-pj-artiste {
+    font-size: 11.5px;
+    color: var(--text-gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dans ma propre bulle, le texte de la pièce jointe passe sur fond accent. */
+.chat-msg--moi .chat-pj-titre,
+.chat-msg--moi .chat-pj-artiste,
+.chat-msg--moi .chat-piece-jointe .material-symbols-outlined {
+    color: var(--white);
+}
+
+.chat-piece-jointe .material-symbols-outlined {
+    margin-left: auto;
+    color: var(--text-orange);
+}
+
+.chat-piece-jointe:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* --- Zone de saisie --- */
+
+#chat-saisie {
+    flex-shrink: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--dark-beige);
+}
+
+#chat-barre {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+#chat-texte {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    padding: 9px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 18px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text-dark);
+}
+
+#chat-texte:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+#chat-joindre,
+#chat-envoyer {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background-color: transparent;
+    color: var(--text-orange);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+#chat-envoyer {
+    background-color: var(--accent-plein);
+    color: var(--white);
+}
+
+#chat-joindre:disabled,
+#chat-envoyer:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* `hidden` ne suffit pas face au `display: flex` ci-dessous : règle d'auteur
+   contre feuille du navigateur, l'auteur gagne. Même piège que la présence. */
+#chat-piece[hidden],
+#chat-barre [hidden] {
+    display: none;
+}
+
+#chat-piece {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+}
+
+#chat-piece img {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+#chat-piece-infos {
+    min-width: 0;
+}
+
+#chat-piece-titre {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#chat-piece-artiste {
+    font-size: 11.5px;
+    color: var(--text-gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#chat-piece-retirer {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--text-gray);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#chat-recherche {
+    margin-top: 8px;
+}
+
+#chat-recherche[hidden] {
+    display: none;
+}
+
+#chat-recherche-champ {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--text-dark);
+}
+
+#chat-recherche-resultats {
+    max-height: 190px;
+    overflow-y: auto;
+}
+
+.chat-resultat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px;
+    border: none;
+    border-bottom: 1px solid var(--dark-beige);
+    background: none;
+    font-family: var(--sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-resultat img {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+
+.chat-resultat > div {
+    min-width: 0;
+}
+
+
+/* --- Liste des annonces (administration) --- */
+
+.annonce-ligne {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.annonce-ligne:last-child {
+    border-bottom: none;
+}
+
+.annonce-ligne-texte {
+    flex: 1;
+    min-width: 0;
+}
+
+.annonce-ligne-titre {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+}
+
+.annonce-ligne-titre .material-symbols-outlined {
+    font-size: 19px;
+    color: var(--text-orange);
+}
+
+.annonce-retiree {
+    padding: 1px 7px;
+    border-radius: 8px;
+    background-color: var(--dark-beige);
+    color: var(--text-gray);
+    font-size: 11px;
+}
+
+.annonce-ligne-note {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.annonce-ligne-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+
+/* ===== POPUP D'ANNONCE ===== */
+
+.annonce-fond {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.annonce-boite {
+    width: 100%;
+    max-width: 420px;
+    padding: 22px;
+    border-radius: 16px;
+    background-color: var(--surface);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+}
+
+.annonce-tete {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.annonce-tete .material-symbols-outlined {
+    color: var(--text-orange);
+    font-size: 26px;
+}
+
+.annonce-tete h2 {
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.annonce-corps {
+    margin-bottom: 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text-dark);
+    /* Les retours à la ligne saisis dans l'administration sont conservés :
+       le texte est posé en textContent, jamais en HTML. */
+    white-space: pre-line;
+}
+
+.annonce-boite .buttons {
+    width: 100%;
+}
+
+
+/* ===== PAGE PARAMÈTRES ===== */
+
+/*
+ * Une ligne de réglage : le texte prend la place disponible, le contrôle reste
+ * à droite à sa taille. `min-width: 0` sur la colonne de texte, sinon une
+ * explication longue refuse de se replier et pousse l'interrupteur hors du
+ * cadre — la grille comme le flex donnent `auto` par défaut.
+ */
+.reglage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.reglage:last-child {
+    border-bottom: none;
+}
+
+.reglage-texte {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.reglage-titre {
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.reglage-note {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-gray);
+}
+
+.param-select {
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.param-select:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+/* --- Interrupteur --- */
+/*
+ * La case native est masquée mais reste dans le flux et focalisable : c'est
+ * elle qui porte l'état, le clavier et l'accessibilité. Seule son apparence
+ * est remplacée. `appearance: none` plutôt que `display: none`, qui la
+ * sortirait de l'ordre de tabulation.
+ */
+.interrupteur {
+    flex-shrink: 0;
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.interrupteur input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.interrupteur-piste {
+    display: block;
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--dark-beige);
+    transition: background-color 0.2s ease;
+}
+
+.interrupteur-piste::after {
+    content: '';
+    display: block;
+    width: 18px;
+    height: 18px;
+    margin: 3px;
+    border-radius: 50%;
+    background-color: var(--surface);
+    transition: transform 0.2s ease;
+}
+
+.interrupteur input:checked + .interrupteur-piste {
+    background-color: var(--text-orange);
+}
+
+.interrupteur input:checked + .interrupteur-piste::after {
+    transform: translateX(18px);
+}
+
+/* Le focus clavier doit se voir : la case native étant transparente, c'est la
+   piste qui porte l'anneau. */
+.interrupteur input:focus-visible + .interrupteur-piste {
+    outline: 2px solid var(--text-orange);
+    outline-offset: 2px;
+}
+
+.interrupteur input:disabled {
+    cursor: progress;
+}
+
+.interrupteur input:disabled + .interrupteur-piste {
+    opacity: 0.6;
+}
+
+
+/* ----- ALBUMS ----- */
+.albums-grille {
+    display: grid;
+    /* auto-fill + minmax : le nombre de colonnes suit la largeur disponible,
+       sans point de rupture à maintenir. */
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px;
+}
+
+.album-carte {
+    cursor: pointer;
+    min-width: 0;
+}
+
+.album-img,
+.album-img-grande {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    background-color: var(--dark-beige);
+}
+
+.album-titre {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    /* Les titres d'album sont parfois longs : ils se tronquent au lieu de
+       déformer la grille. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.album-infos {
+    font-size: 12px;
+    color: var(--text-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Page d'un album --- */
+.album-entete {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.album-img-grande {
+    width: 140px;
+    flex-shrink: 0;
+}
+
+.album-entete-infos {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.album-entete-titre {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.album-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.album-lire {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--accent-plein);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.album-lire:hover {
+    background-color: var(--text-orange-hover);
+}
+
+.album-supprimer {
+    color: var(--light-error);
+}
+
+.album-supprimer:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
 
 /* --- ARTISTS --- */
 #artist-list > .body-bar {
@@ -1200,7 +2412,7 @@ footer > #navbar {
 }
 
 .search-onglet.actif {
-    background: var(--text-orange);
+    background: var(--accent-plein);
     border-color: var(--text-orange);
     color: var(--white);
 }
@@ -1337,7 +2549,7 @@ footer > #navbar {
 
 .search-vide-icone {
     font-size: 40px;
-    color: var(--dark-beige);
+    color: var(--text-gray);
 }
 
 .search-vide-titre {
@@ -1604,7 +2816,7 @@ footer > #navbar {
 }
 
 #bulk-import-btn {
-    background: var(--text-orange);
+    background: var(--accent-plein);
     color: var(--white);
     border: none;
     padding: 9px 18px;
@@ -1672,11 +2884,88 @@ footer > #navbar {
 .bulk-error .bulk-status::before { content: 'error'; color: var(--light-error); }
 .bulk-error { color: var(--light-error); }
 
+/* Déjà en base : ni un succès — rien n'a été téléchargé — ni un échec.
+   Une teinte neutre, distincte du vert des imports réels. */
+.bulk-existant .bulk-status::before { content: 'library_add_check'; color: var(--text-gray); }
+.bulk-existant { color: var(--text-gray); }
+
 @keyframes bulk-spin {
     to { transform: rotate(360deg); }
 }
 
 /* --- Bilan des échecs d'import --- */
+/* --- Confirmation avant import de masse --- */
+#bulk-confirmation {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+}
+
+.bulk-conf-tete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-family: var(--sans);
+}
+
+.bulk-conf-tete .material-symbols-outlined {
+    color: var(--text-orange);
+}
+
+/* La liste défile : une playlist peut en compter des dizaines, et les boutons
+   doivent rester atteignables sans faire défiler toute la page. */
+.bulk-conf-sous {
+    margin: -6px 0 10px 28px;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.bulk-conf-liste {
+    max-height: 260px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    margin-bottom: 12px;
+}
+
+.bulk-conf-ligne {
+    display: flex;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.bulk-conf-ligne:last-child {
+    border-bottom: none;
+}
+
+.bulk-conf-num {
+    flex-shrink: 0;
+    min-width: 26px;
+    text-align: right;
+    color: var(--text-gray);
+}
+
+.bulk-conf-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.bulk-conf-valider {
+    background-color: var(--accent-plein);
+    color: var(--white);
+    border-color: var(--text-orange);
+}
+
+.bulk-conf-valider:hover {
+    background-color: var(--text-orange-hover);
+}
+
+
 #bulk-echecs {
     margin-bottom: 14px;
     padding: 12px;
@@ -1837,6 +3126,17 @@ footer > #navbar {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+
+    /*
+     * Réserve la place du chrome fixe du bas : barre de navigation (75 px) et
+     * mini-lecteur (60 px, posé 10 px au-dessus d'elle). Sans elle, la fin de
+     * chaque page glissait sous le lecteur — la dernière ligne d'une liste
+     * restait illisible, et la zone de saisie du chat devenait inatteignable.
+     *
+     * Annulée sur bureau, où le lecteur flotte à droite et la navigation est
+     * une colonne : il n'y a plus rien à éviter en bas.
+     */
+    padding-bottom: 150px;
 }
 
 #account-version {
@@ -1850,8 +3150,8 @@ footer > #navbar {
 #track-context-menu {
     display: none;
     position: fixed;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--surface);
+    border: 1px solid var(--dark-beige);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     z-index: 9999;
@@ -1869,8 +3169,8 @@ footer > #navbar {
 }
 
 .context-menu-item:hover {
-    background-color: rgba(200, 93, 58, 0.1);
-    color: #C8593A;
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
 }
 
 .context-menu-item:first-child {
@@ -1963,6 +3263,17 @@ footer > #navbar {
     }
 
     /* --- Navbar : barre latérale gauche --- */
+    #main-content {
+        padding-bottom: 20px;
+    }
+
+    /* La colonne a la hauteur qu'il faut : les deux entrées reprennent leur
+       place, chacune sur sa ligne comme les autres. */
+    footer > #navbar .nav-bureau {
+        display: flex;
+    }
+
+
     footer > #navbar {
         display: flex;
         flex-direction: column;

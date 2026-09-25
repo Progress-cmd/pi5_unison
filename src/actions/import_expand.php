@@ -39,6 +39,8 @@ $echecs = [];
 $seen = [];
 $MAX = 300; // garde-fou
 
+$albums = [];   // albums détectés, indexés par leur URL source
+
 foreach ($lines as $line) {
     $line = trim($line);
     if ($line === '') {
@@ -53,12 +55,16 @@ foreach ($lines as $line) {
     }
 
     // Une page "playlist" est développée ; un lien de vidéo (même avec &list=)
-    // ne prend que la vidéo.
-    $isPlaylist = (strpos($line, '/playlist') !== false)
-        || (strpos($line, 'list=') !== false && strpos($line, 'v=') === false);
+    // ne prend que la vidéo. Le test est partagé avec le formulaire unitaire,
+    // qui doit refuser exactement ce que celui-ci accepte.
+    $isPlaylist = lienEstPlaylist($line);
     $scope = $isPlaylist ? ['--flat-playlist'] : ['--no-playlist', '--flat-playlist'];
 
     [$output, $erreurs, $code] = executerYtDlp(array_merge($scope, ['--dump-json', $line]));
+
+    // Réinitialisé à chaque ligne : deux liens collés ensemble peuvent
+    // désigner deux albums différents, ou un album et un titre isolé.
+    $albumCourant = null;
 
     if (trim($output) === '') {
         $echecs[] = ['lien' => $line, 'raison' => traduireErreurYtDlp($erreurs)];
@@ -76,6 +82,21 @@ foreach ($lines as $line) {
         $id = $d['id'] ?? null;
         if (!$id) continue;
 
+        /*
+         * L'album se lit sur la première entrée : en mode --flat-playlist,
+         * chaque titre porte le nom de la playlist dont il vient.
+         */
+        if ($isPlaylist && $albumCourant === null) {
+            $nomAlbum = albumDepuisPlaylist($d['playlist_title'] ?? null);
+            if ($nomAlbum !== null) {
+                $albumCourant = [
+                    'titre'   => $nomAlbum,
+                    'artiste' => $d['playlist_uploader'] ?? $d['channel'] ?? null,
+                    'source'  => $line,
+                ];
+            }
+        }
+
         // URL canonique reconstruite depuis l'identifiant
         $videoUrl = "https://www.youtube.com/watch?v=" . $id;
         if (isset($seen[$id])) continue;
@@ -84,9 +105,15 @@ foreach ($lines as $line) {
         $tracks[] = [
             'url'   => $videoUrl,
             'title' => $d['title'] ?? $videoUrl,
+            // Position dans l'album, pour retrouver l'ordre de la galette.
+            'piste' => $albumCourant !== null ? count($tracks) + 1 : null,
         ];
 
         if (count($tracks) >= $MAX) break 2;
+    }
+
+    if ($albumCourant !== null) {
+        $albums[] = $albumCourant;
     }
 }
 
@@ -95,4 +122,5 @@ echo json_encode([
     'tracks'  => $tracks,
     'count'   => count($tracks),
     'echecs'  => $echecs,
+    'albums'  => $albums,
 ]);

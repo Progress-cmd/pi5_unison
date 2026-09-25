@@ -2,6 +2,18 @@
 include_once "../includes/auth.php";
 exigerConnexion(false);
 include_once "../includes/rendu.php";
+include_once "../includes/config.php";
+include_once "../includes/statistiquesCompte.php";
+
+$moi = (int) $_SESSION['user']['id'];
+$pdoStats = Config::getConnection();
+$collections = statCollections($pdoStats, $moi);
+$topArtistes = statTopArtistes($pdoStats, $moi);
+$semaine     = statSemaine($pdoStats, $moi);
+$moments     = statMoments($pdoStats, $moi);
+$decouvertes = statDecouvertes($pdoStats);
+$maxSemaine  = max(1, max(array_column($semaine, 'n')));
+$totalMoments = array_sum($moments);
 ?>
 <article class="containers" id="account-dashboard">
     <div class="head-bar">Dashboard</div>
@@ -37,6 +49,14 @@ include_once "../includes/rendu.php";
                 echo $req->fetchColumn();
                 ?>
             </div>
+        </div>
+        <div class="content">
+            <div class="dasboard-title"><b>Albums : </b></div>
+            <div class="dashboard-value"><?= (int) $collections['albums'] ?></div>
+        </div>
+        <div class="content">
+            <div class="dasboard-title"><b>Artistes favoris : </b></div>
+            <div class="dashboard-value"><?= (int) $collections['artistes_favoris'] ?></div>
         </div>
         <div class="content">
             <div class="dasboard-title"><b>Total temps d'écoute : </b></div>
@@ -87,12 +107,89 @@ include_once "../includes/rendu.php";
     </div>
 </article>
 
+<article class="containers" id="top-artistes">
+    <div class="head-bar">Top artistes</div>
+    <div class="body-bar">
+        <?php if (!$topArtistes): ?>
+            <?= ligneVide('Aucune écoute pour le moment') ?>
+        <?php else: foreach ($topArtistes as $a): ?>
+            <div class="content mini-song" data-artiste-id="<?= (int) $a['id'] ?>">
+                <img src="<?= htmlspecialchars($a['img'] ?? '', ENT_QUOTES) ?>" class="song-img" alt="">
+                <div class="song-infos">
+                    <div class="song-title"><?= htmlspecialchars($a['name'], ENT_QUOTES) ?></div>
+                    <div class="song-artist">
+                        <?= (int) $a['ecoutes'] ?><?= $a['ecoutes'] > 1 ? ' écoutes' : ' écoute' ?>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; endif; ?>
+    </div>
+</article>
+
+<article class="containers" id="semaine-ecoute">
+    <div class="head-bar">Votre semaine</div>
+    <div class="body-bar">
+        <?php if ($maxSemaine <= 0 || array_sum(array_column($semaine, 'n')) === 0): ?>
+            <?= ligneVide('Aucune écoute ces sept derniers jours') ?>
+        <?php else: ?>
+            <div class="semaine-graphe">
+                <?php foreach ($semaine as $j): ?>
+                    <div class="semaine-jour" title="<?= (int) $j['n'] ?> écoute(s) le <?= htmlspecialchars($j['libelle'], ENT_QUOTES) ?>">
+                        <div class="semaine-barre-fond">
+                            <?php /* Hauteur relative au jour le plus chargé : une barre
+                                      pleine veut dire « le maximum de la semaine », pas
+                                      un nombre absolu. */ ?>
+                            <div class="semaine-barre" style="height: <?= (int) round($j['n'] / $maxSemaine * 100) ?>%"></div>
+                        </div>
+                        <div class="semaine-libelle"><?= htmlspecialchars(mb_substr($j['libelle'], 0, 1), ENT_QUOTES) ?></div>
+                        <div class="semaine-nombre"><?= (int) $j['n'] ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</article>
+
+<article class="containers" id="moments-ecoute">
+    <div class="head-bar">Vos moments d'écoute</div>
+    <div class="body-bar">
+        <?php if ($totalMoments === 0): ?>
+            <?= ligneVide('Aucune écoute pour le moment') ?>
+        <?php else:
+            $libelles = ['matin' => 'Matin', 'apres_midi' => 'Après-midi', 'soir' => 'Soir', 'nuit' => 'Nuit'];
+            foreach ($moments as $cle => $n): ?>
+            <div class="moment-ligne">
+                <div class="moment-nom"><?= $libelles[$cle] ?></div>
+                <div class="moment-jauge">
+                    <div class="moment-remplie" style="width: <?= (int) round($n / $totalMoments * 100) ?>%"></div>
+                </div>
+                <div class="moment-nombre"><?= (int) $n ?></div>
+            </div>
+        <?php endforeach; endif; ?>
+    </div>
+</article>
+
+<article class="containers" id="decouvertes">
+    <div class="head-bar">Ajouts récents</div>
+    <div class="body-bar">
+        <?php if (!$decouvertes): ?>
+            <?= ligneVide('Aucun titre ajouté ce mois-ci') ?>
+        <?php else: foreach ($decouvertes as $t): ?>
+            <?= ligneTitre($t, [
+                'sous_titre' => ($t['artists_names'] ?: 'Artiste inconnu')
+                              . ' - ' . date('d/m', strtotime($t['created-at'])),
+            ]) ?>
+        <?php endforeach; endif; ?>
+    </div>
+</article>
+
 <article class="containers" id="recent-listens">
-    <div class="head-bar">Écoutes récentes</div>
+    <div class="head-bar">Écoutes récentes<a href="?page=account/historique" class="more-bar" data-page="account/historique">Voir tout</a></div>
     <div class="body-bar">
         <?php
         $req = $pdo->prepare("
-                SELECT historical.`listened-at`, tracks.id, tracks.title, tracks.img,
+                SELECT UNIX_TIMESTAMP(historical.`listened-at`) AS ecoute_ts,
+                       tracks.id, tracks.title, tracks.img,
                        GROUP_CONCAT(DISTINCT artists.name SEPARATOR ', ') AS artists_names
                 FROM historical
                 JOIN tracks ON tracks.id = historical.track_id
@@ -111,7 +208,14 @@ include_once "../includes/rendu.php";
         foreach ($ecoutes as $ecoute) {
             echo ligneTitre($ecoute, [
                 'sous_titre' => ($ecoute['artists_names'] ?? '')
-                              . ' - ' . date('d/m/Y H:i', strtotime($ecoute['listened-at'])),
+                              /*
+                               * Epoch et non chaîne : MariaDB tourne en UTC,
+                               * PHP en Europe/Paris. `strtotime()` lisait
+                               * « 21:57 » comme une heure de Paris alors que
+                               * c'était de l'UTC — deux heures de retard à
+                               * l'affichage.
+                               */
+                              . ' - ' . date('d/m/Y H:i', (int) $ecoute['ecoute_ts']),
             ]);
         }
         ?>
@@ -121,12 +225,25 @@ include_once "../includes/rendu.php";
 <article class="containers" id="account-boutons">
     <div class="body-bar">
         <div class="content">
-            <a class="redirect buttons" href="?page=account/infos" data-page="account/infos">
-                <span>Infos</span>
+            <a class="redirect buttons" href="?page=account/parametres" data-page="account/parametres">
+                <span>Paramètres</span>
             </a>
         </div>
     </div>
 </article>
+
+<script>
+    (function () {
+        const top = document.getElementById('top-artistes');
+        if (!top) return;
+        top.addEventListener('click', (e) => {
+            const ligne = e.target.closest('[data-artiste-id]');
+            if (!ligne) return;
+            sessionStorage.setItem('artiste_id', ligne.dataset.artisteId);
+            navigateTo('library/artiste');
+        });
+    })();
+</script>
 
 <article id="account-version">
     <?= versionUnison() ?>

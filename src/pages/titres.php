@@ -1,14 +1,15 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(false);
+include_once "../includes/rendu.php";
 ?>
 <article id="titres-liste" class="containers">
     <div class="head-bar">Tous les titres<span id="titres-compteur" class="more-bar"></span></div>
-    <div class="body-bar" id="titres-corps"></div>
+    <div class="body-bar" id="titres-corps"><?= squelettes(5) ?></div>
 
     <!-- Sentinelle : sa venue à l'écran déclenche le paquet suivant. -->
     <div id="titres-sentinelle"></div>
-    <div id="titres-etat" class="titres-etat">Chargement…</div>
+    <div id="titres-etat" class="titres-etat"></div>
 </article>
 
 <script>
@@ -39,7 +40,9 @@ exigerConnexion(false);
             // sentinelle plusieurs fois avant l'arrivée de la réponse.
             if (enCours || termine) return;
             enCours = true;
-            etat.textContent = 'Chargement…';
+            // Les squelettes disent déjà qu'on charge : le mot ne sert que
+            // pour les paquets suivants, quand ils ont disparu.
+            etat.textContent = corps.querySelector('.squelette-ligne') ? '' : 'Chargement…';
 
             try {
                 const res = await fetch(`actions/lister_titres.php?offset=${offset}&limite=${PAQUET}`);
@@ -48,6 +51,7 @@ exigerConnexion(false);
                 if (!data.success) throw new Error(data.message || 'Erreur');
 
                 total = data.total;
+                corps.querySelectorAll('.squelette-ligne').forEach(e => e.remove());
                 ajouter(data.tracks);
                 offset += data.tracks.length;
 

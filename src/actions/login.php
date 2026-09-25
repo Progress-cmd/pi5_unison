@@ -23,6 +23,9 @@ if (filter_input(INPUT_POST, 'demo', FILTER_VALIDATE_BOOL)) {
         'username'  => DEMO_USERNAME,
         'email'     => null,
         'view_mode' => 'mixed',
+        'presence_visible'       => 1,
+        'presence_partage_titre' => 1,
+        'theme'                  => 'systeme',
         'is_demo'   => true,
         'role'      => 'user',   // une démonstration n'administre jamais rien
     ];
@@ -111,7 +114,7 @@ if ($modeAdmin) {
 include_once "../includes/config.php";
 $pdo = Config::getConnection();
 
-$req = $pdo->prepare("SELECT id, username, email, `password-hash`, view_mode, role FROM users WHERE username = :username");
+$req = $pdo->prepare("SELECT id, username, email, `password-hash`, view_mode, presence_visible, presence_partage_titre, theme, role, jeton_session FROM users WHERE username = :username");
 $req->bindValue(':username', $username);
 $req->execute();
 
@@ -182,9 +185,42 @@ $_SESSION['user'] = [
     'username'  => $user['username'],
     'email'     => $user['email'],
     'view_mode' => $user['view_mode'] ?? 'mixed',
+    // Préférences de la page Paramètres, mises en session pour que chaque page
+    // les lise sans requête supplémentaire.
+    'presence_visible'       => (int) ($user['presence_visible'] ?? 1),
+    'presence_partage_titre' => (int) ($user['presence_partage_titre'] ?? 1),
+    'theme'                  => $user['theme'] ?? 'systeme',
     'is_demo'   => false,
     'role'      => $user['role'] ?? 'user',
 ];
+
+/*
+ * Jeton de validité des sessions.
+ *
+ * Recopié depuis la base dans la session : « Déconnecter les autres
+ * appareils » le régénère, et toutes les sessions portant l'ancien tombent à
+ * leur requête suivante (voir sessionToujoursValide dans auth.php).
+ *
+ * Créé ici s'il n'existe pas encore — comptes antérieurs à la migration 006,
+ * pour lesquels la colonne est nulle.
+ */
+$jeton = $user['jeton_session'] ?? null;
+
+if (empty($jeton)) {
+    $jeton = bin2hex(random_bytes(32));
+    try {
+        $req = $pdo->prepare("UPDATE users SET jeton_session = :jeton WHERE id = :id");
+        $req->execute([':jeton' => $jeton, ':id' => $user['id']]);
+    } catch (Throwable $e) {
+        // Colonne absente : la connexion ne doit pas en pâtir, la
+        // vérification se contentera de ne rien faire.
+        $jeton = null;
+    }
+}
+
+if ($jeton !== null) {
+    $_SESSION['jeton_session'] = $jeton;
+}
 
 // Journalisée après l'affectation de la session : la ligne porte ainsi le
 // compte connecté, sans qu'il faille le repasser en contexte.

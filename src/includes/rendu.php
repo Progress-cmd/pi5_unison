@@ -49,7 +49,11 @@ function ligneTitre(array $titre, array $options = []): string
     $html .= '</div>';
 
     if (!empty($options['badge'])) {
-        $html .= '<div class="running badge">EN COURS</div>';
+        // Même vague que côté JavaScript (scripts/ligneTitre.js) : les lignes
+        // rendues par PHP et celles injectées par le client doivent être
+        // indiscernables.
+        $html .= '<div class="onde-lecture" aria-label="Titre en cours de lecture">'
+               . '<i></i><i></i><i></i></div>';
     }
 
     if ($avecMenu) {
@@ -103,4 +107,31 @@ function resumePlaylist(int $nombre, ?int $secondes): string
     }
 
     return $libelle . ' - ' . $duree;
+}
+
+/**
+ * Lignes fantômes affichées pendant le chargement d'une liste.
+ *
+ * À la forme du contenu attendu — pochette, titre, artiste — plutôt qu'un mot
+ * « Chargement… » : l'attente paraît plus courte, et la page ne saute plus au
+ * moment où les données arrivent, puisque la place est déjà prise.
+ *
+ * Retirées par le script de la page dès le premier paquet reçu.
+ */
+function squelettes(int $nombre = 5): string
+{
+    $html = '';
+
+    for ($i = 0; $i < $nombre; $i++) {
+        // Réutilise le squelette de la page Recherche plutôt que d'en définir
+        // un second : les classes existaient déjà, avec leur dégradé animé.
+        $html .= '<div class="squelette-ligne" aria-hidden="true">'
+               . '<div class="squelette-bloc squelette-img"></div>'
+               . '<div class="squelette-texte">'
+               . '<div class="squelette-bloc squelette-l1"></div>'
+               . '<div class="squelette-bloc squelette-l2"></div>'
+               . '</div></div>';
+    }
+
+    return $html;
 }

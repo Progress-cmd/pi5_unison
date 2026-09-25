@@ -7,6 +7,8 @@ const routes = {
     'home/queue': '',
     'library':  'pages/library.php',
     'library/titres': 'pages/titres.php',
+    'library/albums': 'pages/albums.php',
+    'library/album': 'pages/album.php',
     'library/artists': 'pages/artists.php',
     'library/playlists': 'pages/playlists.php',
     'library/playlists/add_playlist': 'pages/add_playlist.php',
@@ -15,7 +17,13 @@ const routes = {
     'player/queue': 'pages/queue.php',
     'import':      'pages/import.php',
     'account':  'pages/account.php',
-    'account/infos': 'pages/infos.php',
+    'account/parametres': 'pages/parametres.php',
+    'account/historique': 'pages/historique.php',
+    'messages':  'pages/messages.php',
+    'activite':  'pages/activite.php',
+    // Ancien nom de la page, conservé : « Infos » contenait déjà les réglages.
+    // Un lien ou un onglet ouvert avant le renommage doit continuer d'ouvrir.
+    'account/infos': 'pages/parametres.php',
     'library/edit-playlist': 'pages/edit_playlist.php',
     'library/titre': 'pages/titre.php',
     'library/artiste': 'pages/artiste.php',
@@ -31,6 +39,7 @@ const routes = {
     'admin/stockage':    'pages/admin_stockage.php',
     'admin/comptes':     'pages/admin_comptes.php',
     'admin/maintenance': 'pages/admin_maintenance.php',
+    'admin/annonces':    'pages/admin_annonces.php',
     'admin/journal':     'pages/admin_journal.php',
     'admin/console':     'pages/admin_console.php',
     'admin/sql':         'pages/admin_sql.php',
@@ -206,6 +215,11 @@ async function navigateTo(page) {
         if (artisteId) extraParams.set('id', artisteId);
     }
 
+    if (page === 'library/album') {
+        const albumId = sessionStorage.getItem('album_id');
+        if (albumId) extraParams.set('id', albumId);
+    }
+
     const fetchUrl = extraParams.toString() ? `${url}?${extraParams}` : url;
 
     // Récupère le code source et le renvoi dans la page active
@@ -224,6 +238,20 @@ async function navigateTo(page) {
     }
 
     mainContent.innerHTML = html;
+
+    /*
+     * Fondu d'entrée : le remplacement du contenu était sec, la navigation
+     * donnait l'impression de sauter d'un écran à l'autre. La classe est
+     * retirée à la fin de l'animation pour ne pas laisser de transformation
+     * en place — elle créerait un contexte d'empilement qui casserait le
+     * positionnement fixe des menus contextuels.
+     */
+    mainContent.classList.remove('page-entre');
+    void mainContent.offsetWidth;   // force le redémarrage de l'animation
+    mainContent.classList.add('page-entre');
+    mainContent.addEventListener('animationend',
+        () => mainContent.classList.remove('page-entre'), { once: true });
+
     window.corrigerImagesVides(mainContent);
 
     reinjectScripts(mainContent);
@@ -299,6 +327,25 @@ document.addEventListener('click', (e) => {
     if (typeof loadTrack === 'function') loadTrack(id);
 });
 
+/**
+ * Reflète le mode d'affichage sur les deux cercles de l'en-tête.
+ *
+ * Ceux-ci vivent hors de #main-content : une navigation ne les redessine pas,
+ * et la page Paramètres pouvait donc changer le mode sans que l'en-tête en
+ * sache rien — les cercles restaient sur l'ancien état jusqu'au rechargement
+ * complet. Exposée globalement pour que les deux chemins de bascule, l'en-tête
+ * et les paramètres, passent par le même code.
+ */
+window.majBasculeAffichage = function (mode) {
+    const bascule = document.getElementById('persons');
+    if (!bascule) return;   // absent hors foyer : aucun partenaire à distinguer
+
+    const perso = mode === 'personal';
+    bascule.classList.toggle('is-personal', perso);
+    bascule.classList.toggle('is-mixed', !perso);
+    bascule.setAttribute('aria-checked', perso ? 'true' : 'false');
+};
+
 // Bascule du mode d'affichage via les deux cercles du header :
 // les deux allumés = contenu commun, seul le mien = contenu perso
 const personsSwitch = document.getElementById('persons');
@@ -306,10 +353,7 @@ if (personsSwitch) {
     personsSwitch.addEventListener('click', async () => {
         const nextMode = personsSwitch.classList.contains('is-personal') ? 'mixed' : 'personal';
 
-        // Bascule visuelle immédiate
-        personsSwitch.classList.toggle('is-personal', nextMode === 'personal');
-        personsSwitch.classList.toggle('is-mixed', nextMode === 'mixed');
-        personsSwitch.setAttribute('aria-checked', nextMode === 'personal' ? 'true' : 'false');
+        window.majBasculeAffichage(nextMode);
 
         try {
             await fetch('actions/set_view_mode.php', {

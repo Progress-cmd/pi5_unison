@@ -17,9 +17,19 @@ $demo = estDemo();
  * tout simplement pas envoyé.
  */
 $admin = estAdmin();
+
+/*
+ * Le thème est posé sur <html> côté serveur, et non par un script : appliqué
+ * après coup, la page s'afficherait d'abord en clair avant de basculer, ce qui
+ * se voit — surtout le soir, précisément quand on a choisi le mode sombre.
+ */
+$theme = $_SESSION['user']['theme'] ?? 'systeme';
+if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
+    $theme = 'systeme';
+}
 ?>
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="<?= $theme ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,6 +52,37 @@ $admin = estAdmin();
     ?>
     <script>window.UNISON_CSRF = <?= json_encode(jetonCsrf()) ?>;</script>
     <script src="<?= assetVersionne('scripts/csrf.js') ?>"></script>
+
+    <?php
+    /*
+     * Réglages propres à l'appareil (volume mémorisé, reprise) : chargé avant
+     * player.js, qui les lit à son démarrage.
+     */
+    ?>
+    <script src="<?= assetVersionne('scripts/prefs.js') ?>"></script>
+
+    <?php
+    /*
+     * Mode de notification du compte, lu par scripts/presence.js. Rendu ici
+     * plutôt que demandé au serveur : l'information tient en un mot et le
+     * battement a déjà de quoi faire.
+     */
+    ?>
+    <script>window.UNISON_NOTIF = <?= json_encode($_SESSION['user']['notif_mode'] ?? 'toast') ?>;</script>
+    <?php
+    /*
+     * Le partenaire, pour le menu contextuel des titres (« Envoyer à … »).
+     * Défini plus bas dans la page pour l'en-tête ; recalculé ici parce que
+     * ce bloc est servi avant.
+     */
+    $pourEnvoi = idPartenaire();
+    ?>
+    <?php if ($pourEnvoi !== null): ?>
+    <script>window.UNISON_PARTENAIRE = <?= json_encode([
+        'id'  => $pourEnvoi,
+        'nom' => nomMembre($pourEnvoi),
+    ]) ?>;</script>
+    <?php endif; ?>
 </head>
 <body class="<?= $demo ? 'is-demo' : '' ?>">
     <?php if ($demo): ?>
@@ -112,8 +153,24 @@ $admin = estAdmin();
         <section id="persons" class="<?= $isPersonal ? 'is-personal' : 'is-mixed' ?>"
                  role="switch" aria-checked="<?= $isPersonal ? 'true' : 'false' ?>"
                  title="Afficher le contenu commun ou seulement le mien">
-            <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">OO</div>
-            <div class="second-person user-<?= $partenaire ?>">OO</div>
+            <div class="first-person user-<?= (int) $_SESSION['user']['id'] ?>">
+                <span class="cercle-initiale"><?= htmlspecialchars(initialeMembre((int) $_SESSION['user']['id']), ENT_QUOTES) ?></span>
+            </div>
+            <?php
+            /*
+             * L'initiale dit qui ; la pastille en bas à droite dit dans quel
+             * état. Les deux coexistent — remplacer l'initiale par l'état
+             * faisait perdre le « qui » au moment précis où l'autre devient
+             * intéressant. Pastilles remplies par scripts/presence.js ;
+             * aucune visible = hors ligne, ou présence indisponible.
+             */
+            ?>
+            <div class="second-person user-<?= $partenaire ?>"
+                 id="presence-partenaire" data-user-id="<?= (int) $partenaire ?>">
+                <span class="cercle-initiale"><?= htmlspecialchars(initialeMembre((int) $partenaire), ENT_QUOTES) ?></span>
+                <span class="presence-point" hidden></span>
+                <span class="presence-vague" hidden><i></i><i></i><i></i></span>
+            </div>
         </section>
         <?php endif; ?>
     </header>
@@ -273,6 +330,10 @@ $admin = estAdmin();
                 <div class="icons material-symbols-outlined">build</div>
                 Maintenance
             </a>
+            <a href="?page=admin/annonces" data-page="admin/annonces">
+                <div class="icons material-symbols-outlined">campaign</div>
+                Annonces
+            </a>
             <a href="?page=admin/journal" data-page="admin/journal">
                 <div class="icons material-symbols-outlined">receipt_long</div>
                 Journal
@@ -287,40 +348,84 @@ $admin = estAdmin();
             </a>
 
             <?php else: ?>
-            <a href="?page=home" data-page="home">
+            <a href="?page=home" data-page="home" aria-label="Accueil">
                 <div class="icons material-symbols-outlined">home</div>
                 Accueil
             </a>
 
-            <a href="?page=library" data-page="library">
+            <a href="?page=library" data-page="library" aria-label="Bibliothèque">
                 <div class="icons material-symbols-outlined">newsstand</div>
                 Bibliothèque
             </a>
 
-            <a href="?page=search" data-page="search">
+            <a href="?page=search" data-page="search" aria-label="Recherche">
                 <div class="icons material-symbols-outlined">search</div>
                 Recherche
             </a>
 
-            <a href="?page=import" data-page="import">
+            <a href="?page=import" data-page="import" aria-label="Importation">
                 <div class="icons material-symbols-outlined">add</div>
                 Importation
             </a>
 
-            <a href="?page=account" data-page="account">
+            <?php
+            /*
+             * Messages cache l'activité, comme Compte cache la déconnexion :
+             * même geste, même mécanique (scripts/navbar.js). Le fil
+             * d'activité est une consultation occasionnelle — il n'avait pas
+             * à prendre une case permanente dans une barre déjà pleine.
+             */
+            ?>
+            <?php if ($partenaire !== null): ?>
+            <a href="?page=messages" data-page="messages" aria-label="Messages" id="nav-messages">
+                <div class="icons material-symbols-outlined">forum</div>
+                Messages
+                <span id="nav-messages-pastille" hidden></span>
+            </a>
+
+            <?php
+            /*
+             * Activité et Quitter ne sont rendues que sur la barre latérale du
+             * bureau, où la place ne manque pas (voir `.nav-bureau` dans
+             * style.css). Sur mobile, huit entrées dans une barre de 390 px se
+             * touchent : on y accède autrement — l'activité par un lien dans
+             * l'en-tête des Messages, la déconnexion par Paramètres.
+             */
+            ?>
+            <a href="?page=activite" data-page="activite" aria-label="Activité" class="nav-bureau">
+                <div class="icons material-symbols-outlined">history</div>
+                Activité
+            </a>
+            <?php endif; ?>
+
+            <?php
+            /*
+             * Compte et déconnexion partagent une entrée.
+             *
+             * La barre en comptait sept avec Messages : sur mobile, les
+             * libellés se chevauchaient. La déconnexion se révèle par un appui
+             * long (ou un clic droit) sur le profil — un geste qu'on ne fait
+             * pas par accident, ce qui remplace avantageusement la demande de
+             * confirmation qui gardait cette entrée trop accessible.
+             *
+             * Elle reste par ailleurs dans Paramètres → Sécurité : un geste
+             * caché ne doit jamais être le seul chemin vers une fonction.
+             */
+            ?>
+            <a href="?page=account" data-page="account" aria-label="Compte">
                 <div class="icons material-symbols-outlined">person</div>
                 Compte
             </a>
 
             <?php
             /*
-             * Vraie navigation, sans data-page : le routeur ne l'intercepte pas.
-             * La confirmation n'est pas de la coquetterie — l'entrée est collée
-             * à celles qu'on touche en permanence sur mobile.
+             * Vraie navigation, sans data-page : le routeur ne l'intercepte
+             * pas. La confirmation reste — l'entrée est voisine de celles
+             * qu'on touche en permanence.
              */
             ?>
-            <a href="actions/logout.php" id="nav-deconnexion"
-               onclick="return confirm('Se déconnecter ?')">
+            <a href="actions/logout.php" id="nav-deconnexion" aria-label="Se déconnecter"
+               class="nav-bureau" onclick="return confirm('Se déconnecter ?')">
                 <div class="icons material-symbols-outlined">logout</div>
                 Quitter
             </a>
@@ -351,6 +456,17 @@ $admin = estAdmin();
     <script src="<?= assetVersionne('scripts/admin.js') ?>"></script>
     <?php endif; ?>
     <script src="<?= assetVersionne('scripts/router.js') ?>"></script>
+
+    <?php
+    /*
+     * Barre de navigation : pastille de messages et déconnexion repliée sous
+     * le profil. Hors des pages, comme la barre elle-même.
+     */
+    ?>
+    <?php if (!$admin): ?><script src="<?= assetVersionne('scripts/navbar.js') ?>"></script><?php endif; ?>
+    <?php if (!$admin && $partenaire !== null): ?>
+    <script src="<?= assetVersionne('scripts/presence.js') ?>"></script>
+    <?php endif; ?>
     <?php if (!$admin): ?>
     <script src="<?= assetVersionne('scripts/bulk-import.js') ?>"></script>
     <?php endif; ?>
