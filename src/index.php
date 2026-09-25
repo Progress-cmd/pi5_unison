@@ -60,6 +60,29 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
      */
     ?>
     <script src="<?= assetVersionne('scripts/prefs.js') ?>"></script>
+
+    <?php
+    /*
+     * Mode de notification du compte, lu par scripts/presence.js. Rendu ici
+     * plutôt que demandé au serveur : l'information tient en un mot et le
+     * battement a déjà de quoi faire.
+     */
+    ?>
+    <script>window.UNISON_NOTIF = <?= json_encode($_SESSION['user']['notif_mode'] ?? 'toast') ?>;</script>
+    <?php
+    /*
+     * Le partenaire, pour le menu contextuel des titres (« Envoyer à … »).
+     * Défini plus bas dans la page pour l'en-tête ; recalculé ici parce que
+     * ce bloc est servi avant.
+     */
+    $pourEnvoi = idPartenaire();
+    ?>
+    <?php if ($pourEnvoi !== null): ?>
+    <script>window.UNISON_PARTENAIRE = <?= json_encode([
+        'id'  => $pourEnvoi,
+        'nom' => nomMembre($pourEnvoi),
+    ]) ?>;</script>
+    <?php endif; ?>
 </head>
 <body class="<?= $demo ? 'is-demo' : '' ?>">
     <?php if ($demo): ?>
@@ -307,6 +330,10 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
                 <div class="icons material-symbols-outlined">build</div>
                 Maintenance
             </a>
+            <a href="?page=admin/annonces" data-page="admin/annonces">
+                <div class="icons material-symbols-outlined">campaign</div>
+                Annonces
+            </a>
             <a href="?page=admin/journal" data-page="admin/journal">
                 <div class="icons material-symbols-outlined">receipt_long</div>
                 Journal
@@ -321,43 +348,73 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
             </a>
 
             <?php else: ?>
-            <a href="?page=home" data-page="home">
+            <a href="?page=home" data-page="home" aria-label="Accueil">
                 <div class="icons material-symbols-outlined">home</div>
                 Accueil
             </a>
 
-            <a href="?page=library" data-page="library">
+            <a href="?page=library" data-page="library" aria-label="Bibliothèque">
                 <div class="icons material-symbols-outlined">newsstand</div>
                 Bibliothèque
             </a>
 
-            <a href="?page=search" data-page="search">
+            <a href="?page=search" data-page="search" aria-label="Recherche">
                 <div class="icons material-symbols-outlined">search</div>
                 Recherche
             </a>
 
-            <a href="?page=import" data-page="import">
+            <a href="?page=import" data-page="import" aria-label="Importation">
                 <div class="icons material-symbols-outlined">add</div>
                 Importation
             </a>
 
-            <a href="?page=account" data-page="account">
-                <div class="icons material-symbols-outlined">person</div>
-                Compte
-            </a>
+            <?php
+            /*
+             * Messages cache l'activité, comme Compte cache la déconnexion :
+             * même geste, même mécanique (scripts/navbar.js). Le fil
+             * d'activité est une consultation occasionnelle — il n'avait pas
+             * à prendre une case permanente dans une barre déjà pleine.
+             */
+            ?>
+            <?php if ($partenaire !== null): ?>
+            <div class="nav-repli">
+                <a href="?page=activite" data-page="activite" aria-label="Activité" class="nav-replie" hidden>
+                    <div class="icons material-symbols-outlined">history</div>
+                    Activité
+                </a>
+                <a href="?page=messages" data-page="messages" aria-label="Messages" id="nav-messages"
+                   class="nav-principale">
+                    <div class="icons material-symbols-outlined">forum</div>
+                    Messages
+                    <span id="nav-messages-pastille" hidden></span>
+                </a>
+            </div>
+            <?php endif; ?>
 
             <?php
             /*
-             * Vraie navigation, sans data-page : le routeur ne l'intercepte pas.
-             * La confirmation n'est pas de la coquetterie — l'entrée est collée
-             * à celles qu'on touche en permanence sur mobile.
+             * Compte et déconnexion partagent une entrée.
+             *
+             * La barre en comptait sept avec Messages : sur mobile, les
+             * libellés se chevauchaient. La déconnexion se révèle par un appui
+             * long (ou un clic droit) sur le profil — un geste qu'on ne fait
+             * pas par accident, ce qui remplace avantageusement la demande de
+             * confirmation qui gardait cette entrée trop accessible.
+             *
+             * Elle reste par ailleurs dans Paramètres → Sécurité : un geste
+             * caché ne doit jamais être le seul chemin vers une fonction.
              */
             ?>
-            <a href="actions/logout.php" id="nav-deconnexion"
-               onclick="return confirm('Se déconnecter ?')">
-                <div class="icons material-symbols-outlined">logout</div>
-                Quitter
-            </a>
+            <div class="nav-repli nav-profil">
+                <a href="actions/logout.php" id="nav-deconnexion" class="nav-replie" hidden>
+                    <div class="icons material-symbols-outlined">logout</div>
+                    Quitter
+                </a>
+                <a href="?page=account" data-page="account" aria-label="Compte" class="nav-principale">
+                    <div class="icons material-symbols-outlined">person</div>
+                    Compte
+                </a>
+            </div>
             <?php endif; ?>
         </nav>
     </footer>
@@ -385,6 +442,14 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
     <script src="<?= assetVersionne('scripts/admin.js') ?>"></script>
     <?php endif; ?>
     <script src="<?= assetVersionne('scripts/router.js') ?>"></script>
+
+    <?php
+    /*
+     * Barre de navigation : pastille de messages et déconnexion repliée sous
+     * le profil. Hors des pages, comme la barre elle-même.
+     */
+    ?>
+    <?php if (!$admin): ?><script src="<?= assetVersionne('scripts/navbar.js') ?>"></script><?php endif; ?>
     <?php if (!$admin && $partenaire !== null): ?>
     <script src="<?= assetVersionne('scripts/presence.js') ?>"></script>
     <?php endif; ?>

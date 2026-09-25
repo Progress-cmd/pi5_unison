@@ -19,6 +19,8 @@ const routes = {
     'account':  'pages/account.php',
     'account/parametres': 'pages/parametres.php',
     'account/historique': 'pages/historique.php',
+    'messages':  'pages/messages.php',
+    'activite':  'pages/activite.php',
     // Ancien nom de la page, conservé : « Infos » contenait déjà les réglages.
     // Un lien ou un onglet ouvert avant le renommage doit continuer d'ouvrir.
     'account/infos': 'pages/parametres.php',
@@ -37,6 +39,7 @@ const routes = {
     'admin/stockage':    'pages/admin_stockage.php',
     'admin/comptes':     'pages/admin_comptes.php',
     'admin/maintenance': 'pages/admin_maintenance.php',
+    'admin/annonces':    'pages/admin_annonces.php',
     'admin/journal':     'pages/admin_journal.php',
     'admin/console':     'pages/admin_console.php',
     'admin/sql':         'pages/admin_sql.php',

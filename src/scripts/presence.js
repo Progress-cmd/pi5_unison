@@ -38,6 +38,14 @@
     let cache = false;             // l'onglet est-il en arrière-plan ?
     let enDeconnexion = false;     // une déconnexion est-elle en cours ?
 
+    /*
+     * Dernier message déjà signalé. Sans cette mémoire, chaque battement
+     * re-signalerait les mêmes non-lus : une notification toutes les quinze
+     * secondes pour un message qu'on a déjà vu passer.
+     */
+    let dernierSignale = 0;
+    let annonceAffichee = false;
+
     /** Un son sort-il vraiment de cette page, maintenant ? */
     function joue() {
         const audio = window.unisonAudio;
@@ -115,6 +123,8 @@
                 .find(a => String(a.user_id) === cercle.dataset.userId);
 
             afficher(partenaire || null);
+            traiterMessages(data.messages);
+            traiterAnnonce(data.annonce);
         } catch (e) {
             /*
              * Réseau coupé ou serveur muet : on laisse l'affichage tel quel.
@@ -123,6 +133,135 @@
              * information alors que ce n'en est pas une.
              */
         }
+    }
+
+    /* ---------- Messages ---------- */
+
+    function traiterMessages(infos) {
+        if (!infos) return;
+
+        window.majPastilleMessages && window.majPastilleMessages(infos.non_lus);
+
+        const dernier = infos.dernier;
+        if (!dernier || dernier.id <= dernierSignale) return;
+
+        /*
+         * Au premier battement de la page, on ne signale rien : les messages
+         * en attente depuis hier ne sont pas des arrivées, et les annoncer à
+         * chaque ouverture serait exactement le harcèlement qu'on évite. La
+         * pastille, elle, les montre.
+         */
+        const premierTour = dernierSignale === 0;
+        dernierSignale = dernier.id;
+        if (premierTour) return;
+
+        /*
+         * Déjà dans la conversation : elle affiche le message elle-même, et
+         * le marque lu dans la foulée. On teste la présence du fil plutôt que
+         * la route courante — le routeur ne l'expose pas, et l'élément dit la
+         * même chose sans qu'on ait à le modifier.
+         */
+        if (document.getElementById('chat-fil')
+            && document.visibilityState === 'visible') return;
+
+        signaler(dernier.auteur, dernier.apercu);
+    }
+
+    /**
+     * Toast ou notification système, selon le réglage du compte.
+     *
+     * La notification système exige un contexte sécurisé et une autorisation :
+     * en HTTP sur une IP locale, `Notification` n'existe même pas. On retombe
+     * alors sur le toast plutôt que de ne rien montrer.
+     */
+    function signaler(auteur, apercu) {
+        const texte = auteur + ' : ' + apercu;
+
+        if (window.UNISON_NOTIF === 'systeme'
+            && typeof Notification !== 'undefined'
+            && Notification.permission === 'granted') {
+            try {
+                new Notification('Unison', { body: texte, tag: 'unison-message' });
+                return;
+            } catch (e) {
+                // Certains navigateurs mobiles refusent le constructeur hors
+                // service worker : le toast reste.
+            }
+        }
+
+        window.showToast && window.showToast(texte, 'success', 6000);
+    }
+
+    /* ---------- Annonces ---------- */
+
+    function traiterAnnonce(annonce) {
+        if (!annonce || annonceAffichee) return;
+        annonceAffichee = true;
+        afficherAnnonce(annonce);
+    }
+
+    /*
+     * Popup d'annonce, construite par le DOM : le texte vient de l'interface
+     * d'administration, il n'a rien à faire dans un innerHTML.
+     */
+    function afficherAnnonce(annonce) {
+        const fond = document.createElement('div');
+        fond.className = 'annonce-fond';
+
+        const boite = document.createElement('div');
+        boite.className = 'annonce-boite';
+        boite.setAttribute('role', 'dialog');
+        boite.setAttribute('aria-modal', 'true');
+
+        const tete = document.createElement('div');
+        tete.className = 'annonce-tete';
+
+        const icone = document.createElement('span');
+        icone.className = 'material-symbols-outlined';
+        icone.textContent = annonce.type === 'fonctionnalite' ? 'auto_awesome' : 'campaign';
+
+        const titre = document.createElement('h2');
+        titre.textContent = annonce.titre;
+        tete.append(icone, titre);
+
+        const corps = document.createElement('div');
+        corps.className = 'annonce-corps';
+        // Les retours à la ligne saisis par l'administration sont conservés
+        // (white-space: pre-line en CSS) : pas besoin de les convertir en HTML.
+        corps.textContent = annonce.contenu;
+
+        const bouton = document.createElement('button');
+        bouton.type = 'button';
+        bouton.className = 'buttons infos-valider';
+        bouton.textContent = "J'ai compris";
+
+        boite.append(tete, corps, bouton);
+        fond.appendChild(boite);
+        document.body.appendChild(fond);
+
+        async function fermer() {
+            fond.remove();
+            try {
+                await fetch('actions/annonce_vue.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ annonce_id: String(annonce.id) }),
+                });
+            } catch (e) {
+                /*
+                 * Non marquée : elle reviendra au prochain chargement. C'est
+                 * le bon sens du raté — mieux vaut la revoir une fois de trop
+                 * que rater une annonce.
+                 */
+                annonceAffichee = false;
+            }
+        }
+
+        bouton.addEventListener('click', fermer);
+        bouton.focus();
+
+        // Échap ferme aussi : une popup sans sortie au clavier est une prison.
+        fond.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermer(); });
     }
 
     function demarrer(intervalle) {

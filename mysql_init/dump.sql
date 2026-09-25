@@ -271,6 +271,49 @@ CREATE TABLE `track__playlist` (
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `annonces`
+--
+
+CREATE TABLE `annonces` (
+  `id` int(11) NOT NULL,
+  `titre` varchar(120) NOT NULL,
+  `contenu` text NOT NULL,
+  `type` varchar(20) NOT NULL DEFAULT 'message',
+  `cree_a` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actif` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `annonces_vues`
+--
+
+CREATE TABLE `annonces_vues` (
+  `annonce_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `vu_a` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `messages`
+--
+
+CREATE TABLE `messages` (
+  `id` int(11) NOT NULL,
+  `expediteur_id` int(11) NOT NULL,
+  `destinataire_id` int(11) NOT NULL,
+  `contenu` varchar(2000) DEFAULT NULL,
+  `track_id` int(11) DEFAULT NULL,
+  `cree_a` timestamp NOT NULL DEFAULT current_timestamp(),
+  `lu_a` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `users`
 --
 
@@ -284,6 +327,7 @@ CREATE TABLE `users` (
   `presence_visible` tinyint(1) NOT NULL DEFAULT 1,
   `presence_partage_titre` tinyint(1) NOT NULL DEFAULT 1,
   `theme` varchar(10) NOT NULL DEFAULT 'systeme',
+  `notif_mode` varchar(10) NOT NULL DEFAULT 'toast',
   `reset_token` varchar(250) DEFAULT NULL,
   `reset_token_expires` datetime DEFAULT NULL,
   `jeton_session` varchar(64) DEFAULT NULL,
@@ -336,6 +380,7 @@ ALTER TABLE `genres`
 ALTER TABLE `historical`
   ADD PRIMARY KEY (`listened-by_id`,`track_id`,`listened-at`),
   ADD KEY `historical_playlists_id_fk` (`playlist_id`),
+  ADD KEY `historical_chrono` (`listened-by_id`,`listened-at`),
   ADD KEY `track_id` (`track_id`);
 
 --
@@ -350,6 +395,7 @@ ALTER TABLE `nb_listen`
 --
 ALTER TABLE `notes`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `notes_chrono` (`created-at`),
   ADD KEY `notes_users_id_fk` (`created-by_id`);
 
 --
@@ -371,6 +417,7 @@ ALTER TABLE `note__track`
 --
 ALTER TABLE `playlists`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `playlists_chrono` (`created-at`),
   ADD KEY `playlists_users_id_fk` (`created-by_id`);
 
 --
@@ -399,6 +446,7 @@ ALTER TABLE `tag__track`
 --
 ALTER TABLE `tracks`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `tracks_chrono` (`created-at`),
   ADD KEY `tracks_title_index` (`title`) USING BTREE,
   ADD UNIQUE KEY `file` (`file`),
   ADD UNIQUE KEY `url` (`url`),
@@ -429,6 +477,30 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `users_pk_2` (`email`);
 
 --
+-- Index pour la table `annonces`
+--
+ALTER TABLE `annonces`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `annonces_actives` (`actif`,`cree_a`);
+
+--
+-- Index pour la table `annonces_vues`
+--
+ALTER TABLE `annonces_vues`
+  ADD PRIMARY KEY (`annonce_id`,`user_id`),
+  ADD KEY `annonces_vues_user` (`user_id`);
+
+--
+-- Index pour la table `messages`
+--
+ALTER TABLE `messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `messages_non_lus` (`destinataire_id`,`lu_a`),
+  ADD KEY `messages_fil` (`cree_a`),
+  ADD KEY `messages_track` (`track_id`),
+  ADD KEY `messages_expediteur` (`expediteur_id`);
+
+--
 -- Index pour la table `presence`
 --
 ALTER TABLE `presence`
@@ -440,6 +512,7 @@ ALTER TABLE `presence`
 --
 ALTER TABLE `artist__favorite`
   ADD PRIMARY KEY (`user_id`,`artist_id`),
+  ADD KEY `artist_favorite_chrono` (`created-at`),
   ADD KEY `artist__favorite_artists_id_fk` (`artist_id`);
 
 --
@@ -447,6 +520,7 @@ ALTER TABLE `artist__favorite`
 --
 ALTER TABLE `albums`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `albums_chrono` (`created-at`),
   ADD UNIQUE KEY `albums_source_url` (`source_url`),
   ADD KEY `albums_title_index` (`title`),
   ADD KEY `albums_artists_id_fk` (`artist_id`),
@@ -493,6 +567,18 @@ ALTER TABLE `tracks`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT pour la table `annonces`
+--
+ALTER TABLE `annonces`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT pour la table `messages`
+--
+ALTER TABLE `messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT pour la table `users`
 --
 ALTER TABLE `users`
@@ -507,6 +593,21 @@ ALTER TABLE `albums`
 --
 -- Contraintes pour les tables déchargées
 --
+
+--
+-- Contraintes pour la table `annonces_vues`
+--
+ALTER TABLE `annonces_vues`
+  ADD CONSTRAINT `annonces_vues_annonce_fk` FOREIGN KEY (`annonce_id`) REFERENCES `annonces` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `annonces_vues_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Contraintes pour la table `messages`
+--
+ALTER TABLE `messages`
+  ADD CONSTRAINT `messages_expediteur_fk` FOREIGN KEY (`expediteur_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `messages_destinataire_fk` FOREIGN KEY (`destinataire_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `messages_track_fk` FOREIGN KEY (`track_id`) REFERENCES `tracks` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Contraintes pour la table `presence`

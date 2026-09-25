@@ -17,7 +17,18 @@
  * les deux cas — ne pas les déplacer vers le corps de la requête.
  *
  * Entrée GET : track_id, en_ecoute, observer
- * Sortie JSON : { success, autres: [{ user_id, username, en_ligne, en_ecoute, titre, artiste }] }
+ * Transporte aussi les non-lus du chat et l'annonce en attente.
+ *
+ * Trois sondages de quinze secondes là où un seul suffit : sur un Raspberry Pi
+ * partagé par deux personnes, c'est la différence entre un aller-retour et
+ * trois. Le nom du fichier ment un peu ; le trafic, lui, ne ment pas.
+ *
+ * Sortie JSON : {
+ *   success,
+ *   autres:   [{ user_id, username, en_ligne, en_ecoute, titre, artiste }],
+ *   messages: { non_lus, dernier: { id, auteur, apercu } | null },
+ *   annonce:  { id, titre, contenu, type } | null
+ * }
  */
 include_once "../includes/auth.php";
 exigerConnexion(true);
@@ -48,7 +59,12 @@ $moi = (int) $_SESSION['user']['id'];
  * vit de toute façon dans l'autre base.
  */
 if (estDemo()) {
-    echo json_encode(['success' => true, 'autres' => []]);
+    echo json_encode([
+        'success'  => true,
+        'autres'   => [],
+        'messages' => ['non_lus' => 0, 'dernier' => null],
+        'annonce'  => null,
+    ]);
     exit;
 }
 
@@ -142,7 +158,66 @@ try {
         ];
     }
 
-    echo json_encode(['success' => true, 'autres' => $autres]);
+    /*
+     * Non-lus du chat. Le dernier message sert à l'aperçu du toast : on n'en
+     * renvoie qu'un extrait, la conversation complète se lit dans le chat.
+     */
+    $messages = ['non_lus' => 0, 'dernier' => null];
+
+    $req = $pdo->prepare("
+        SELECT m.id, m.contenu, m.track_id, users.username, tracks.title AS titre
+          FROM messages m
+          JOIN users ON users.id = m.expediteur_id
+          LEFT JOIN tracks ON tracks.id = m.track_id
+         WHERE m.destinataire_id = :moi AND m.lu_a IS NULL
+         ORDER BY m.id DESC
+    ");
+    $req->execute([':moi' => $moi]);
+    $nonLus = $req->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($nonLus) {
+        $d = $nonLus[0];
+
+        // Un message peut n'être qu'un titre partagé : l'aperçu le dit alors,
+        // plutôt que de rester vide.
+        $apercu = trim((string) $d['contenu']);
+        if ($apercu === '') {
+            $apercu = $d['titre'] !== null ? '♪ ' . $d['titre'] : '♪ un titre';
+        } elseif (mb_strlen($apercu) > 80) {
+            $apercu = mb_substr($apercu, 0, 79) . '…';
+        }
+
+        $messages = [
+            'non_lus' => count($nonLus),
+            'dernier' => [
+                'id'     => (int) $d['id'],
+                'auteur' => $d['username'],
+                'apercu' => $apercu,
+            ],
+        ];
+    }
+
+    /*
+     * Annonce en attente : la plus ancienne non vue, une seule à la fois. En
+     * empiler deux dans la même popup revient à n'en faire lire aucune.
+     */
+    $req = $pdo->prepare("
+        SELECT a.id, a.titre, a.contenu, a.type
+          FROM annonces a
+          LEFT JOIN annonces_vues v ON v.annonce_id = a.id AND v.user_id = :moi
+         WHERE a.actif = 1 AND v.annonce_id IS NULL
+         ORDER BY a.id ASC
+         LIMIT 1
+    ");
+    $req->execute([':moi' => $moi]);
+    $annonce = $req->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    echo json_encode([
+        'success'  => true,
+        'autres'   => $autres,
+        'messages' => $messages,
+        'annonce'  => $annonce,
+    ]);
 } catch (Throwable $e) {
     echecJson('presence', $e, 'Présence indisponible');
 }

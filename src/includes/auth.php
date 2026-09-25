@@ -332,6 +332,35 @@ function idPartenaire(): ?int
 }
 
 /**
+ * Nom affiché d'un membre du foyer.
+ *
+ * Mis en cache par requête, comme l'initiale : les deux sont demandés au même
+ * endroit et il n'y a aucune raison d'interroger la base deux fois.
+ */
+function nomMembre(int $id): string
+{
+    static $cache = [];
+
+    if (isset($cache[$id])) {
+        return $cache[$id];
+    }
+
+    if ((int) ($_SESSION['user']['id'] ?? 0) === $id) {
+        return $cache[$id] = (string) ($_SESSION['user']['username'] ?? '');
+    }
+
+    try {
+        require_once __DIR__ . '/config.php';
+        $req = Config::getConnection()->prepare("SELECT username FROM users WHERE id = :id");
+        $req->execute([':id' => $id]);
+        return $cache[$id] = (string) $req->fetchColumn();
+    } catch (Throwable $e) {
+        // Un nom manquant ne doit pas empêcher la page de s'afficher.
+        return $cache[$id] = '';
+    }
+}
+
+/**
  * Initiale d'un membre du foyer, pour le cercle de l'en-tête.
  *
  * Rendue côté serveur : elle doit être là au premier affichage, avant même

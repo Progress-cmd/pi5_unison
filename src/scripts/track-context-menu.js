@@ -26,6 +26,25 @@
             </div>
         `;
 
+        /*
+         * « Envoyer à … » n'apparaît que s'il y a quelqu'un à qui envoyer :
+         * un compte hors foyer n'a pas de destinataire. Construit par le DOM
+         * et non par innerHTML — le nom vient de la base.
+         */
+        const partenaire = window.UNISON_PARTENAIRE;
+        if (partenaire && partenaire.nom) {
+            const envoyer = document.createElement('div');
+            envoyer.className = 'context-menu-item';
+            envoyer.dataset.action = 'envoyer-message';
+
+            const icone = document.createElement('span');
+            icone.className = 'material-symbols-outlined';
+            icone.textContent = 'send';
+
+            envoyer.append(icone, document.createTextNode('Envoyer à ' + partenaire.nom));
+            contextMenu.appendChild(envoyer);
+        }
+
         contextMenu.addEventListener('click', handleMenuClick);
         document.body.appendChild(contextMenu);
 
@@ -123,6 +142,32 @@
             case 'add-to-favorites':
                 await toggleFavorite(currentTrackId);
                 break;
+            case 'envoyer-message':
+                await envoyerTitre(currentTrackId);
+                break;
+        }
+    }
+
+    /*
+     * Partage direct depuis le menu du titre : le message part sans texte,
+     * c'est le geste « tiens, écoute ça ». On peut toujours commenter ensuite
+     * dans le chat.
+     */
+    async function envoyerTitre(trackId) {
+        try {
+            const res = await fetch('actions/messages_envoyer.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ track_id: String(trackId) }),
+            });
+            const data = await res.json();
+
+            window.showToast(
+                data.success ? 'Envoyé à ' + window.UNISON_PARTENAIRE.nom : (data.message || 'Envoi impossible'),
+                data.success ? 'success' : 'error'
+            );
+        } catch (e) {
+            window.showToast('Erreur réseau', 'error');
         }
     }
 

@@ -693,8 +693,9 @@ footer > #navbar {
 }
 
 
-/* Six entrées au lieu de cinq depuis l'ajout de la déconnexion : sur les
-   écrans les plus étroits, les libellés se touchaient. */
+/* Six entrées dans la barre : sur les écrans étroits, « Bibliothèque » et
+   « Importation » remplissent leur cellule au pixel près et les libellés
+   finissent par se toucher. */
 @media (max-width: 400px) {
     footer > #navbar a {
         font-size: 10px;
@@ -702,6 +703,28 @@ footer > #navbar {
 
     footer > #navbar a > div {
         font-size: 26px;
+    }
+}
+
+/*
+ * En dessous de 360 px, plus aucune taille de texte ne tient : « Bibliothèque »
+ * mesure encore 52 px pour une cellule de 53. Les libellés cèdent la place aux
+ * icônes seules, agrandies pour rester confortables au pouce. Les entrées
+ * gardent leur intitulé accessible par `aria-label`, posé côté serveur.
+ */
+@media (max-width: 359px) {
+    footer > #navbar a {
+        font-size: 0;
+        gap: 0;
+    }
+
+    footer > #navbar a > div {
+        font-size: 28px;
+    }
+
+    /* La pastille de messages porte un chiffre : elle doit rester lisible. */
+    #nav-messages-pastille {
+        font-size: 10.5px;
     }
 }
 
@@ -1323,6 +1346,12 @@ footer > #navbar {
     gap: 8px;
 }
 
+/* Ce qui suit un groupe de boutons respire : sans cela l'e-mail se collait
+   au bouton « Enregistrer », au point de paraître en faire partie. */
+.infos-actions + .content {
+    margin-top: 14px;
+}
+
 .infos-valider {
     background-color: var(--accent-plein);
     color: var(--white);
@@ -1352,6 +1381,561 @@ footer > #navbar {
 
 .historique-jour:first-child {
     padding-top: 4px;
+}
+
+
+/* ===== BARRE : PASTILLE ET PROFIL DÉPLIANT ===== */
+
+#nav-messages {
+    position: relative;
+}
+
+/*
+ * Pastille de non-lus. Positionnée sur l'entrée et non sur l'icône : l'icône
+ * est un <div> centré dont la largeur suit le glyphe, la pastille sauterait
+ * d'un ou deux pixels selon le chiffre affiché.
+ */
+#nav-messages-pastille {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    margin-left: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background-color: var(--accent-plein);
+    color: var(--white);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#nav-messages-pastille[hidden] {
+    display: none;
+}
+
+/*
+ * Profil et déconnexion partagent une case de la barre : la déconnexion sort
+ * au-dessus à l'appui long. `position: relative` sur le conteneur, absolu sur
+ * le lien — sans quoi la barre s'agrandirait en révélant l'entrée.
+ */
+.nav-repli {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /*
+     * Pas d'`align-items` : le lien doit remplir la case, comme les autres
+     * entrées. Centré, il se décalait vers la droite dans la barre latérale
+     * du bureau, qui aligne tout à gauche — le conteneur imposait sa propre
+     * mise en page à la place de celle de la barre.
+     */
+}
+
+/* L'entrée cachée, révélée au-dessus de la principale par l'appui long. */
+.nav-replie {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background-color: var(--surface);
+    border: 1px solid var(--dark-beige);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    white-space: nowrap;
+}
+
+/*
+ * Le profil est la dernière entrée de la barre : une bulle centrée sur lui
+ * sortait de l'écran. Les autres restent centrées sur leur icône.
+ */
+.nav-profil > .nav-replie {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+/*
+ * Sélecteur volontairement lourd : la barre déclare `#navbar a { display:
+ * flex }`, dont l'identifiant l'emporte sur une simple classe. Sans le
+ * `#navbar` ici, l'entrée cachée resterait affichée malgré son attribut
+ * `hidden` — c'est exactement ce qui est arrivé en passant de
+ * `#nav-deconnexion[hidden]` à une classe partagée.
+ */
+footer > #navbar .nav-replie[hidden] {
+    display: none;
+}
+
+/* L'entrée principale se signale pendant que sa cachée est ouverte. */
+.nav-repli.est-ouvert > .nav-principale {
+    color: var(--text-orange);
+}
+
+
+/* ===== FIL D'ACTIVITÉ ===== */
+
+.activite-ligne {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.activite-ligne:last-child {
+    border-bottom: none;
+}
+
+.activite-ligne.est-cliquable {
+    cursor: pointer;
+}
+
+.activite-icone {
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 20px;
+    color: var(--text-orange);
+}
+
+/* `min-width: 0` sans quoi une phrase longue refuse de se replier et pousse
+   la ligne hors du cadre — le défaut `auto` d'un élément flex. */
+.activite-texte {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.activite-cible {
+    color: var(--text-orange);
+    overflow-wrap: anywhere;
+}
+
+.activite-heure {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: var(--text-gray);
+}
+
+
+/* ===== CHAT ===== */
+
+#chat {
+    display: flex;
+    flex-direction: column;
+    /*
+     * Le fil occupe la hauteur disponible et défile seul : sans hauteur
+     * bornée, c'est la page entière qui défile et la zone de saisie part vers
+     * le bas, hors d'atteinte.
+     */
+    /*
+     * 150 px de chrome en bas, ~170 px d'en-tête et de gouttières au-dessus.
+     * Le but est que la zone de saisie reste visible sans défiler : c'est une
+     * conversation, on écrit sans avoir à chercher le champ.
+     */
+    max-height: calc(100dvh - 320px);
+}
+
+#chat-fil {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chat-jour {
+    align-self: center;
+    padding: 10px 0 8px;
+}
+
+.chat-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 78%;
+    margin-bottom: 6px;
+}
+
+.chat-msg--moi {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.chat-msg--lui {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.chat-bulle {
+    padding: 8px 12px;
+    border-radius: 14px;
+    background-color: var(--light-beige);
+    border: 1px solid var(--dark-beige);
+}
+
+/*
+ * Mes messages prennent l'aplat d'accent, ceux de l'autre restent sur le fond
+ * clair : c'est le repère le plus rapide pour savoir qui parle, plus rapide
+ * que l'alignement seul.
+ */
+.chat-msg--moi .chat-bulle {
+    background-color: var(--accent-plein);
+    border-color: var(--accent-plein);
+    color: var(--white);
+}
+
+.chat-texte {
+    font-size: 14px;
+    line-height: 1.45;
+    /* Les retours à la ligne saisis sont conservés, et un lien collé sans
+       espace ne déborde pas de la bulle. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-heure {
+    margin: 2px 4px 0;
+    font-size: 11px;
+    color: var(--text-gray);
+}
+
+/* --- Titre joint --- */
+
+.chat-piece-jointe {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--surface);
+    font-family: var(--sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-msg--moi .chat-piece-jointe {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.chat-piece-jointe img {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.chat-piece-jointe > div {
+    min-width: 0;
+}
+
+.chat-pj-titre {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-pj-artiste {
+    font-size: 11.5px;
+    color: var(--text-gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dans ma propre bulle, le texte de la pièce jointe passe sur fond accent. */
+.chat-msg--moi .chat-pj-titre,
+.chat-msg--moi .chat-pj-artiste,
+.chat-msg--moi .chat-piece-jointe .material-symbols-outlined {
+    color: var(--white);
+}
+
+.chat-piece-jointe .material-symbols-outlined {
+    margin-left: auto;
+    color: var(--text-orange);
+}
+
+.chat-piece-jointe:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* --- Zone de saisie --- */
+
+#chat-saisie {
+    flex-shrink: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--dark-beige);
+}
+
+#chat-barre {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+#chat-texte {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    padding: 9px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 18px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text-dark);
+}
+
+#chat-texte:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+#chat-joindre,
+#chat-envoyer {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background-color: transparent;
+    color: var(--text-orange);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+#chat-envoyer {
+    background-color: var(--accent-plein);
+    color: var(--white);
+}
+
+#chat-joindre:disabled,
+#chat-envoyer:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* `hidden` ne suffit pas face au `display: flex` ci-dessous : règle d'auteur
+   contre feuille du navigateur, l'auteur gagne. Même piège que la présence. */
+#chat-piece[hidden],
+#chat-barre [hidden] {
+    display: none;
+}
+
+#chat-piece {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+}
+
+#chat-piece img {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+#chat-piece-infos {
+    min-width: 0;
+}
+
+#chat-piece-titre {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#chat-piece-artiste {
+    font-size: 11.5px;
+    color: var(--text-gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#chat-piece-retirer {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--text-gray);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#chat-recherche {
+    margin-top: 8px;
+}
+
+#chat-recherche[hidden] {
+    display: none;
+}
+
+#chat-recherche-champ {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--text-dark);
+}
+
+#chat-recherche-resultats {
+    max-height: 190px;
+    overflow-y: auto;
+}
+
+.chat-resultat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px;
+    border: none;
+    border-bottom: 1px solid var(--dark-beige);
+    background: none;
+    font-family: var(--sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-resultat img {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+
+.chat-resultat > div {
+    min-width: 0;
+}
+
+
+/* --- Liste des annonces (administration) --- */
+
+.annonce-ligne {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--dark-beige);
+}
+
+.annonce-ligne:last-child {
+    border-bottom: none;
+}
+
+.annonce-ligne-texte {
+    flex: 1;
+    min-width: 0;
+}
+
+.annonce-ligne-titre {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+}
+
+.annonce-ligne-titre .material-symbols-outlined {
+    font-size: 19px;
+    color: var(--text-orange);
+}
+
+.annonce-retiree {
+    padding: 1px 7px;
+    border-radius: 8px;
+    background-color: var(--dark-beige);
+    color: var(--text-gray);
+    font-size: 11px;
+}
+
+.annonce-ligne-note {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.annonce-ligne-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+
+/* ===== POPUP D'ANNONCE ===== */
+
+.annonce-fond {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.annonce-boite {
+    width: 100%;
+    max-width: 420px;
+    padding: 22px;
+    border-radius: 16px;
+    background-color: var(--surface);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+}
+
+.annonce-tete {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.annonce-tete .material-symbols-outlined {
+    color: var(--text-orange);
+    font-size: 26px;
+}
+
+.annonce-tete h2 {
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.annonce-corps {
+    margin-bottom: 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text-dark);
+    /* Les retours à la ligne saisis dans l'administration sont conservés :
+       le texte est posé en textContent, jamais en HTML. */
+    white-space: pre-line;
+}
+
+.annonce-boite .buttons {
+    width: 100%;
 }
 
 
@@ -2454,6 +3038,17 @@ footer > #navbar {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+
+    /*
+     * Réserve la place du chrome fixe du bas : barre de navigation (75 px) et
+     * mini-lecteur (60 px, posé 10 px au-dessus d'elle). Sans elle, la fin de
+     * chaque page glissait sous le lecteur — la dernière ligne d'une liste
+     * restait illisible, et la zone de saisie du chat devenait inatteignable.
+     *
+     * Annulée sur bureau, où le lecteur flotte à droite et la navigation est
+     * une colonne : il n'y a plus rien à éviter en bas.
+     */
+    padding-bottom: 150px;
 }
 
 #account-version {
@@ -2580,6 +3175,10 @@ footer > #navbar {
     }
 
     /* --- Navbar : barre latérale gauche --- */
+    #main-content {
+        padding-bottom: 20px;
+    }
+
     footer > #navbar {
         display: flex;
         flex-direction: column;

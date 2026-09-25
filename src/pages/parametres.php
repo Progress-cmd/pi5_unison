@@ -18,7 +18,7 @@ include_once "../includes/viewMode.php";
 $pdo = Config::getConnection();
 
 $req = $pdo->prepare(
-    "SELECT username, email, presence_visible, presence_partage_titre, theme
+    "SELECT username, email, presence_visible, presence_partage_titre, theme, notif_mode
        FROM users WHERE id = :user_id"
 );
 $req->execute([':user_id' => (int) $_SESSION['user']['id']]);
@@ -30,6 +30,7 @@ $perso   = isPersonalView();
 $visible = (int) ($compte['presence_visible'] ?? 1) === 1;
 $partage = (int) ($compte['presence_partage_titre'] ?? 1) === 1;
 $theme   = $compte['theme'] ?? 'systeme';
+$notif   = $compte['notif_mode'] ?? 'toast';
 $demo    = estDemo();
 
 /** Un interrupteur : libellé, explication, état. */
@@ -128,6 +129,25 @@ function reglage(string $id, string $titre, string $note, bool $actif, bool $des
     </div>
 </article>
 
+<article class="containers" id="param-notifs">
+    <div class="head-bar">Notifications</div>
+    <div class="body-bar">
+        <div class="reglage">
+            <div class="reglage-texte">
+                <span class="reglage-titre">À l'arrivée d'un message</span>
+                <span class="reglage-note">
+                    Le compteur sur l'icône Messages s'affiche dans tous les cas.
+                </span>
+            </div>
+            <select id="choix-notif" class="param-select">
+                <option value="toast"   <?= $notif === 'toast'   ? 'selected' : '' ?>>Bandeau dans l'app</option>
+                <option value="systeme" <?= $notif === 'systeme' ? 'selected' : '' ?>>Notification système</option>
+            </select>
+        </div>
+        <p class="infos-note" id="param-notif-note" hidden></p>
+    </div>
+</article>
+
 <article class="containers" id="param-presence">
     <div class="head-bar">Présence</div>
     <div class="body-bar">
@@ -175,6 +195,22 @@ function reglage(string $id, string $titre, string $note, bool $actif, bool $des
             <button type="button" class="buttons" id="fermer-sessions">
                 Déconnecter les autres appareils
             </button>
+        </div>
+
+        <?php
+        /*
+         * La déconnexion vit aussi sous le profil de la barre, par appui long.
+         * Elle est répétée ici parce qu'un geste caché ne doit jamais être le
+         * seul chemin vers une fonction — surtout celle-là.
+         */
+        ?>
+        <p class="infos-note">
+            Également accessible par un appui long sur l'icône Compte, en bas
+            de l'écran.
+        </p>
+        <div class="infos-actions">
+            <a href="actions/logout.php" class="buttons" id="param-deconnexion"
+               onclick="return confirm('Se déconnecter ?')">Se déconnecter</a>
         </div>
     </div>
 </article>
@@ -235,6 +271,51 @@ function reglage(string $id, string $titre, string $note, bool $actif, bool $des
             // serveur donnerait l'impression que le réglage n'a rien fait.
             window.appliquerTheme && window.appliquerTheme(choixTheme.value);
             await enregistrer('theme', choixTheme.value);
+        });
+
+        /* ---------- Notifications ---------- */
+
+        const choixNotif = document.getElementById('choix-notif');
+        const noteNotif = document.getElementById('param-notif-note');
+
+        function direEtatNotif(mode) {
+            if (mode !== 'systeme') { noteNotif.hidden = true; return; }
+
+            noteNotif.hidden = false;
+
+            /*
+             * La notification système exige un contexte sécurisé. En HTTP sur
+             * une IP locale, l'objet Notification n'existe même pas : autant
+             * le dire ici plutôt que de laisser croire au réglage.
+             */
+            if (typeof Notification === 'undefined') {
+                noteNotif.textContent = "Votre navigateur ne les autorise pas sur cette adresse "
+                    + "(elles demandent une connexion sécurisée, HTTPS). "
+                    + "Le bandeau dans l'app sera utilisé à la place.";
+            } else if (Notification.permission === 'granted') {
+                noteNotif.textContent = 'Autorisées par votre navigateur.';
+            } else if (Notification.permission === 'denied') {
+                noteNotif.textContent = "Refusées par votre navigateur : à réautoriser "
+                    + "dans ses réglages de site. Le bandeau sera utilisé à la place.";
+            } else {
+                noteNotif.textContent = 'Votre navigateur va vous demander la permission.';
+            }
+        }
+
+        direEtatNotif(choixNotif.value);
+
+        choixNotif.addEventListener('change', async () => {
+            const mode = choixNotif.value;
+
+            // La permission se demande au moment du choix : la réclamer au
+            // chargement de l'app, sans contexte, se fait refuser d'office.
+            if (mode === 'systeme' && typeof Notification !== 'undefined'
+                && Notification.permission === 'default') {
+                try { await Notification.requestPermission(); } catch (e) { /* refus */ }
+            }
+
+            direEtatNotif(mode);
+            if (await enregistrer('notif_mode', mode)) window.UNISON_NOTIF = mode;
         });
 
         /* ---------- Réglages propres à l'appareil ---------- */

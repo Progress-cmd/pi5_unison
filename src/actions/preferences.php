@@ -26,6 +26,7 @@ $champs = [
     'presence_visible'       => fn ($v) => $v === '1' || $v === '0' ? (int) $v : null,
     'presence_partage_titre' => fn ($v) => $v === '1' || $v === '0' ? (int) $v : null,
     'theme'                  => fn ($v) => in_array($v, ['clair', 'sombre', 'systeme'], true) ? $v : null,
+    'notif_mode'             => fn ($v) => in_array($v, ['toast', 'systeme'], true) ? $v : null,
 ];
 
 $champ  = (string) filter_input(INPUT_POST, 'champ', FILTER_DEFAULT);
