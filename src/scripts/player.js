@@ -107,17 +107,24 @@
     let ondeNiveaux = new Array(ONDE_BARRES).fill(0);
     let ondeImage = null;     // identifiant de requestAnimationFrame
     let analyseur = null;
+    let contexteAudio = null;
     let analyseTentee = false;
+    let silences = 0;          // images consécutives sans le moindre signal
     let spectre = null;
     let bandes = null;        // bornes des intervalles logarithmiques
 
     /**
      * Branche l'analyseur sur l'élément audio, une seule fois.
      *
-     * Appelé au premier `play` et non au chargement : un AudioContext créé
-     * sans geste de l'utilisateur naît suspendu, et le navigateur refuse de le
-     * reprendre. En cas d'échec — API absente, contexte refusé — on repart sur
-     * une animation de secours plutôt que de laisser la barre inerte.
+     * Un AudioContext naît suspendu s'il n'est pas créé pendant un geste de
+     * l'utilisateur, et les navigateurs mobiles refusent de le reprendre en
+     * dehors d'un geste. D'où les deux points d'entrée : le premier `play`,
+     * et le premier contact avec la page (voir plus bas). Sur téléphone c'est
+     * le second qui sauve la mise — l'événement `play` arrive après un
+     * `await fetch()`, et le jeton de geste a souvent expiré entre-temps.
+     *
+     * En cas d'échec — API absente, contexte refusé — on repart sur une
+     * animation de secours plutôt que de laisser la barre inerte.
      */
     function brancherAnalyseur() {
         if (analyseTentee) return;
@@ -145,6 +152,7 @@
             ctx.resume().catch(() => {});
 
             analyseur = an;
+            contexteAudio = ctx;
             spectre = new Uint8Array(an.frequencyBinCount);
 
             /*
@@ -173,6 +181,21 @@
     function niveauxCibles() {
         if (analyseur && spectre && bandes) {
             analyseur.getByteFrequencyData(spectre);
+
+            /*
+             * Analyseur muet alors que le son joue : le contexte est resté
+             * suspendu, ou le navigateur refuse de router l'élément. On
+             * bascule alors sur la houle de secours plutôt que d'afficher une
+             * rangée de barres à plat — c'est ce qui se passait sur téléphone.
+             */
+            let total = 0;
+            for (let j = 0; j < spectre.length; j++) total += spectre[j];
+
+            if (total === 0) {
+                if (++silences > 20) analyseur = null;
+                return ondeNiveaux.slice();
+            }
+            silences = 0;
 
             return ondeNiveaux.map((_, i) => {
                 const debut = bandes[i];
@@ -325,6 +348,21 @@
         const lu = document.querySelector('#extend .player-onde--lu');
         if (lu) lu.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
     }
+
+    /*
+     * Premier contact avec la page : on crée le contexte pendant que le geste
+     * est encore valide, et on le reprend s'il s'était assoupi. Les
+     * navigateurs mobiles suspendent l'AudioContext dès que la page perd le
+     * premier plan, d'où la reprise à chaque geste et non seulement au
+     * premier.
+     */
+    ['pointerdown', 'touchstart', 'keydown'].forEach(evt =>
+        document.addEventListener(evt, () => {
+            brancherAnalyseur();
+            if (contexteAudio && contexteAudio.state === 'suspended') {
+                contexteAudio.resume().catch(() => {});
+            }
+        }, { capture: true, passive: true }));
 
     audio.addEventListener('play', demarrerOnde);
     ['pause', 'ended', 'emptied'].forEach(e => audio.addEventListener(e, arreterOnde));

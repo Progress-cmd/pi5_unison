@@ -422,7 +422,20 @@ function verifierCsrf(bool $json = true): void
 {
     demarrerSession();
 
-    $recu = $_POST['token'] ?? $_POST['csrf'] ?? '';
+    /*
+     * `csrf` d'abord, `token` en repli.
+     *
+     * Deux champs portent un jeton dans ce projet, et ils n'ont rien à voir :
+     * `csrf`, posé automatiquement par scripts/csrf.js, et `token`, un jeton à
+     * usage unique que la création de playlist et l'import fabriquent pour se
+     * prémunir du rejeu. Lire `token` en premier faisait comparer ce jeton-là
+     * au jeton CSRF de la session : la création de playlist était refusée à
+     * tous les coups.
+     *
+     * Le repli reste nécessaire : login.php, qui n'est pas une requête fetch,
+     * envoie son jeton CSRF dans un champ nommé `token`.
+     */
+    $recu = $_POST['csrf'] ?? $_POST['token'] ?? '';
 
     if (!empty($_SESSION['csrf']) && is_string($recu) && hash_equals($_SESSION['csrf'], $recu)) {
         return;
