@@ -184,11 +184,12 @@ $totalMoments = array_sum($moments);
 </article>
 
 <article class="containers" id="recent-listens">
-    <div class="head-bar">Écoutes récentes</div>
+    <div class="head-bar">Écoutes récentes<a href="?page=account/historique" class="more-bar" data-page="account/historique">Voir tout</a></div>
     <div class="body-bar">
         <?php
         $req = $pdo->prepare("
-                SELECT historical.`listened-at`, tracks.id, tracks.title, tracks.img,
+                SELECT UNIX_TIMESTAMP(historical.`listened-at`) AS ecoute_ts,
+                       tracks.id, tracks.title, tracks.img,
                        GROUP_CONCAT(DISTINCT artists.name SEPARATOR ', ') AS artists_names
                 FROM historical
                 JOIN tracks ON tracks.id = historical.track_id
@@ -207,7 +208,14 @@ $totalMoments = array_sum($moments);
         foreach ($ecoutes as $ecoute) {
             echo ligneTitre($ecoute, [
                 'sous_titre' => ($ecoute['artists_names'] ?? '')
-                              . ' - ' . date('d/m/Y H:i', strtotime($ecoute['listened-at'])),
+                              /*
+                               * Epoch et non chaîne : MariaDB tourne en UTC,
+                               * PHP en Europe/Paris. `strtotime()` lisait
+                               * « 21:57 » comme une heure de Paris alors que
+                               * c'était de l'UTC — deux heures de retard à
+                               * l'affichage.
+                               */
+                              . ' - ' . date('d/m/Y H:i', (int) $ecoute['ecoute_ts']),
             ]);
         }
         ?>

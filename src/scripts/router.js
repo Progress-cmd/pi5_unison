@@ -18,6 +18,7 @@ const routes = {
     'import':      'pages/import.php',
     'account':  'pages/account.php',
     'account/parametres': 'pages/parametres.php',
+    'account/historique': 'pages/historique.php',
     // Ancien nom de la page, conservé : « Infos » contenait déjà les réglages.
     // Un lien ou un onglet ouvert avant le renommage doit continuer d'ouvrir.
     'account/infos': 'pages/parametres.php',

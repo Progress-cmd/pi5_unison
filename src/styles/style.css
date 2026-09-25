@@ -1339,6 +1339,22 @@ footer > #navbar {
 }
 
 
+/*
+ * Séparateur de jour dans l'historique. Discret : c'est un repère qu'on
+ * balaie du regard en défilant, pas un titre de section.
+ */
+.historique-jour {
+    padding: 14px 0 6px;
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--text-gray);
+}
+
+.historique-jour:first-child {
+    padding-top: 4px;
+}
+
+
 /* ===== PAGE PARAMÈTRES ===== */
 
 /*
