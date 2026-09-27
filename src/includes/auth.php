@@ -124,9 +124,27 @@ function demarrerSession(): void
         return;
     }
 
-    // Avant session_start() : après, ces deux réglages n'ont plus d'effet.
+    /*
+     * Avant session_start() : après, ces réglages n'ont plus d'effet.
+     *
+     * SameSite passe de Strict à Lax, et ce n'est pas un relâchement gratuit.
+     * Avec Strict, le navigateur retient le cookie sur toute navigation de
+     * premier niveau venue d'ailleurs — et l'ouverture depuis un raccourci de
+     * l'écran d'accueil en fait partie. Le serveur ne voyait donc aucune
+     * session au lancement et renvoyait vers la connexion : c'est exactement
+     * le symptôme « je me fais déconnecter dès que je ferme l'application ».
+     *
+     * Lax laisse passer ce cas précis (navigation de premier niveau en GET) et
+     * continue de bloquer ce qui compte : l'envoi du cookie depuis un autre
+     * site, en POST ou en sous-ressource. Et le jeton anti-CSRF posé par
+     * scripts/csrf.js sur chaque écriture reste la garde principale — son
+     * propre commentaire dit que SameSite n'était qu'une seconde ligne.
+     */
     ini_set('session.gc_maxlifetime', (string) SESSION_DUREE);
-    session_set_cookie_params(['lifetime' => SESSION_DUREE]);
+    session_set_cookie_params([
+        'lifetime' => SESSION_DUREE,
+        'samesite' => 'Lax',
+    ]);
 
     session_start();
 

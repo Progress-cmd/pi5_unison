@@ -26,6 +26,16 @@ $preselection = isset($comptes[$dernier]) ? $dernier : array_key_first($comptes)
     <link rel="stylesheet" href="<?= assetVersionne('styles/login.css') ?>">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <title>Unison - Login</title>
+
+    <?php
+    /*
+     * Ces balises manquaient ici, et c'est la page qu'on a sous les yeux quand
+     * on installe sans session ouverte : le navigateur n'avait ni manifeste ni
+     * icône à reprendre.
+     */
+    include_once "includes/teteApp.php";
+    balisesApplication();
+    ?>
 </head>
 <body>
     <form id="login-card" method="post" action="actions/login.php">

@@ -67,26 +67,65 @@
          * est une adresse en http:// enverrait chercher au mauvais endroit.
          */
         bouton.hidden = true;
-        note.textContent = window.isSecureContext
-            ? "Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ». "
-              + "Sur Firefox : menu ⋮, puis « Installer »."
-            : "L'installation demande une adresse en https:// (ou localhost). "
-              + "Cette page est ouverte en http://, le navigateur ne la proposera pas.";
+
+        if (!window.isSecureContext) {
+            note.textContent = "L'installation demande une adresse en https:// (ou localhost). "
+                + "Cette page est ouverte en http://, le navigateur ne la proposera pas.";
+            return;
+        }
+
+        /*
+         * Firefox n'implémente pas beforeinstallprompt, et sur Android son
+         * « Ajouter à l'écran d'accueil » pose un raccourci, pas une
+         * application : pas de fenêtre propre, pas d'icône de lanceur. Le dire
+         * franchement vaut mieux que laisser chercher un bouton qui
+         * n'apparaîtra jamais.
+         */
+        if (/firefox|fxios/i.test(navigator.userAgent)) {
+            note.textContent = "Firefox ne sait pas installer d'application web : son "
+                + "« Ajouter à l'écran d'accueil » ne crée qu'un raccourci. "
+                + "Pour une vraie installation, ouvrez Unison dans Chrome.";
+            return;
+        }
+
+        if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+            note.textContent = "Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».";
+            return;
+        }
+
+        note.textContent = "Votre navigateur ne propose pas l'installation ici. "
+            + "Si Unison est déjà installée, ouvrez-la depuis votre bureau.";
     };
 
     document.addEventListener('click', async (e) => {
         if (!e.target.closest('#pwa-installer') || !invite) return;
 
         const demande = invite;
-        // Remis à zéro tout de suite : une invite ne se rejoue pas, et un
-        // second clic sur un objet consommé lève une exception.
-        invite = null;
 
-        demande.prompt();
-        const { outcome } = await demande.userChoice;
-        if (outcome !== 'accepted' && window.showToast) {
-            window.showToast('Installation annulée');
+        /*
+         * try/catch, parce que prompt() échoue de plusieurs façons et que sans
+         * lui l'échec était totalement muet : le bouton ne faisait
+         * « absolument rien », sans message ni trace. Mesuré : un appel hors
+         * geste utilisateur lève NotAllowedError, une invite déjà consommée
+         * lève InvalidStateError, et les deux partaient en rejet non géré.
+         */
+        try {
+            // Consommée seulement si l'appel aboutit : en cas d'échec on la
+            // garde, pour que le second clic ait encore une chance.
+            await demande.prompt();
+            invite = null;
+
+            const { outcome } = await demande.userChoice;
+            if (outcome !== 'accepted' && window.showToast) {
+                window.showToast('Installation annulée');
+            }
+        } catch (err) {
+            invite = null;
+            if (window.showToast) {
+                window.showToast("Installation impossible : " + err.message, 'error', 6000);
+            }
         }
+
         majBoutonInstallation();
     });
 
