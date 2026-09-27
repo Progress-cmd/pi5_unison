@@ -194,6 +194,20 @@ const YTDLP_OPTIONS_COMMUNES = [
     '--retries', '5',
     '--extractor-retries', '3',
     '--no-warnings',
+
+    /*
+     * Moteur JavaScript, sans lequel rien ne se télécharge.
+     *
+     * YouTube chiffre les URL de ses flux par un défi JavaScript. yt-dlp sait
+     * le résoudre, mais il lui faut un moteur — et il n'en active **aucun par
+     * défaut sauf deno**, absent de Debian. Sans cette option, l'extraction
+     * réussit, les métadonnées remontent, et il ne reste que les vignettes :
+     * « The page needs to be reloaded », « Only images are available ».
+     *
+     * quickjs est installé par le Dockerfile. Node est présent aussi, mais
+     * Debian le fige en v20 quand yt-dlp exige v22.
+     */
+    '--js-runtimes', 'quickjs',
 ];
 
 /**
@@ -316,6 +330,22 @@ function traduireErreurYtDlp(string $erreurs): string
         '/please sign in|use --cookies/i'
             => 'YouTube réserve cette vidéo aux comptes connectés — '
              . 'déposez des cookies sur le serveur (unison cookies)',
+
+        /*
+         * « The page needs to be reloaded » vient de YouTube, pas de yt-dlp :
+         * la chaîne n'existe nulle part dans son code. YouTube la renvoie
+         * quand les cookies reçus ne correspondent plus à une session vivante.
+         *
+         * Cause habituelle : les cookies ont été exportés depuis un navigateur
+         * resté connecté. YouTube fait tourner ses jetons, et l'export devient
+         * caduc dès que ce navigateur rafraîchit les siens. D'où le conseil
+         * d'exporter depuis une fenêtre privée que l'on referme ensuite sans
+         * se déconnecter : la session se fige au lieu d'être renouvelée.
+         */
+        '/page needs to be reloaded/i'
+            => 'Cookies périmés : YouTube ne reconnaît plus la session — '
+             . 'réexportez-les depuis une fenêtre de navigation privée, '
+             . 'puis fermez-la sans vous déconnecter',
 
         /*
          * Limitation de débit. À placer AVANT le motif réseau ci-dessous :

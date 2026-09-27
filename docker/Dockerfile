@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     git \
     sendmail \
     mailutils \
+    quickjs \
     && docker-php-ext-install pdo pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -18,6 +19,17 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Installation de yt-dlp
+#
+# quickjs (ci-dessus) est indispensable, pas décoratif : YouTube chiffre les URL
+# de ses flux par un défi JavaScript que yt-dlp doit résoudre. Sans moteur, il
+# n'obtient que les vignettes et annonce « The page needs to be reloaded ».
+#
+# quickjs plutôt que node : le paquet Debian de node est en v20, alors que
+# yt-dlp exige v22 au minimum — et quickjs pèse quelques centaines de kilo-octets
+# là où node en pèse cinquante mégas, ce qui compte sur un Raspberry Pi.
+#
+# Le moteur doit en plus être déclaré à l'exécution : yt-dlp n'active que deno
+# par défaut. Voir YTDLP_OPTIONS_COMMUNES dans src/includes/ytImport.php.
 RUN curl -fL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     -o /usr/local/bin/yt-dlp \
     && chmod +x /usr/local/bin/yt-dlp
