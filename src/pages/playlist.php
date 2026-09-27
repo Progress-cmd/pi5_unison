@@ -68,10 +68,23 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
 
 <article id="playlist-content" class="containers">
     <div class="head-bar">
-        <?= htmlspecialchars($playlist['name'] ?? '') ?>
-        <div style="display: flex; gap: 10px;">
-            <a href="#" class="more-bar" data-page="search" data-playlist-id="<?= $id ?>" data-playlist-name="<?= htmlspecialchars($playlist['name'] ?? '') ?>">+</a>
-            <button class="buttons material-symbols-outlined edit-playlist-inline" data-playlist-id="<?= $id ?>" style="background: none; border: none; cursor: pointer; color: inherit; font-size: inherit;">more_vert</button>
+        <?= nomPlaylist($playlist['name'] ?? '') ?>
+        <div class="playlist-entete-actions">
+            <?php /*
+             * « + » seul ne disait pas ce qu'il ajoutait, et faisait une cible
+             * d'une quinzaine de pixels. Le libellé et l'icône lèvent les deux
+             * problèmes d'un coup.
+             */ ?>
+            <a href="#" class="buttons playlist-ajouter" data-page="search"
+               data-playlist-id="<?= $id ?>" data-playlist-name="<?= nomPlaylist($playlist['name'] ?? '') ?>">
+                <span class="material-symbols-outlined">add</span> Ajouter des titres
+            </a>
+            <?php /* Rien à renommer ni à supprimer sur une playlist métier. */ ?>
+            <?php if (!playlistSysteme($playlist['name'] ?? '')): ?>
+                <button class="buttons material-symbols-outlined edit-playlist-inline"
+                        data-playlist-id="<?= $id ?>" aria-label="Options de la playlist"
+                        style="background: none; border: none; cursor: pointer; color: inherit; font-size: inherit;">more_vert</button>
+            <?php endif; ?>
         </div>
     </div>
     <div class="body-bar">

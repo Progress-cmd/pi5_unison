@@ -166,6 +166,22 @@ function bindDataPageLinks(container) {
     });
 }
 
+/*
+ * Rejoue la page affichée.
+ *
+ * Sert aux gestes qui modifient ce que la page montre — ranger un titre dans
+ * une playlist depuis la page de cette playlist, par exemple. On ne recharge
+ * pas le document : cela couperait la lecture en cours et fermerait la modale
+ * d'où vient le geste.
+ *
+ * La page « search » est exclue : la rejouer perdrait la requête tapée et le
+ * contexte d'ajout à une playlist.
+ */
+window.rafraichirPageCourante = function () {
+    if (!previousPage || previousPage === 'search') return;
+    navigateTo(previousPage);
+};
+
 // Charge la page sans reload
 async function navigateTo(page) {
     // Un compte d'administration ne quitte pas sa section.
@@ -238,6 +254,14 @@ async function navigateTo(page) {
     }
 
     mainContent.innerHTML = html;
+
+    /*
+     * La page courante, exposée sur le conteneur. Le routeur ne la disait à
+     * personne : la feuille de style ne pouvait pas adapter une mise en page
+     * à une page précise, et les scripts devaient deviner en cherchant un
+     * élément caractéristique.
+     */
+    mainContent.dataset.page = page;
 
     /*
      * Fondu d'entrée : le remplacement du contenu était sec, la navigation

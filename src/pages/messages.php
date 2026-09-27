@@ -29,11 +29,19 @@ if ($partenaire !== null) {
         <?php
         /*
          * Seul chemin vers le fil d'activité sur mobile, où la barre du bas
-         * n'a pas la place de le porter. Sur bureau il a son entrée dans la
-         * colonne, mais le lien ne gêne pas.
+         * n'a pas la place de le porter.
+         *
+         * Masqué sur bureau : la colonne de navigation y porte déjà l'entrée
+         * « Activité », et deux chemins vers la même page depuis le même
+         * écran laissent penser qu'ils ne mènent pas au même endroit.
+         *
+         * Le mot seul se lisait comme un titre de section posé à droite.
+         * L'icône et le verbe en font une destination.
          */
         ?>
-        <a href="?page=activite" class="more-bar" data-page="activite">Activité</a>
+        <a href="?page=activite" class="more-bar lien-activite" data-page="activite">
+            <span class="material-symbols-outlined">history</span> Voir l'activité
+        </a>
     </div>
 
     <?php if ($partenaire === null): ?>

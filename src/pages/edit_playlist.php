@@ -71,7 +71,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
             </div>
 
             <div class="form-group">
-                <label>Tags</label>
+                <label>Étiquettes</label>
                 <div class="tags-selector">
                     <?php foreach ($allTags as $tag): ?>
                         <label class="tag-checkbox">
@@ -81,7 +81,7 @@ $notes = $req->fetchAll(PDO::FETCH_ASSOC);
                         </label>
                     <?php endforeach; ?>
                 </div>
-                <input type="text" id="new-tag" placeholder="Ajouter un tag" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
+                <input type="text" id="new-tag" placeholder="Ajouter une étiquette" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
                 <button type="button" id="create-tag-btn" class="btn-primary" style="margin-top: 8px; width: 100%;">+ Créer le tag</button>
             </div>
 
