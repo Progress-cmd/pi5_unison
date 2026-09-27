@@ -16,10 +16,10 @@ $maxSemaine  = max(1, max(array_column($semaine, 'n')));
 $totalMoments = array_sum($moments);
 ?>
 <article class="containers" id="account-dashboard">
-    <div class="head-bar">Dashboard</div>
+    <div class="head-bar">En résumé</div>
     <div class="body-bar">
         <div class="content">
-            <div class="dasboard-title"><b>Total Morceaux : </b></div>
+            <div class="dasboard-title">Morceaux</div>
             <div class="dashboard-value">
                 <?php
                 include_once "../includes/config.php";
@@ -32,7 +32,7 @@ $totalMoments = array_sum($moments);
             </div>
         </div>
         <div class="content">
-            <div class="dasboard-title"><b>Total Playlists : </b></div>
+            <div class="dasboard-title">Playlists</div>
             <div class="dashboard-value">
                 <?php
                 /*
@@ -51,15 +51,15 @@ $totalMoments = array_sum($moments);
             </div>
         </div>
         <div class="content">
-            <div class="dasboard-title"><b>Albums : </b></div>
+            <div class="dasboard-title">Albums</div>
             <div class="dashboard-value"><?= (int) $collections['albums'] ?></div>
         </div>
         <div class="content">
-            <div class="dasboard-title"><b>Artistes favoris : </b></div>
+            <div class="dasboard-title">Artistes favoris</div>
             <div class="dashboard-value"><?= (int) $collections['artistes_favoris'] ?></div>
         </div>
         <div class="content">
-            <div class="dasboard-title"><b>Total temps d'écoute : </b></div>
+            <div class="dasboard-title">Temps d'écoute</div>
             <div class="dashboard-value">
                 <?php
                 $req = $pdo->prepare("SELECT `time-listened` FROM users WHERE id = :user_id");
@@ -222,15 +222,32 @@ $totalMoments = array_sum($moments);
     </div>
 </article>
 
-<article class="containers" id="account-boutons">
-    <div class="body-bar">
-        <div class="content">
-            <a class="redirect buttons" href="?page=account/parametres" data-page="account/parametres">
-                <span>Paramètres</span>
-            </a>
-        </div>
-    </div>
-</article>
+<?php
+/*
+ * Accès aux paramètres, mobile uniquement.
+ *
+ * Sur bureau, la colonne de navigation porte l'entrée « Paramètres » à côté
+ * de « Quitter » : la garder ici en plus donnait deux chemins vers la même
+ * page sur un même écran, à deux endroits sans rapport.
+ *
+ * Il reste sur mobile parce que c'est le seul : la barre du bas déborde
+ * au-delà de six entrées (voir `.nav-bureau` dans index.php), les paramètres
+ * n'y tiennent pas, et la déconnexion vit elle-même dans cette page.
+ */
+?>
+<?php /*
+ * Le lien EST le bloc : pas de carte contenant un petit bouton.
+ *
+ * Il etait auparavant un bouton de la largeur de son libelle, pose au centre
+ * d'une carte vide de la largeur de l'ecran — la carte attirait l'oeil, et la
+ * cible reelle faisait le quart de sa surface.
+ */ ?>
+<a class="containers bloc-lien nav-mobile-seulement" id="account-parametres"
+   href="?page=account/parametres" data-page="account/parametres">
+    <span class="material-symbols-outlined">settings</span>
+    <span>Paramètres</span>
+    <span class="material-symbols-outlined bloc-lien-chevron">chevron_right</span>
+</a>
 
 <script>
     (function () {

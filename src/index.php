@@ -211,8 +211,8 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
                 </div>
 
                 <div class="player-infos">
-                    <div class="infos title-info">Loading ...</div>
-                    <div class="infos artist-info">Loading ...</div>
+                    <div class="infos title-info">Chargement…</div>
+                    <div class="infos artist-info">Chargement…</div>
                 </div>
 
                 <div class="player-controls">
@@ -262,8 +262,8 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
                 </div>
 
                 <div class="player-infos">
-                    <div class="infos title-info">Loading ...</div>
-                    <div class="infos artist-info">Loading ...</div>
+                    <div class="infos title-info">Chargement…</div>
+                    <div class="infos artist-info">Chargement…</div>
                 </div>
 
                 <div class="player-controls">
@@ -299,6 +299,8 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
         </section>
 
         <script src="<?= assetVersionne('scripts/ligneTitre.js') ?>"></script>
+        <!-- Avant player.js : il y prend ouvrirModale() et ouvrirAjoutPlaylist(). -->
+        <script src="<?= assetVersionne('scripts/actionsTitre.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/player.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/track-context-menu.js') ?>"></script>
         <script src="<?= assetVersionne('scripts/playlist-editor.js') ?>"></script>
@@ -415,6 +417,29 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
             <a href="?page=account" data-page="account" aria-label="Compte">
                 <div class="icons material-symbols-outlined">person</div>
                 Compte
+            </a>
+
+            <?php
+            /*
+             * Les paramètres, au même endroit que la déconnexion : en bas de
+             * la colonne, avec les réglages du compte plutôt qu'avec la
+             * navigation dans la musique.
+             *
+             * Ils n'étaient atteignables que par un bouton posé sous six
+             * cartes de statistiques, tout en bas de la page Compte — rien
+             * n'y menait tant qu'on n'avait pas fait défiler jusqu'au bout.
+             * C'était le seul chemin, et il est retiré : deux accès pour une
+             * même page, à deux endroits sans rapport, se contredisaient.
+             *
+             * `.nav-bureau` comme Activité et Quitter : sur mobile, huit
+             * entrées dans 390 px se touchent. Les paramètres y restent
+             * accessibles depuis la page Compte.
+             */
+            ?>
+            <a href="?page=account/parametres" data-page="account/parametres"
+               id="nav-parametres" aria-label="Paramètres" class="nav-bureau">
+                <div class="icons material-symbols-outlined">settings</div>
+                Paramètres
             </a>
 
             <?php

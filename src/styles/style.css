@@ -128,6 +128,16 @@ button {
 
 .buttons {
     display: flex;
+    /*
+     * text-align n'a aucun effet sur les enfants d'un conteneur flex : il
+     * fallait justify-content. « Supprimer l'album » est un simple nœud de
+     * texte dans le bouton — il devenait un élément flex anonyme collé en
+     * haut à gauche, alors que « Écouter », qui porte une icône, semblait
+     * correct. D'où un centrage qui marchait sur certains boutons seulement.
+     */
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     text-align: center;
     background-color: var(--light-beige);
     border: 1px solid var(--dark-beige);
@@ -879,9 +889,12 @@ footer > #navbar {
     background-color: var(--text-orange-hover);
 }
 
-/* Liste de choix (playlists) */
+/* Liste de choix (actions du titre, playlists) */
 .modale-choix {
-    display: block;
+    /* flex et non block : les entrées portent une icône à gauche du libellé. */
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
     text-align: left;
     padding: 12px;
@@ -900,6 +913,126 @@ footer > #navbar {
     color: var(--text-orange);
 }
 
+
+/* En-tête d'une playlist : le bouton d'ajout porte son libellé. */
+.playlist-entete-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.playlist-ajouter {
+    gap: 6px;
+    padding: 6px 12px;
+    text-decoration: none;
+    color: var(--text-dark);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.playlist-ajouter .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.playlist-ajouter:hover {
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
+}
+
+/* ----- Sélecteur « Ajouter à une playlist » ----- */
+/*
+ * Cases à cocher et non boutons d'ajout : la case dit d'un seul coup d'œil où
+ * le titre se trouve déjà, et le geste est réversible. Un « + » ne sait dire
+ * qu'une chose, et seulement dans un sens.
+ */
+.ajout-pl-titre {
+    margin: -12px 0 16px;
+    font-size: 14px;
+    color: var(--text-gray);
+    /* Un titre long ne doit pas élargir la modale. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajout-pl-recherche {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 14px;
+}
+
+.ajout-pl-liste {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* La liste défile à l'intérieur : la modale garde sa hauteur et le bouton
+       « Fermer » reste visible. */
+    max-height: 45vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    margin-bottom: 16px;
+}
+
+.ajout-pl-ligne {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.ajout-pl-ligne[hidden] {
+    /* [hidden] du navigateur vaut display: none, mais le display: flex
+       ci-dessus est une règle d'auteur : elle l'emporterait. */
+    display: none;
+}
+
+.ajout-pl-ligne:hover {
+    background-color: var(--light-beige);
+    border-color: var(--dark-beige);
+}
+
+.ajout-pl-ligne input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-plein);
+    cursor: pointer;
+}
+
+.ajout-pl-nom {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajout-pl-compte {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.ajout-pl-vide {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: var(--text-gray);
+}
+
+.ajout-pl-vide[hidden] {
+    display: none;
+}
 
 /* ===== CONTENU DES PAGES ===== */
 /* ----- HOME ----- */
@@ -924,6 +1057,13 @@ footer > #navbar {
     gap: 8px;
     border: none;
     align-items: center;
+    /*
+     * .buttons centre son contenu, ce qui convient à un bouton portant un
+     * libellé. Ici le contenu est une pochette suivie d'un texte : centré, le
+     * couple flottait au milieu de la carte avec du vide de chaque côté, et
+     * les huit propositions de l'accueil ne s'alignaient plus entre elles.
+     */
+    justify-content: flex-start;
     background: var(--surface);
     border-radius: 6px;
     padding: 0 10px 0 0;
@@ -1045,10 +1185,73 @@ footer > #navbar {
 }
 
 /* ----- LIBRARY ----- */
-#artist-bar .body-bar {
+/*
+ * Albums et artistes partagent un seul gabarit : côte à côte en bibliothèque,
+ * les artistes paraissaient des vignettes secondaires à côté d'albums deux
+ * fois plus grands. C'est la taille des artistes qui sert de référence — les
+ * pochettes d'albums descendent à leur mesure, et non l'inverse : une grille
+ * de 130 px remplissait la carte avec deux albums.
+ */
+#artist-bar .body-bar,
+#albums-bar .albums-grille {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 10px;
+    align-content: start;
+}
+
+/*
+ * Plafond commun aux deux aperçus, sur le modèle de #tracks-bar juste en
+ * dessous : ce sont des vitrines, pas des listes complètes — chacune a son
+ * « Voir tout ». Sans lui, la carte Artistes réclamait 664 px et la
+ * bibliothèque défilait sur 518 px pour montrer des vignettes qu'on peut
+ * atteindre en un clic.
+ */
+#albums-bar .body-bar,
+#artist-bar .body-bar {
+    /*
+     * Une rangée, et une seule : ce sont des vitrines, chacune avec son
+     * « Voir tout ». C'est aussi ce qui supprime le vide sous les cartes —
+     * deux rangées identiques ne peuvent plus s'étirer l'une pour l'autre.
+     */
+    max-height: 125px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+/*
+ * En bibliothèque, la pochette prend la taille du portrait d'un artiste —
+ * pas celle de sa cellule.
+ *
+ * C'était là le vrai écart : les deux grilles avaient bien le même pas, mais
+ * la pochette s'étirait sur toute la largeur de sa case (158 px) quand le
+ * portrait restait à 80. La carte album faisait 198 px de haut contre 108, et
+ * les rangées, qui s'alignent sur la plus haute, créaient le vide qu'on
+ * voyait dessous.
+ */
+#albums-bar .album-carte {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+#albums-bar .album-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+}
+
+/* Les textes sous une pochette se serrent comme ceux sous un portrait. */
+#albums-bar .album-titre {
+    margin-top: 10px;
+    font-size: 14px;
+    width: 100%;
+}
+
+#albums-bar .album-infos {
+    font-size: 12px;
+    width: 100%;
 }
 
 .mini-artist {
@@ -1487,6 +1690,278 @@ footer > #navbar .nav-bureau {
  * au-dessus à l'appui long. `position: relative` sur le conteneur, absolu sur
  * le lien — sans quoi la barre s'agrandirait en révélant l'entrée.
  */
+
+
+/* ===== RÉSUMÉ DU COMPTE ===== */
+/*
+ * En tuiles plutôt qu'en lignes pleine largeur. Le libellé et sa valeur se
+ * retrouvaient aux deux extrémités d'une ligne de plusieurs centaines de
+ * pixels — « Total Morceaux : » à gauche, « 44 » tout à droite — et l'œil ne
+ * faisait plus le rapprochement. Groupés, ils se lisent d'un coup.
+ */
+#account-dashboard .body-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+#account-dashboard .content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+}
+
+#account-dashboard .dasboard-title {
+    margin-right: 0;
+    font-size: 12.5px;
+    color: var(--text-gray);
+}
+
+/* Le libellé porte un <b> dans le balisage : on annule la graisse, c'est la
+   valeur qui doit ressortir, pas son intitulé. */
+#account-dashboard .dasboard-title b {
+    font-weight: 400;
+}
+
+#account-dashboard .dashboard-value {
+    font-family: var(--serif);
+    font-size: 23px;
+    line-height: 1.1;
+    color: var(--text-dark);
+}
+
+
+/* ===== CIBLES TACTILES ===== */
+/*
+ * Le menu ⋮ d'un titre mesurait 34 px et le lien « Voir tout » 24 px de haut,
+ * pour un minimum recommandé de 44 — or le ⋮ est le contrôle le plus
+ * sollicité de l'application sur téléphone.
+ *
+ * La zone est agrandie sans grossir le dessin : c'est la surface tactile qui
+ * change, pas l'apparence. Sur mobile seulement — à la souris, 34 px se
+ * visent très bien, et élargir le lien y décalerait les en-têtes.
+ */
+@media (pointer: coarse) {
+    .mini-song .buttons.material-symbols-outlined {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Compense l'élargissement pour que la ligne garde sa hauteur. */
+        margin: -5px;
+    }
+
+    .more-bar {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        /* Dépasse un peu sur les côtés : un lien de fin de ligne se vise mal
+           quand sa zone s'arrête pile sur le texte. */
+        padding: 0 4px;
+        margin: -10px -4px;
+    }
+}
+
+
+/* ===== FICHES TITRE ET ARTISTE ===== */
+/*
+ * Ces deux pages avaient leur balisage mais aucun style : les classes
+ * `.titre-*`, `.artiste-*` et `.note-*` n'existaient nulle part dans la
+ * feuille. Tout s'empilait donc à la taille par défaut du navigateur.
+ */
+
+.titre-entete,
+.artiste-entete {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.titre-img,
+.artist-img {
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+/* L'artiste se présente en rond, le titre en carré : c'est la convention de
+   toutes les applications de musique, et elle distingue les deux fiches au
+   premier coup d'œil. */
+.artist-img {
+    border-radius: 50%;
+}
+
+/* `min-width: 0` sans quoi un titre long refuse de se replier et pousse la
+   pochette hors du cadre — le défaut `auto` d'un élément flex. */
+.titre-infos,
+.artiste-infos {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.titre-nom,
+.artiste-nom {
+    font-family: var(--serif);
+    font-size: 26px;
+    line-height: 1.15;
+    color: var(--text-dark);
+    overflow-wrap: anywhere;
+}
+
+.titre-artistes,
+.artiste-ecoutes {
+    font-size: 14px;
+    color: var(--text-gray);
+}
+
+.titre-duree {
+    font-size: 13px;
+    color: var(--text-gray);
+}
+
+.artiste-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.genre-badge {
+    padding: 2px 9px;
+    border-radius: 10px;
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
+    font-size: 12px;
+}
+
+.titre-actions,
+.artiste-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+/* --- Statistiques --- */
+/*
+ * En grille et non en lignes pleine largeur : le libellé et sa valeur se
+ * retrouvaient aux deux extrémités d'une ligne de 700 px, et l'œil ne faisait
+ * plus le rapprochement.
+ */
+.titre-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+}
+
+/* Mêmes tuiles que le résumé du compte : libellé discret au-dessus, valeur en
+   dessous. Le <b> du balisage est annulé — c'est la valeur qui compte. */
+.titre-stats .dasboard-title {
+    margin-right: 0;
+    font-size: 12.5px;
+    color: var(--text-gray);
+}
+
+.titre-stats > .content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+}
+
+.titre-stats .dashboard-value {
+    font-family: var(--serif);
+    font-size: 21px;
+    line-height: 1.1;
+    color: var(--text-orange);
+}
+
+.titre-playlists {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-gray);
+}
+
+/* --- Formulaires de genres et d'étiquettes --- */
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.tags-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0;
+}
+
+.tag-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 14px;
+    background-color: var(--light-beige);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.tag-checkbox:has(input:checked) {
+    border-color: var(--text-orange);
+    background-color: var(--text-orange-light);
+    color: var(--text-orange);
+}
+
+/* --- Notes --- */
+
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.note-item {
+    padding: 10px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 10px;
+    background-color: var(--light-beige);
+}
+
+.note-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.note-date {
+    margin-left: 6px;
+    color: var(--text-gray);
+    font-size: 12px;
+}
+
+.note-text {
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
 
 
 /* ===== DYNAMISME ===== */
@@ -2376,7 +2851,200 @@ body:not(.lecture-en-cours) .onde-lecture i {
 #playlist-context {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    /*
+     * Le bandeau reprend la mesure du texte courant : à 20 px il criait plus
+     * fort que le champ de recherche juste au-dessus, alors qu'il ne fait
+     * qu'annoncer le contexte.
+     */
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background-color: var(--light-beige);
+    border: 1px solid var(--dark-beige);
+    color: var(--text-gray);
+}
+
+#playlist-context .material-symbols-outlined {
+    font-size: 20px;
+    color: var(--text-orange);
+}
+
+#playlist-context em {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+/* Lien vers le fil d'activité depuis l'en-tête des messages (mobile). */
+.lien-activite {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lien-activite .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/*
+ * Bloc entièrement cliquable : une carte qui est elle-même un lien.
+ *
+ * .containers lui donne le cadre des autres blocs de la page ; le reste en
+ * fait une ligne d'action, toute la surface répondant au doigt.
+ */
+.bloc-lien {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--text-dark);
+    font-size: 16px;
+    cursor: pointer;
+    /* 56 px : la cible tactile confortable, même sur un petit écran. */
+    min-height: 56px;
+    transition: background-color 0.15s ease;
+}
+
+.bloc-lien:hover {
+    background-color: var(--light-beige);
+}
+
+.bloc-lien-chevron {
+    /* Pousse le chevron au bord : il dit que le bloc mene ailleurs. */
+    margin-left: auto;
+    color: var(--text-gray);
+}
+
+/* ----- Activité : suites repliées ----- */
+.activite-groupe {
+    display: flex;
+    flex-direction: column;
+}
+
+/* L'entete est un <button> : il doit se fondre dans la liste. */
+.activite-groupe-entete {
+    width: 100%;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.activite-chevron {
+    margin-left: auto;
+    flex: 0 0 auto;
+    font-size: 20px;
+    color: var(--text-gray);
+}
+
+.activite-groupe-detail[hidden] {
+    display: none;
+}
+
+.activite-groupe-detail {
+    /* Un liseré à gauche rattache les lignes dépliées à leur entête ; sans
+       lui elles se confondaient avec la suite du fil. */
+    margin-left: 16px;
+    padding-left: 12px;
+    border-left: 2px solid var(--dark-beige);
+}
+
+/*
+ * Cœur de favori, posé sur le portrait d'un artiste dans la vue d'ensemble.
+ *
+ * En surimpression plutôt qu'à côté du nom : la grille est dense, une ligne
+ * de plus par carte l'aurait allongée d'autant. Le cœur vide ne se montre
+ * qu'au survol ou au focus pour ne pas parsemer la page de symboles ; un
+ * favori, lui, reste visible en permanence — c'est l'information demandée.
+ */
+.artist-vignette {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+}
+
+.artist-favori {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--surface);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    color: var(--text-gray);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.artist-favori .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Un favori se voit toujours ; le reste apparaît à l'approche. */
+.artist-favori.actif,
+.mini-artist:hover .artist-favori,
+.artist-favori:focus-visible {
+    opacity: 1;
+}
+
+.artist-favori.actif {
+    color: var(--light-error);
+}
+
+.artist-favori.actif .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1;
+}
+
+.artist-favori:disabled {
+    cursor: progress;
+}
+
+/*
+ * Sur un écran tactile il n'y a pas de survol : le cœur resterait invisible
+ * tant qu'on n'a pas touché la carte — c'est-à-dire ouvert la fiche.
+ */
+@media (pointer: coarse) {
+    .artist-favori {
+        opacity: 1;
+    }
+}
+
+/*
+ * Case à cocher de la recherche en mode « ajout à une playlist ».
+ *
+ * Le « + » précédent faisait 15 px de côté et ne disait son état qu'au
+ * survol. Le <label> élargit la zone cliquable à 40 px sans grossir la case.
+ */
+.search-case {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.search-case:hover {
+    background-color: var(--light-beige);
+}
+
+.search-case input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-plein);
+    cursor: pointer;
 }
 
 /* --- Onglets de filtrage --- */
@@ -2384,6 +3052,9 @@ body:not(.lecture-en-cours) .onde-lecture i {
     display: flex;
     gap: 8px;
     margin-top: 12px;
+    /* Sans elle, les pastilles de filtre se posaient sur le bord de la carte
+       de résultats, comme si elles en faisaient partie. */
+    margin-bottom: 14px;
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -3193,13 +3864,155 @@ body:not(.lecture-en-cours) .onde-lecture i {
     :root {
         --sidebar-width: 240px;
         --player-width: 340px;
-        /* Centre le contenu avec une largeur maximale de 1100px */
-        --content-padding: max(30px, calc((100% - 1100px) / 2));
+        /*
+         * Largeur maximale du contenu.
+         *
+         * Elle valait 1100 px : sur un écran de 1440, une fois retirés la
+         * colonne de navigation et celle du lecteur, il ne restait que 735 px
+         * de contenu pour 1440 de fenêtre — la moitié de l'écran vide, et des
+         * pages qui s'étiraient sur deux écrans et demi en hauteur.
+         */
+        --content-padding: max(30px, calc((100% - 1500px) / 2));
     }
 
     /* --- Layout global --- */
     body {
         padding-left: var(--sidebar-width);
+    }
+
+    /*
+     * Deux colonnes pour les pages qui empilent des blocs indépendants.
+     *
+     * Bibliothèque et Compte alignaient respectivement cinq et neuf cartes
+     * les unes sous les autres : les favoris et les playlists tombaient sous
+     * la ligne de flottaison, et le résumé du compte demandait deux écrans et
+     * demi de défilement. Ces blocs ne se lisent pas dans l'ordre — ils se
+     * parcourent — donc rien n'oblige à les empiler.
+     *
+     * Les cartes s'étirent à la hauteur de leur rangée (align-items: stretch,
+     * la valeur par défaut). C'était `start` auparavant, et deux cartes
+     * voisines se terminaient à des hauteurs différentes : le bas de la rangée
+     * était en escalier, et le regard ne savait plus quelle carte se lisait
+     * avec laquelle.
+     *
+     * Les rangées de contenu se partagent la hauteur restante, ce qui évite
+     * le défilement de page : c'est l'intérieur des cartes qui défile. En
+     * dessous de 170 px par rangée la page défile de nouveau, plutôt que
+     * d'écraser les listes jusqu'à l'illisible.
+     */
+    #main-content[data-page="library"],
+    #main-content[data-page="account"] {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 16px;
+    }
+
+    /*
+     * Le compte, lui, doit tenir dans la fenêtre : neuf cartes empilées
+     * demandaient deux écrans et demi, et c'est la seule page de
+     * consultation de l'application qui défilait. Ses trois rangées de
+     * contenu se partagent donc la hauteur restante, et ce sont les cartes
+     * qui défilent à l'intérieur.
+     *
+     * La bibliothèque garde des rangées à hauteur naturelle : lui imposer la
+     * même contrainte réduisait chaque carte à 170 px, où pochettes et
+     * portraits se retrouvaient coupés en deux.
+     */
+    #main-content[data-page="account"] {
+        grid-template-rows: auto repeat(3, minmax(170px, 1fr)) auto;
+    }
+
+    /*
+     * La bibliothèque remplit la fenêtre, comme le compte.
+     *
+     * Les rangées se partageaient d'abord la hauteur libre sans que le
+     * contenu suive : les cartes grandissaient, les listes restaient
+     * plafonnées, et il restait une bande vide sous chacune. Resserrer les
+     * cartes réglait la bande mais renvoyait tout le vide au bas de la page.
+     *
+     * Les deux à la fois : les rangées prennent la hauteur disponible, et
+     * c'est le corps des cartes qui s'étire dedans (règle suivante). Une
+     * carte plus haute montre donc plus d'artistes, plus de titres — la
+     * place gagnée sert à voir, au lieu de rester blanche.
+     *
+     * La première rangée pèse un peu plus : elle porte la discothèque
+     * entière, quand les autres sont des vitrines avec leur « Voir tout ».
+     */
+    #main-content[data-page="library"] {
+        grid-template-rows: minmax(240px, 1.2fr) minmax(190px, 1fr) minmax(190px, 1fr);
+    }
+
+    #main-content[data-page="library"] > * {
+        min-height: 0;
+    }
+
+    /*
+     * Les plafonds posés sur les aperçus n'ont plus lieu d'être : la hauteur
+     * de la carte fait désormais la mesure. Les garder revenait à bloquer la
+     * liste à 125 px au milieu d'une carte deux fois plus haute.
+     */
+    #main-content[data-page="library"] > .containers > .body-bar {
+        max-height: none;
+    }
+
+    /* L'espacement vertical vient désormais de la grille : la marge des
+       cartes s'y ajouterait et ferait déborder les rangées. */
+    #main-content[data-page="library"] > *,
+    #main-content[data-page="account"] > * {
+        margin-bottom: 0;
+    }
+
+    /*
+     * min-height: 0 uniquement sur le compte, et c'est important.
+     *
+     * Il retire le minimum automatique d'un élément de grille, ce qui est
+     * exactement ce qu'il faut pour que les cartes du compte se compriment
+     * dans leurs rangées en 1fr. Appliqué aussi à la bibliothèque, il faisait
+     * l'inverse de ce qu'on voulait : les rangées, en hauteur automatique, ne
+     * prenaient plus la taille de leur contenu, et la carte « Artistes »
+     * affichait 285 px sur les 644 px qu'elle demandait — sa seconde rangée
+     * de portraits coupée en deux.
+     */
+    #main-content[data-page="account"] > * {
+        min-height: 0;
+    }
+
+    /* C'est le corps de la carte qui défile, pas la page. */
+    #main-content[data-page="account"] > .containers > .body-bar {
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    /*
+     * Le corps prend toute la hauteur de sa carte.
+     *
+     * Les rangées ont la hauteur de leur carte la plus haute, et la plus
+     * courte s'étire pour la rejoindre. Sans cette règle, cette hauteur
+     * gagnée restait sous le corps, en bande vide : 66 px sous les albums,
+     * 76 px sous les favoris. Elle appartient maintenant à la zone de
+     * contenu, qui la répartit.
+     */
+    #main-content[data-page="library"] > .containers > .body-bar,
+    #main-content[data-page="account"] > .containers > .body-bar {
+        flex: 1;
+    }
+
+    /* Le corps défile à l'intérieur de sa carte, la page ne défile pas. */
+    #main-content[data-page="library"] > .containers > .body-bar {
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    /*
+     * Le premier bloc reste sur toute la largeur : c'est la discothèque et sa
+     * bande « Tout écouter » sur Bibliothèque, le résumé chiffré sur Compte.
+     * Les deux annoncent la page et méritent leur pleine mesure.
+     */
+    #main-content[data-page="library"] > :first-child,
+    #main-content[data-page="account"] > :first-child {
+        grid-column: 1 / -1;
     }
 
     /* Rangée contenu + colonne player : elle porte les gouttières
@@ -3251,6 +4064,16 @@ body:not(.lecture-en-cours) .onde-lecture i {
 
     header #persons {
         margin: 20px var(--content-padding);
+    }
+
+    /*
+     * Deux chemins vers la même page sur un même écran se contredisent : sur
+     * bureau la colonne de navigation porte déjà « Activité » et
+     * « Paramètres ». Ces raccourcis-là ne servent qu'en mobile.
+     */
+    .lien-activite,
+    .nav-mobile-seulement {
+        display: none;
     }
 
     /* Le dégradé de bas de page est un artefact mobile */
@@ -3365,6 +4188,16 @@ body:not(.lecture-en-cours) .onde-lecture i {
             max-width: 200px;
             height: auto;
             aspect-ratio: 1;
+
+            /*
+             * La pochette est la seule partie compressible de la carte : les
+             * commandes et le titre ont une hauteur incompressible. Sur un
+             * écran de 900 px, la colonne de l'accueil (playlists + lecteur)
+             * dépassait de 104 px et le bas du lecteur passait sous le bord
+             * de la fenêtre. Elle cède ces pixels avant que ça n'arrive.
+             */
+            flex-shrink: 1;
+            min-height: 96px;
             border-radius: 12px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
@@ -3410,16 +4243,45 @@ body:not(.lecture-en-cours) .onde-lecture i {
         overflow-y: auto;
     }
 
-    /* Sur l'accueil, la carte se cale en bas de sa colonne,
-       comme sur les autres pages */
+    /*
+     * Sur l'accueil, la carte se cale en bas de sa colonne, comme sur les
+     * autres pages.
+     *
+     * flex: 0 1 auto et min-height: 0 ne sont pas décoratifs : sans eux le
+     * dock est incompressible, et la chaîne flex s'arrête ici. La pochette a
+     * beau déclarer flex-shrink, rien ne lui demande jamais de céder — la
+     * colonne débordait de 104 px sur un écran de 900, lecteur coupé au bord
+     * de la fenêtre. Mesuré avant/après : 612 px de carte dans les deux cas
+     * tant que cette règle manquait.
+     */
     #player-dock {
         margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        flex: 0 1 auto;
+        min-height: 0;
+    }
+
+    /*
+     * Maillon manquant de la chaîne : #player s'intercale entre le dock et la
+     * carte, en display: block et donc avec min-height: auto — soit sa
+     * hauteur min-content, 612 px. Le dock avait beau se comprimer à 538, la
+     * carte restait à 612 et débordait par le bas au lieu de réduire sa
+     * pochette. Mesuré sur la chaîne d'ancêtres : c'est le seul élément qui
+     * refusait de céder.
+     */
+    :is(#player-dock, #player-aside) #player {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 
     /* Carte ancrée dans la mise en page : plus de position fixe */
     :is(#player-dock, #player-aside) #extend {
         position: static;
         width: 100%;
+        /* Autorise la carte à se comprimer jusqu'à sa pochette. */
+        min-height: 0;
     }
 
     /* --- Popups : coin supérieur droit --- */
@@ -3553,9 +4415,21 @@ body:not(.lecture-en-cours) .onde-lecture i {
         min-height: 130px;
     }
 
-    /* Les playlists se compressent aussi si la place manque */
+    /*
+     * Les playlists prennent toute la hauteur restante de leur colonne.
+     * Elles s'arrêtaient à la hauteur de leur contenu et laissaient en
+     * dessous un vide de la hauteur du reste de la colonne, face à une liste
+     * d'attente qui, elle, descendait jusqu'en bas.
+     */
     .home-col > .playlists-bar {
-        min-height: 140px;
+        flex: 1;
+        /* Assez pour l'en-tête et une ligne entière : sous cette valeur la
+           première playlist était coupée en deux et sa durée illisible. */
+        min-height: 134px;
+    }
+
+    .home-col > .playlists-bar > .body-bar {
+        min-height: 0;
         overflow-y: auto;
     }
 
@@ -3567,30 +4441,31 @@ body:not(.lecture-en-cours) .onde-lecture i {
         scrollbar-width: thin;
     }
 
-    /* --- Bibliothèque : tout tient sans défilement de page --- */
-    /* Les Favorite Tracks absorbent la hauteur restante et défilent
-       en interne ; les playlists se compressent si besoin */
+    /*
+     * La bibliothèque et le compte sont des grilles (voir plus haut) : leurs
+     * rangées se partagent la hauteur et ce sont les .body-bar qui défilent.
+     * Les anciennes règles flex posées ici sur #favorite-bar et
+     * main > .playlists-bar n'avaient plus d'effet sur des enfants de grille,
+     * et le overflow qu'elles ajoutaient sur l'article doublait l'ascenseur.
+     */
     #favorite-bar {
         height: auto;
-        flex: 1;
-        min-height: 150px;
-    }
-
-    main > .playlists-bar {
-        flex-shrink: 1;
-        min-height: 140px;
-        overflow-y: auto;
-        scrollbar-width: thin;
     }
 
     /* --- Bibliothèque / Artistes --- */
+    /* Les deux grilles de la bibliothèque grandissent ensemble : c'est la
+       même règle que plus haut, aux mesures du bureau. */
     #artist-bar .body-bar,
+    #albums-bar .albums-grille,
     #artist-list > .body-bar {
         grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
         gap: 15px;
     }
 
-    .mini-artist img {
+    /* La pochette suit exactement le portrait : c'est tout l'objet de la
+       règle, et l'oublier ici laissait 60 px face à 80. */
+    .mini-artist img,
+    #albums-bar .album-img {
         height: 80px;
         width: 80px;
     }

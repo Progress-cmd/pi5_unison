@@ -59,8 +59,13 @@
         const banner = document.createElement('div');
         banner.id = 'playlist-context';
         banner.dataset.playlistId = playlistId;
+        /*
+         * Le nom arrive déjà traduit (libellePlaylist côté PHP) : on affichait
+         * « Ajouter à Favorite Tracks », le nom interne de la table.
+         */
         banner.innerHTML = `<span class="material-symbols-outlined">playlist_add</span>
-                            Ajouter à <em>${escape(playlistName) || playlistId}</em>`;
+                            <span class="playlist-context-texte">Cochez les titres à ajouter à
+                            <em>${escape(playlistName) || escape(playlistId)}</em></span>`;
         form.insertAdjacentElement('afterend', banner);
     }
 
@@ -154,12 +159,11 @@
             <div class="search-actions">
                 ${t.favori ? `<span class="material-symbols-outlined search-favori" title="Dans vos favoris">favorite</span>` : ''}
                 ${playlistId
-                    ? `<button class="add-btn ${t.in_playlist ? 'already-added' : ''}"
-                               data-track-id="${t.id}" data-playlist-id="${playlistId}"
-                               ${t.in_playlist ? 'disabled' : ''}
-                               title="${t.in_playlist ? 'Déjà dans la playlist' : 'Ajouter à la playlist'}">
-                           ${t.in_playlist ? '✓' : '+'}
-                       </button>`
+                    ? `<label class="search-case" title="${t.in_playlist ? 'Dans la playlist' : 'Ajouter à la playlist'}">
+                           <input type="checkbox" class="add-btn"
+                                  data-track-id="${t.id}" data-playlist-id="${playlistId}"
+                                  ${t.in_playlist ? 'checked' : ''}>
+                       </label>`
                     : `<button class="buttons material-symbols-outlined search-play" data-play="${t.id}"
                                title="Écouter">play_arrow</button>
                        <button class="buttons material-symbols-outlined">more_vert</button>`}
@@ -360,11 +364,14 @@
         // Le menu contextuel gère lui-même ses boutons
         if (e.target.closest('.buttons.material-symbols-outlined')?.textContent.includes('more')) return;
 
-        // Ajout à une playlist
-        const btn = e.target.closest('.add-btn');
-        if (btn) {
+        /*
+         * La case à cocher gère son propre événement « change ». On intercepte
+         * quand même le clic ici : sans ça, il remonte jusqu'à .search-item et
+         * la navigation vers la fiche du titre partait en meme temps que
+         * l'ajout.
+         */
+        if (e.target.closest('.search-case')) {
             e.stopPropagation();
-            ajouterAPlaylist(btn);
             return;
         }
 
@@ -384,32 +391,46 @@
         }
     });
 
-    function ajouterAPlaylist(btn) {
-        btn.disabled = true;
+    /*
+     * Le « + » ne savait dire qu'une chose, une seule fois : une fois coché il
+     * se figeait sur « ✓ » et il fallait aller dans la playlist pour défaire.
+     * La case à cocher porte les deux sens.
+     */
+    resultsDiv.addEventListener('change', (e) => {
+        const case_ = e.target.closest('.add-btn');
+        if (case_) basculerDansPlaylist(case_);
+    });
 
-        const formData = new FormData();
-        formData.append('track_id', btn.dataset.trackId);
-        formData.append('playlist_id', btn.dataset.playlistId);
+    async function basculerDansPlaylist(case_) {
+        const ajouter = case_.checked;
+        case_.disabled = true;
 
-        fetch('actions/add_to_playlist.php', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    btn.textContent = '✓';
-                    btn.classList.add('already-added');
-                } else {
-                    btn.textContent = '✗';
-                    btn.disabled = false;
-                }
-                if (data.message && window.showToast) {
-                    window.showToast(data.message, data.success ? 'success' : 'error');
-                }
-            })
-            .catch(() => {
-                btn.textContent = '✗';
-                btn.disabled = false;
-                if (window.showToast) window.showToast('Erreur réseau', 'error');
-            });
+        const corps = new URLSearchParams({
+            track_id: case_.dataset.trackId,
+            playlist_id: case_.dataset.playlistId,
+        });
+
+        try {
+            const res = await fetch(
+                ajouter ? 'actions/add_to_playlist.php' : 'actions/remove_track_from_playlist.php',
+                { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: corps }
+            );
+            const data = await res.json();
+
+            if (!data.success) {
+                // La case revient à son état d'avant : la laisser cochée sur un
+                // échec laisserait croire le titre rangé.
+                case_.checked = !ajouter;
+                if (window.showToast) window.showToast(data.message || 'Opération impossible', 'error');
+            } else if (window.showToast) {
+                window.showToast(ajouter ? 'Ajouté à la playlist' : 'Retiré de la playlist');
+            }
+        } catch (e) {
+            case_.checked = !ajouter;
+            if (window.showToast) window.showToast('Erreur réseau', 'error');
+        } finally {
+            case_.disabled = false;
+        }
     }
 
     // État initial. Le champ peut être pré-rempli si la page est réaffichée

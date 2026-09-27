@@ -135,3 +135,52 @@ function squelettes(int $nombre = 5): string
 
     return $html;
 }
+
+/**
+ * Nom d'une playlist tel qu'on le montre, échappé.
+ *
+ * Deux playlists sont créées par l'application pour chaque compte et portent
+ * un nom technique anglais : « Wait Tracks » et « Favorite Tracks ». Ce nom
+ * sert d'identifiant dans une douzaine de requêtes SQL — le changer en base
+ * reviendrait à toucher à tout cela pour un simple libellé. On le traduit
+ * donc au moment de l'afficher, et lui seul.
+ *
+ * L'échappement est fait ici parce que plusieurs pages affichaient le nom
+ * brut : c'est du texte saisi par l'utilisateur.
+ */
+/**
+ * Une playlist « métier » : créée et maintenue par l'application, pas par
+ * l'utilisateur.
+ *
+ * Elles n'acceptent pas les mêmes gestes que les autres — on ne les renomme
+ * pas, on ne les supprime pas, on ne réordonne pas la liste d'attente à la
+ * main. Le menu « … » leur était pourtant proposé, avec des entrées qui ne
+ * menaient à rien.
+ */
+function playlistSysteme(?string $nom): bool
+{
+    return in_array($nom, ['Wait Tracks', 'Favorite Tracks'], true);
+}
+
+function libellePlaylist(?string $nom): string
+{
+    $traductions = [
+        'Wait Tracks'     => "Liste d'attente",
+        'Favorite Tracks' => 'Favoris',
+    ];
+
+    return $traductions[$nom] ?? (string) $nom;
+}
+
+/**
+ * Même libellé, échappé pour le HTML.
+ *
+ * Séparé de libellePlaylist() parce que le JSON a besoin de la chaîne brute :
+ * la recherche affichait « Ajouter à Favorite Tracks » faute de traduction, et
+ * y passer la version échappée aurait fait apparaître les entités dans le
+ * textContent du client.
+ */
+function nomPlaylist(?string $nom): string
+{
+    return htmlspecialchars(libellePlaylist($nom), ENT_QUOTES, 'UTF-8');
+}

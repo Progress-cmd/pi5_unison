@@ -1,6 +1,7 @@
 (function() {
     let contextMenu = null;
     let currentTrackId = null;
+    let currentTrackTitre = '';
     let currentPlaylistId = null;
 
     function createContextMenu() {
@@ -12,6 +13,18 @@
         contextMenu = document.createElement('div');
         contextMenu.id = 'track-context-menu';
         contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="ajouter-playlist">
+                <span class="material-symbols-outlined">playlist_add</span>
+                Ajouter à une playlist
+            </div>
+            <div class="context-menu-item" data-action="file-fin">
+                <span class="material-symbols-outlined">playlist_play</span>
+                Ajouter à la liste d'attente
+            </div>
+            <div class="context-menu-item" data-action="file-suivant">
+                <span class="material-symbols-outlined">low_priority</span>
+                Écouter juste après
+            </div>
             <div class="context-menu-item" data-action="voir-titre">
                 <span class="material-symbols-outlined">info</span>
                 Voir le titre
@@ -130,6 +143,17 @@
         hideContextMenu();
 
         switch (action) {
+            case 'ajouter-playlist':
+                // Sélecteur partagé (scripts/actionsTitre.js) : le lecteur
+                // ouvre exactement le même.
+                window.ouvrirAjoutPlaylist(currentTrackId, currentTrackTitre);
+                break;
+            case 'file-fin':
+                await window.fileAjouter(currentTrackId, 'fin');
+                break;
+            case 'file-suivant':
+                await window.fileAjouter(currentTrackId, 'suivant');
+                break;
             case 'voir-titre':
                 sessionStorage.setItem('titre_id', currentTrackId);
                 navigateTo('library/titre');
@@ -232,6 +256,8 @@
 
         const trackId = miniSong.dataset.trackId;
         const playlistId = miniSong.closest('[data-playlist-id]')?.dataset.playlistId;
+
+        currentTrackTitre = miniSong.querySelector('.song-title')?.textContent.trim() || '';
 
         showContextMenu(e, trackId, playlistId);
     }

@@ -105,7 +105,14 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <article id="titre-detail" class="containers">
-    <div class="head-bar"><?= htmlspecialchars($titre['title'] ?? '') ?></div>
+    <?php
+    /*
+     * En-tête générique : le titre du morceau est déjà affiché juste en
+     * dessous, en grand, à côté de sa pochette. Le répéter ici ne disait rien
+     * de plus et faisait lire deux fois la même chose.
+     */
+    ?>
+    <div class="head-bar">Titre</div>
     <div class="body-bar">
         <div class="titre-entete">
             <img src="<?= htmlspecialchars($titre['img'] ?? '') ?>" class="titre-img" alt="<?= htmlspecialchars($titre['title'] ?? '') ?>">
@@ -127,15 +134,15 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
         <h3>Statistiques</h3>
         <div class="titre-stats">
             <div class="content">
-                <div class="dasboard-title"><b>Mes écoutes : </b></div>
+                <div class="dasboard-title">Mes écoutes</div>
                 <div class="dashboard-value"><?= $mesEcoutes ?></div>
             </div>
             <div class="content">
-                <div class="dasboard-title"><b>Écoutes totales : </b></div>
+                <div class="dasboard-title">Écoutes du foyer</div>
                 <div class="dashboard-value"><?= $totalEcoutes ?></div>
             </div>
             <div class="content">
-                <div class="dasboard-title"><b>Dernière écoute : </b></div>
+                <div class="dasboard-title">Ma dernière écoute</div>
                 <div class="dashboard-value"><?= $derniereEcoute ? date('d/m/Y H:i', strtotime($derniereEcoute)) : 'Jamais' ?></div>
             </div>
         </div>
@@ -145,7 +152,8 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
             <h3>Dans les playlists</h3>
             <div class="titre-playlists">
                 <?php foreach ($playlists as $playlist): ?>
-                    <span class="playlist-lien tag-checkbox" data-playlist-id="<?= $playlist['id'] ?>"><?= htmlspecialchars($playlist['name'] ?? '') ?></span>
+                    <?php /* nomPlaylist() : « Favorite Tracks » est le nom en base, pas celui qu'on lit. */ ?>
+                    <span class="playlist-lien tag-checkbox" data-playlist-id="<?= (int) $playlist['id'] ?>"><?= nomPlaylist($playlist['name'] ?? '') ?></span>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -168,11 +176,11 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                     <?php endforeach; ?>
                 </div>
                 <input type="text" id="new-genre" placeholder="Ajouter un genre" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
-                <button type="button" id="create-genre-btn" class="btn-primary" style="margin-top: 8px; width: 100%;">+ Créer le genre</button>
+                <button type="button" id="create-genre-btn" class="buttons">+ Créer le genre</button>
             </div>
 
             <div class="form-group">
-                <label>Tags</label>
+                <label>Étiquettes</label>
                 <div class="tags-selector" id="tags-selector">
                     <?php foreach ($allTags as $tag): ?>
                         <label class="tag-checkbox">
@@ -182,11 +190,11 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         </label>
                     <?php endforeach; ?>
                 </div>
-                <input type="text" id="new-tag" placeholder="Ajouter un tag" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
-                <button type="button" id="create-tag-btn" class="btn-primary" style="margin-top: 8px; width: 100%;">+ Créer le tag</button>
+                <input type="text" id="new-tag" placeholder="Ajouter une étiquette" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
+                <button type="button" id="create-tag-btn" class="buttons">+ Créer une étiquette</button>
             </div>
 
-            <button type="submit" class="btn-primary">Sauvegarder</button>
+            <button type="submit" class="buttons infos-valider">Enregistrer</button>
         </form>
 
         <script>
@@ -211,7 +219,11 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                     e.preventDefault();
                     const nom = document.getElementById(inputId).value.trim();
                     if (!nom) {
-                        alert('Entre un nom');
+                        // Un toast, comme partout ailleurs : alert() ouvrait une
+                        // fenêtre du navigateur au milieu d'une interface qui
+                        // n'en utilise nulle part.
+                        window.showToast('Donnez-lui un nom', 'error');
+                        document.getElementById(inputId).focus();
                         return;
                     }
 
@@ -236,12 +248,20 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                             label.appendChild(document.createTextNode(' ' + nom));
                             selector.appendChild(label);
                             document.getElementById(inputId).value = '';
-                            window.showToast(data.message);
+
+                            /*
+                             * Le message disait « Genre créé » et s'arrêtait là.
+                             * Or le genre existe bien, mais n'est pas encore
+                             * rattaché au titre : il faut enregistrer. Sans
+                             * cette précision on quittait la page en croyant
+                             * l'avoir fait.
+                             */
+                            window.showToast(data.message + " — cliquez sur « Enregistrer » pour l'appliquer", 'success', 5000);
                         } else {
-                            alert('Erreur: ' + data.message);
+                            window.showToast(data.message || 'Création impossible', 'error');
                         }
                     } catch (e) {
-                        alert('Erreur: ' + e.message);
+                        window.showToast('Erreur réseau', 'error');
                     }
                 });
             }

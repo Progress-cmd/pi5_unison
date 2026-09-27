@@ -3,6 +3,9 @@
     const closeBtn = document.getElementById('close-button');
     const extend = document.getElementById('extend');
     let currentTrackId = null;
+    // Nom du titre en cours : les modales d'options l'affichent, sinon on ne
+    // sait pas sur quel morceau on agit quand elles s'ouvrent depuis une liste.
+    let titreCourant = '';
 
     // --- Suivi d'écoute ---
     let tempsLectureTitre = 0;   // secondes réelles écoutées sur le titre courant (seuil d'écoute)
@@ -429,6 +432,7 @@
         dernierTemps = 0;
         dernierePositionPubliee = 0;
         currentTrackId = id;
+        titreCourant = '';
 
         let track = null;
         try {
@@ -453,6 +457,7 @@
 
         audio.src = track.src;
 
+        titreCourant = track.title;
         document.querySelector('#retract .title-info').textContent = track.title;
         document.querySelector('#retract  .artist-info').textContent = track.artist;
         document.querySelector('#extend .title-info').textContent = track.title;
@@ -1105,99 +1110,127 @@
     });
 
     /*
-     * Fabrique commune aux deux modales du lecteur.
-     *
-     * Chacune recopiait auparavant la même quinzaine de lignes de
-     * style.cssText — fond, centrage, fermeture au clic hors-cadre — avec des
-     * couleurs en dur qui ignoraient la palette. L'habillage est passé en CSS
-     * (.modale, voir style.css), et il n'existe plus qu'un seul exemplaire de
-     * la mécanique.
+     * ouvrirModale() vient de scripts/actionsTitre.js, chargé juste avant ce
+     * fichier. La fabrique y a été remontée parce que trois appelants en ont
+     * besoin, et non le lecteur seul.
      */
-    function ouvrirModale(titre) {
-        const modale = document.createElement('div');
-        modale.className = 'modale';
-
-        const contenu = document.createElement('div');
-        contenu.className = 'modale-contenu';
-
-        const entete = document.createElement('div');
-        entete.className = 'modale-titre';
-        entete.textContent = titre;
-        contenu.appendChild(entete);
-
-        modale.appendChild(contenu);
-        modale.addEventListener('click', (e) => {
-            if (e.target === modale) modale.remove();
-        });
-
-        // Échap ferme aussi : une modale qui ne se ferme qu'au clic piège
-        // l'utilisateur au clavier.
-        const surTouche = (e) => {
-            if (e.key === 'Escape') { modale.remove(); document.removeEventListener('keydown', surTouche); }
-        };
-        document.addEventListener('keydown', surTouche);
-
-        document.body.appendChild(modale);
-        return { modale, contenu };
-    }
+    const ouvrirModale = window.ouvrirModale;
 
     // --- ADD - Ajouter à une playlist ---
-    async function showPlaylistModal() {
+    /*
+     * Le lecteur ouvrait sa propre liste de boutons : un clic ajoutait, sans
+     * montrer dans quelles playlists le titre se trouvait déjà et sans moyen
+     * de l'en retirer. Il passe sur le sélecteur à cases à cocher, le même
+     * que le menu « … » d'une ligne et que la page d'un titre.
+     */
+    document.getElementById('add-button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.ouvrirAjoutPlaylist(currentTrackId, titreCourant);
+    });
+
+    /*
+     * Le « … » en haut du lecteur déployé n'avait aucun gestionnaire : il se
+     * dessinait, se survolait, et ne faisait rien. Il porte désormais les
+     * actions du titre en cours — les mêmes que le menu d'une ligne de liste,
+     * pour qu'un même dessin veuille dire la même chose partout.
+     */
+    document.getElementById('more-button').addEventListener('click', (e) => {
+        e.stopPropagation();
+
         if (!currentTrackId) {
-            window.showToast('Aucune chanson en cours', 'error');
+            window.showToast('Aucun titre en cours', 'error');
             return;
         }
 
-        try {
-            const res = await fetch('actions/get_playlists.php');
-            const data = await res.json();
+        const { contenu, fermer } = ouvrirModale('Options du titre');
 
-            if (!data.success || !data.playlists.length) {
-                window.showToast('Aucune playlist disponible', 'error');
-                return;
-            }
-
-            const { modale, contenu } = ouvrirModale('Ajouter à une playlist');
-
-            data.playlists.forEach(playlist => {
-                const choix = document.createElement('button');
-                choix.type = 'button';
-                choix.className = 'modale-choix';
-                // textContent : un nom de playlist est saisi par l'utilisateur.
-                choix.textContent = playlist.name;
-                choix.onclick = async () => {
-                    await addToPlaylist(currentTrackId, playlist.id, playlist.name);
-                    modale.remove();
-                };
-                contenu.appendChild(choix);
-            });
-        } catch (e) {
-            window.showToast('Erreur: ' + e.message, 'error');
+        if (titreCourant) {
+            const sous = document.createElement('div');
+            sous.className = 'ajout-pl-titre';
+            sous.textContent = titreCourant;
+            contenu.appendChild(sous);
         }
-    }
 
-    async function addToPlaylist(trackId, playlistId, playlistName) {
-        try {
-            const res = await fetch('actions/add_to_playlist.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `track_id=${trackId}&playlist_id=${playlistId}`
+        const actions = [
+            {
+                icone: 'playlist_add',
+                libelle: 'Ajouter à une playlist',
+                faire: () => window.ouvrirAjoutPlaylist(currentTrackId, titreCourant),
+            },
+            {
+                icone: 'playlist_play',
+                libelle: "Ajouter à la liste d'attente",
+                faire: () => window.fileAjouter(currentTrackId, 'fin'),
+            },
+            {
+                icone: 'low_priority',
+                libelle: 'Écouter juste après',
+                faire: () => window.fileAjouter(currentTrackId, 'suivant'),
+            },
+            {
+                icone: 'info',
+                libelle: 'Voir le titre',
+                faire: () => {
+                    sessionStorage.setItem('titre_id', currentTrackId);
+                    navigateTo('library/titre');
+                },
+            },
+        ];
+
+        // Pas de destinataire, pas d'entrée : un compte hors foyer n'a
+        // personne à qui envoyer.
+        const partenaire = window.UNISON_PARTENAIRE;
+        if (partenaire && partenaire.nom) {
+            actions.push({
+                icone: 'send',
+                libelle: 'Envoyer à ' + partenaire.nom,
+                faire: () => envoyerTitreCourant(),
             });
-            const data = await res.json();
-            if (data.success) {
-                window.showToast(`Ajouté à "${playlistName}" ✓`);
-            } else {
-                window.showToast('Erreur lors de l\'ajout', 'error');
-            }
-        } catch (e) {
-            window.showToast('Erreur: ' + e.message, 'error');
         }
-    }
 
-    document.getElementById('add-button').addEventListener('click', (e) => {
-        e.stopPropagation();
-        showPlaylistModal();
+        /*
+         * Pas de « Paramètres audio » ici : ce menu porte des gestes sur le
+         * titre, et le son a déjà son propre bouton dans la barre du bas du
+         * lecteur. Les deux au même endroit brouillaient ce que le « … »
+         * voulait dire.
+         */
+
+        actions.forEach((a) => {
+            const choix = document.createElement('button');
+            choix.type = 'button';
+            choix.className = 'modale-choix';
+
+            const icone = document.createElement('span');
+            icone.className = 'material-symbols-outlined';
+            icone.textContent = a.icone;
+
+            choix.append(icone, document.createTextNode(a.libelle));
+            choix.addEventListener('click', () => {
+                fermer();
+                a.faire();
+            });
+            contenu.appendChild(choix);
+        });
     });
+
+    /** Partage du titre en cours, sans texte : le geste « tiens, écoute ça ». */
+    async function envoyerTitreCourant() {
+        try {
+            const res = await fetch('actions/messages_envoyer.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ track_id: String(currentTrackId) }),
+            });
+            const data = await res.json();
+            window.showToast(
+                data.success ? 'Envoyé à ' + window.UNISON_PARTENAIRE.nom
+                             : (data.message || 'Envoi impossible'),
+                data.success ? 'success' : 'error'
+            );
+        } catch (e) {
+            window.showToast('Erreur réseau', 'error');
+        }
+    }
 
     // --- MORE - Menu d'actions supplémentaires ---
     async function showSettingsModal() {
@@ -1391,21 +1424,33 @@
     });
 
     // --- QUEUE - Fermer le player et naviguer ---
+    /*
+     * La navigation ne dépend plus de la fin de l'animation de fermeture.
+     *
+     * Elle était déclenchée par un `animationend` sur #extend. Sur bureau la
+     * carte du lecteur est ancrée dans la mise en page et porte
+     * `animation: none !important` (elle n'a ni ouverture ni fermeture à
+     * jouer) : l'événement ne survenait jamais, et le bouton ne faisait
+     * strictement rien. On navigue donc tout de suite, et la fermeture n'est
+     * plus qu'un effet visuel, là où elle existe.
+     */
     const queueBtn = document.getElementById('queue-button');
     if (queueBtn) {
         queueBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
-            // Ferme le player extended
-            extend.classList.remove('expanded');
-            extend.classList.add('closing');
-            extend.addEventListener('animationend', () => {
-                extend.classList.remove('closing');
-                extend.style.visibility = 'hidden';
-                // Navigue après la fermeture du player
-                navigateTo('player/queue');
-            }, { once: true });
+            // Panneau fixe du bureau : rien à fermer, il reste à l'écran.
+            if (extend.classList.contains('expanded')) {
+                extend.classList.remove('expanded');
+                extend.classList.add('closing');
+                extend.addEventListener('animationend', () => {
+                    extend.classList.remove('closing');
+                    extend.style.visibility = 'hidden';
+                }, { once: true });
+            }
+
+            navigateTo('player/queue');
         });
     }
 

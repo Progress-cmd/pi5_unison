@@ -42,13 +42,16 @@ include_once "../includes/rendu.php";
                 <div>
                     <img src="https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=300&auto=format&fit=crop" class="playlist-img" alt="Cover">
                     <div class="playlist-infos">
-                        <div class="playlist-title"><?php echo $playlist["name"]; ?></div>
+                        <div class="playlist-title"><?= nomPlaylist($playlist["name"]) ?></div>
                         <div class="playlist-info"><?= resumePlaylist((int) $occurrence, $time === null ? null : (int) $time) ?></div>
                     </div>
                 </div>
                 <div class="playlist-controls">
                     <button class="material-symbols-outlined buttons">play_arrow</button>
+                    <?php /* Playlists métier : rien à renommer ni à supprimer. */ ?>
+                    <?php if (!playlistSysteme($playlist['name'])): ?>
                         <button class="buttons material-symbols-outlined">more_vert</button>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php

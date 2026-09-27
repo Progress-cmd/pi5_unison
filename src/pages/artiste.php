@@ -66,7 +66,8 @@ $estFavori = (bool) $req->fetchColumn();
 ?>
 
 <article id="artiste-detail" class="containers">
-    <div class="head-bar"><?= htmlspecialchars($artiste['name'] ?? '') ?></div>
+    <?php // Même raison que sur la fiche titre : le nom est repris en grand juste dessous. ?>
+    <div class="head-bar">Artiste</div>
     <div class="body-bar">
         <div class="artiste-entete">
             <img src="<?= htmlspecialchars($artiste['img'] ?: $defaultArtistImg) ?>" class="artist-img" alt="Cover">
