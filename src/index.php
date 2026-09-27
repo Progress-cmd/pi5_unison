@@ -45,34 +45,18 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
 
     <?php
     /*
-     * Application installable (PWA).
+     * Manifeste, icônes et couleur de barre système : les mêmes balises que
+     * login.php, d'où l'include commun.
      *
-     * Deux conditions au bouton « Installer » : le manifeste ci-dessous et un
-     * contexte sécurisé. La production passe par Traefik en HTTPS
-     * (unison.pi5.ovh) et le développement par localhost, que le navigateur
-     * traite comme sécurisé — mais une ouverture en http:// sur une IP du
-     * réseau local, elle, ne proposera jamais l'installation.
+     * Le bouton « Installer » demande en plus un contexte securise. La
+     * production passe par Traefik en HTTPS et le développement par
+     * localhost, que le navigateur traite comme sécurisé — mais une ouverture
+     * en http:// sur une IP du réseau local ne proposera jamais
+     * l'installation.
      */
+    include_once "includes/teteApp.php";
+    balisesApplication();
     ?>
-    <link rel="manifest" href="<?= assetVersionne('manifest.webmanifest') ?>">
-    <link rel="icon" type="image/png" sizes="32x32" href="<?= assetVersionne('icones/favicon-32.png') ?>">
-    <link rel="apple-touch-icon" href="<?= assetVersionne('icones/apple-touch-icon.png') ?>">
-
-    <?php
-    /*
-     * La couleur de la barre système suit le thème du téléphone. Le manifeste
-     * n'en accepte qu'une seule, figée : ces deux balises la corrigent, sans
-     * quoi une barre crème surmontait l'application en mode sombre.
-     */
-    ?>
-    <meta name="theme-color" content="#f8f7f5" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#17150f" media="(prefers-color-scheme: dark)">
-
-    <?php /* iOS ignore le manifeste : il lui faut ses propres balises. */ ?>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Unison">
-    <meta name="mobile-web-app-capable" content="yes">
 
     <?php
     /*
