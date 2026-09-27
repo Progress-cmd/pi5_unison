@@ -3977,6 +3977,17 @@ body:not(.lecture-en-cours) .onde-lecture i {
         min-height: 0;
     }
 
+    /*
+     * La ligne de version s'étend sur les deux colonnes.
+     *
+     * Elle est bien en text-align: center, mais elle n'occupait qu'une
+     * colonne de la grille : elle se retrouvait centrée sur une moitié de
+     * page, donc visiblement décalée sous le reste.
+     */
+    #main-content[data-page="account"] > #account-version {
+        grid-column: 1 / -1;
+    }
+
     /* C'est le corps de la carte qui défile, pas la page. */
     #main-content[data-page="account"] > .containers > .body-bar {
         min-height: 0;
@@ -4146,8 +4157,16 @@ body:not(.lecture-en-cours) .onde-lecture i {
             color: var(--text-orange);
         }
 
-        /* Poussée en pied de barre latérale, loin des entrées de navigation. */
-        #nav-deconnexion {
+        /*
+         * C'est « Paramètres » qui porte la poussée, pas « Quitter ».
+         *
+         * Les deux sortent de la navigation dans la musique et vont ensemble
+         * en pied de colonne. Quand l'auto était sur la déconnexion seule,
+         * les paramètres restaient collés sous « Compte » et toute la hauteur
+         * libre s'ouvrait entre les deux — ils ne se lisaient plus comme une
+         * paire.
+         */
+        #nav-parametres {
             margin-top: auto;
         }
     }
