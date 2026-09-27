@@ -340,7 +340,12 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
         <!-- Le menu de navigation -->
         <nav id="navbar">
             <!-- Logo affiché uniquement sur la version bureau (voir style.css) -->
-            <div id="nav-brand">Unison</div>
+            <?php /* La même marque que la page de connexion : on retrouve en
+                     haut de la colonne le dessin de l'icône de l'application. */ ?>
+            <div id="nav-brand">
+                <img id="nav-marque" src="<?= assetVersionne('icones/marque.svg') ?>" alt="">
+                Unison
+            </div>
 
             <?php if ($admin): ?>
             <a href="?page=admin" data-page="admin">

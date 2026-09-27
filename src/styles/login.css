@@ -1,10 +1,26 @@
-html, body {
+html {
     height: 100%;
-    margin: 0;
-    padding: 0;
 }
 
 body {
+    /*
+     * min-height, et non height : c'est ce qui rend le haut de la page
+     * atteignable sur un téléphone.
+     *
+     * Avec une hauteur figée à 100 % et justify-content: center, un contenu
+     * plus haut que l'écran déborde des DEUX côtés — et la partie qui passe
+     * au-dessus du bord supérieur ne peut plus être atteinte par le
+     * défilement. Le logo et le début du texte étaient coupés.
+     *
+     * Avec min-height, le corps grandit avec son contenu : il n'y a plus
+     * d'espace libre à répartir, le centrage ne s'applique plus, et tout
+     * repart du haut.
+     */
+    min-height: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 24px 0;
+
     font-family: 'DM Sans', sans-serif;
     background: white;
     color: #1C1916;
@@ -12,7 +28,9 @@ body {
     /* Colonne : la carte de connexion, puis l'accès démonstration en dessous */
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    /* « safe » : si le contenu déborde malgré tout, le navigateur retombe sur
+       un alignement en début d'axe plutôt que de couper le haut. */
+    justify-content: safe center;
 }
 
 @media (min-width: 415px) {
@@ -67,10 +85,11 @@ body {
 }
 
 #login-logo > #logo-mark {
-    height: 38px;
-    width: 38px;
-    border-radius: 10px;
-    background: black;
+    /* La marque est un SVG à fond transparent : ni aplat, ni coins arrondis
+       à simuler. La largeur suit le tracé. */
+    height: 34px;
+    width: auto;
+    display: block;
 }
 
 #login-logo > #logo-text {

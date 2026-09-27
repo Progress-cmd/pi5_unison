@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 58" role="img" aria-label="Unison">
+    <!--
+        Deux anneaux qui se chevauchent : le même motif que les cercles de
+        présence de l'en-tête, et que l'icône de l'application.
+
+        Fond transparent et tracé vectoriel, pour se poser aussi bien sur la
+        carte blanche de la connexion que sur la barre latérale, en clair
+        comme en sombre.
+    -->
+    <g fill="none" stroke-width="6">
+        <circle cx="31.5" cy="29" r="25" stroke="#c8593a"/>
+        <circle cx="68.5" cy="29" r="25" stroke="#0583ab"/>
+    </g>
+</svg>

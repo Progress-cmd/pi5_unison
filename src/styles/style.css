@@ -1895,10 +1895,131 @@ footer > #navbar .nav-bureau {
     color: var(--text-gray);
 }
 
+/*
+ * Reprises du bloc <style> que la page titre.php portait en propre.
+ *
+ * Ce bloc redéclarait une vingtaine de règles déjà présentes ici, en couleurs
+ * écrites en dur (#ddd, #999, #f9f9f9) invisibles en thème sombre — et, parce
+ * qu'il était injecté après la feuille et préfixé par #titre-detail, il
+ * gagnait systématiquement. C'est ce qui rendait le padding des tuiles de
+ * statistiques inopérant : « #titre-detail .titre-stats .content » l'emporte
+ * sur « .titre-stats > .content ». Les trois regles ci-dessous n'existaient
+ * que là ; le reste du bloc a été supprimé.
+ */
+.artiste-lien,
+.playlist-lien {
+    cursor: pointer;
+}
+
+.artiste-lien {
+    color: var(--text-orange);
+    text-decoration: underline;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--accent-plein);
+    color: var(--white);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: var(--text-orange-hover);
+}
+
+/* Champ de note : la feuille ne stylait que les champs de création. */
+#titre-detail textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 14px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+#titre-detail h3 {
+    margin: 0 0 12px;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 500;
+}
+
 /* --- Formulaires de genres et d'étiquettes --- */
 
+/*
+ * Rythme vertical de la fiche d'un titre.
+ *
+ * Les espacements venaient d'attributs style= posés au fil de l'eau : le
+ * champ de création avait 10 px au-dessus et rien en dessous, si bien que le
+ * bouton « + Créer le genre » se collait dessous pendant qu'un grand vide
+ * s'ouvrait avant la section suivante. Les couleurs y étaient écrites en dur
+ * (#ddd), donc invisibles en thème sombre. Tout est passé en classes, avec
+ * un seul pas d'espacement.
+ */
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 26px;
+}
+
+.form-group > label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+/* Le champ et son bouton forment un couple : ils se suivent de près, et
+   c'est le groupe entier qui respire par rapport au reste. */
+.titre-creation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.titre-creation-champ {
+    flex: 1 1 200px;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    background-color: var(--light-beige);
+    color: var(--text-dark);
+    font-family: var(--sans);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.titre-creation-champ:focus {
+    outline: none;
+    border-color: var(--text-orange);
+}
+
+.titre-creation > .buttons {
+    flex: 0 0 auto;
+}
+
+/* Le séparateur suivait #ddd : il disparaissait en thème sombre. */
+.titre-separateur {
+    margin: 26px 0;
+    border: none;
+    border-top: 1px solid var(--dark-beige);
+}
+
+.titre-note-supprimer {
+    background: none;
+    border: none;
+    color: var(--light-error);
+    font-size: 16px;
+    cursor: pointer;
 }
 
 .tags-selector {
@@ -4125,12 +4246,26 @@ body:not(.lecture-en-cours) .onde-lecture i {
         border-right: 1px solid var(--dark-beige);
 
         #nav-brand {
-            display: block;
+            /* La marque et le nom sur une ligne, comme sur la page de
+               connexion : c'est le même bloc d'identité. */
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
             font-family: var(--serif);
             font-size: 30px;
             font-weight: 500;
             padding: 0 12px;
             margin-bottom: 30px;
+        }
+
+        #nav-marque {
+            /* Calé sur la hauteur des majuscules du nom, pour que les deux
+               se lisent comme une seule ligne. */
+            height: 22px;
+            width: auto;
+            flex: 0 0 auto;
+            display: block;
         }
 
         a {
