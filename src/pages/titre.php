@@ -2,6 +2,8 @@
 include_once "../includes/auth.php";
 exigerConnexion(false);
 include_once "../includes/config.php";
+// nomPlaylist() : rendu.php n'est tiré ni par auth.php ni par config.php.
+include_once "../includes/rendu.php";
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if (!$id) {
@@ -158,7 +160,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
             </div>
         <?php endif; ?>
 
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+        <hr class="titre-separateur">
 
         <!-- Genres et tags -->
         <form method="post" data-action="actions/modifier_titre.php" data-redirect="library/titre">
@@ -175,8 +177,10 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         </label>
                     <?php endforeach; ?>
                 </div>
-                <input type="text" id="new-genre" placeholder="Ajouter un genre" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
-                <button type="button" id="create-genre-btn" class="buttons">+ Créer le genre</button>
+                <div class="titre-creation">
+                    <input type="text" id="new-genre" class="titre-creation-champ" placeholder="Ajouter un genre">
+                    <button type="button" id="create-genre-btn" class="buttons">+ Créer le genre</button>
+                </div>
             </div>
 
             <div class="form-group">
@@ -190,8 +194,10 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                         </label>
                     <?php endforeach; ?>
                 </div>
-                <input type="text" id="new-tag" placeholder="Ajouter une étiquette" style="margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 100%; box-sizing: border-box;">
-                <button type="button" id="create-tag-btn" class="buttons">+ Créer une étiquette</button>
+                <div class="titre-creation">
+                    <input type="text" id="new-tag" class="titre-creation-champ" placeholder="Ajouter une étiquette">
+                    <button type="button" id="create-tag-btn" class="buttons">+ Créer une étiquette</button>
+                </div>
             </div>
 
             <button type="submit" class="buttons infos-valider">Enregistrer</button>
@@ -297,7 +303,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
             });
         </script>
 
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+        <hr class="titre-separateur">
 
         <!-- Section Notes -->
         <h3>Notes (<?= count($notes) ?>)</h3>
@@ -310,7 +316,7 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                             <strong><?= htmlspecialchars($note['username'] ?? 'Anonyme') ?></strong>
                             <span class="note-date"><?= date('d/m/Y H:i', strtotime($note['created-at'])) ?></span>
                         </div>
-                        <button type="button" class="delete-note" data-note-id="<?= $note['id'] ?>" style="background: none; border: none; color: #c9534f; cursor: pointer; font-size: 16px;">✕</button>
+                        <button type="button" class="delete-note titre-note-supprimer" data-note-id="<?= $note['id'] ?>">✕</button>
                     </div>
                     <div class="note-text"><?= nl2br(htmlspecialchars($note['text'] ?? '')) ?></div>
                 </div>
@@ -331,160 +337,4 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </article>
 
-<style>
-    #titre-detail .titre-entete {
-        display: flex;
-        gap: 20px;
-        align-items: center;
-        margin-bottom: 20px;
-    }
 
-    #titre-detail .titre-img {
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border-radius: 8px;
-    }
-
-    #titre-detail .titre-nom {
-        font-family: var(--serif);
-        font-size: 22px;
-        margin-bottom: 5px;
-    }
-
-    #titre-detail .titre-artistes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 5px;
-    }
-
-    #titre-detail .artiste-lien {
-        color: #C8593A;
-        cursor: pointer;
-        text-decoration: underline;
-    }
-
-    #titre-detail .titre-duree {
-        color: #999;
-        font-size: 13px;
-        margin-bottom: 10px;
-    }
-
-    #titre-detail .titre-stats .content {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-    }
-
-    #titre-detail .titre-playlists {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    #titre-detail .playlist-lien {
-        cursor: pointer;
-    }
-
-    #titre-detail .form-group {
-        margin-bottom: 20px;
-    }
-
-    #titre-detail label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 500;
-    }
-
-    #titre-detail input[type="text"],
-    #titre-detail textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        font-family: inherit;
-        font-size: inherit;
-        box-sizing: border-box;
-    }
-
-    #titre-detail textarea {
-        resize: vertical;
-    }
-
-    #titre-detail h3 {
-        margin-top: 20px;
-        margin-bottom: 15px;
-        font-family: var(--serif);
-        font-size: 18px;
-    }
-
-    .tags-selector {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .tag-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        cursor: pointer;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 20px;
-        background: #f9f9f9;
-    }
-
-    .tag-checkbox input[type="checkbox"] {
-        cursor: pointer;
-    }
-
-    .tag-checkbox:has(input:checked) {
-        background-color: rgba(200, 93, 58, 0.1);
-        border-color: #C8593A;
-    }
-
-    .btn-primary {
-        background-color: #C8593A;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-weight: 500;
-    }
-
-    .btn-primary:hover {
-        background-color: #a6483d;
-    }
-
-    .notes-list {
-        margin-bottom: 30px;
-    }
-
-    .note-item {
-        background: #f9f9f9;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        border-left: 4px solid #C8593A;
-    }
-
-    .note-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-
-    .note-date {
-        color: #999;
-        font-size: 12px;
-    }
-
-    .note-text {
-        color: #333;
-        line-height: 1.5;
-    }
-</style>

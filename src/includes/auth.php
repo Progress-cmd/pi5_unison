@@ -92,13 +92,64 @@ function assetVersionne(string $url): string
 }
 
 /**
+ * Durée pendant laquelle on reste connecté sans rien faire : 30 jours.
+ *
+ * Les valeurs par défaut de PHP déconnectaient sans cesse sur téléphone, pour
+ * deux raisons qui se cumulaient :
+ *
+ *   - `session.cookie_lifetime = 0` fait un cookie de session, effacé dès que
+ *     le navigateur se ferme. Android tue Chrome régulièrement pour récupérer
+ *     de la mémoire, et une application installée en fenêtre propre plus
+ *     encore : chaque réouverture repartait de l'écran de connexion ;
+ *   - `session.gc_maxlifetime = 1440`, soit 24 minutes. Poser le téléphone une
+ *     demi-heure suffisait à rendre la session effaçable côté serveur.
+ *
+ * Réglé ici plutôt que dans docker/php-*.ini : ces fichiers sont copiés dans
+ * l'image et demanderaient une reconstruction, alors que src/ est monté. La
+ * règle vit aussi à côté du code qui en dépend.
+ *
+ * Ce que ça ne change pas : le cookie reste httponly, SameSite=Strict et
+ * Secure en production, et `jeton_session` permet toujours de couper toutes
+ * les sessions d'un coup en changeant le mot de passe.
+ */
+const SESSION_DUREE = 30 * 24 * 60 * 60;
+
+/**
  * Démarre la session si elle ne l'est pas déjà.
  * Évite les "session already started" quand plusieurs includes s'enchaînent.
  */
 function demarrerSession(): void
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    // Avant session_start() : après, ces deux réglages n'ont plus d'effet.
+    ini_set('session.gc_maxlifetime', (string) SESSION_DUREE);
+    session_set_cookie_params(['lifetime' => SESSION_DUREE]);
+
+    session_start();
+
+    /*
+     * Cookie reposé à chaque passage, pour que les 30 jours comptent depuis la
+     * dernière visite et non depuis la connexion. Sans ça, une session
+     * utilisée tous les jours expirait quand même au bout d'un mois, sans
+     * raison visible.
+     *
+     * setcookie() plutôt que session_regenerate_id() : on prolonge, on ne
+     * change pas d'identifiant — le faire à chaque requête casserait les
+     * appels concurrents du lecteur et du battement de présence.
+     */
+    if (isset($_COOKIE[session_name()])) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), session_id(), [
+            'expires'  => time() + SESSION_DUREE,
+            'path'     => $params['path'],
+            'domain'   => $params['domain'],
+            'secure'   => $params['secure'],
+            'httponly' => $params['httponly'],
+            'samesite' => $params['samesite'],
+        ]);
     }
 }
 

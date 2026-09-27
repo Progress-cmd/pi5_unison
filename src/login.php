@@ -30,7 +30,8 @@ $preselection = isset($comptes[$dernier]) ? $dernier : array_key_first($comptes)
 <body>
     <form id="login-card" method="post" action="actions/login.php">
         <div id="login-logo">
-            <div id="logo-mark"></div>
+            <?php /* alt vide : le nom est juste à côté, le répéter n'apprend rien. */ ?>
+            <img id="logo-mark" src="<?= assetVersionne('icones/marque.svg') ?>" alt="">
             <span id="logo-text">Unison</span>
         </div>
 
