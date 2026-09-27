@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unison — hors ligne</title>
+    <style>
+        /*
+         * Page autonome : aucune feuille de style externe, aucune police
+         * distante. Elle s'affiche précisément quand le réseau manque — tout
+         * ce qu'elle demanderait ailleurs resterait blanc.
+         */
+        :root {
+            color-scheme: light dark;
+            --fond: light-dark(#f8f7f5, #17150f);
+            --texte: light-dark(#2a2520, #e8e3dc);
+            --gris: light-dark(#6d655c, #a09789);
+            --accent: light-dark(#c8593a, #e0785c);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 24px;
+            box-sizing: border-box;
+            background: var(--fond);
+            color: var(--texte);
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            text-align: center;
+        }
+
+        img { width: 88px; height: 88px; }
+        h1 { margin: 0; font-size: 22px; font-weight: 500; }
+        p { margin: 0; max-width: 32ch; line-height: 1.5; color: var(--gris); }
+
+        button {
+            margin-top: 6px;
+            padding: 11px 22px;
+            border: none;
+            border-radius: 10px;
+            background: var(--accent);
+            color: #fff;
+            font: inherit;
+            font-size: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <img src="icones/icon-192.png" alt="">
+    <h1>Pas de connexion</h1>
+    <p>
+        Unison a besoin du réseau du foyer : la musique est diffusée depuis le
+        serveur, elle n'est pas stockée sur cet appareil.
+    </p>
+    <button type="button" onclick="location.reload()">Réessayer</button>
+</body>
+</html>

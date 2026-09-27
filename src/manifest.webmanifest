@@ -1,0 +1,40 @@
+{
+  "name": "Unison",
+  "short_name": "Unison",
+  "description": "Écouter et partager la musique du foyer.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/index.php",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f8f7f5",
+  "theme_color": "#f8f7f5",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    { "src": "icones/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Recherche",
+      "short_name": "Recherche",
+      "url": "/index.php?page=search",
+      "icons": [{ "src": "icones/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bibliothèque",
+      "short_name": "Bibliothèque",
+      "url": "/index.php?page=library",
+      "icons": [{ "src": "icones/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "url": "/index.php?page=messages",
+      "icons": [{ "src": "icones/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

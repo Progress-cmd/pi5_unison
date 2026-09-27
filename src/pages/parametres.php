@@ -166,6 +166,26 @@ function reglage(string $id, string $titre, string $note, bool $actif, bool $des
     </div>
 </article>
 
+<?php
+/*
+ * Installation de l'application.
+ *
+ * Le contenu du bloc est posé par scripts/pwa.js : lui seul sait si le
+ * navigateur propose l'installation, si c'est déjà fait, ou si la page est
+ * ouverte sur une adresse non sécurisée. PHP ne peut rien en dire.
+ */
+?>
+<article class="containers" id="pwa-installation">
+    <div class="head-bar">Application</div>
+    <div class="body-bar">
+        <p class="infos-note" id="pwa-note">Vérification…</p>
+        <button type="button" class="buttons infos-valider" id="pwa-installer" hidden>
+            <span class="material-symbols-outlined">install_desktop</span>
+            Installer Unison
+        </button>
+    </div>
+</article>
+
 <article class="containers" id="param-securite">
     <div class="head-bar">Sécurité</div>
     <div class="body-bar">
@@ -455,4 +475,15 @@ function reglage(string $id, string $titre, string $note, bool $actif, bool $des
             }
         });
     })();
+</script>
+
+<script>
+    /*
+     * Le routeur réinjecte cette page à chaque visite : le bloc « Application »
+     * est un élément neuf, et pwa.js a déjà reçu son événement d'installation
+     * bien avant. C'est donc à la page de redemander son état.
+     */
+    if (typeof window.majBoutonInstallation === 'function') {
+        window.majBoutonInstallation();
+    }
 </script>
