@@ -239,10 +239,24 @@ function ytdlpOptionsCookies(): array
     return is_readable(YTDLP_COOKIES) ? ['--cookies', YTDLP_COOKIES] : [];
 }
 
-function executerYtDlp(array $arguments): array
+/**
+ * L'échec vient-il d'un défaut d'authentification ?
+ *
+ * Sert à décider s'il vaut la peine de recommencer avec les cookies. On
+ * reconnaît les seuls cas qu'ils savent débloquer — pas « vidéo supprimée »,
+ * pas « erreur réseau », qui ne gagneraient rien à une seconde tentative.
+ */
+function ytdlpEchecAuthentification(string $erreurs): bool
 {
-    $arguments = array_merge(YTDLP_OPTIONS_COMMUNES, ytdlpOptionsCookies(), $arguments);
+    return (bool) preg_match(
+        '/sign in|cookies|age.?restricted|needs to be reloaded|members.only|private video/i',
+        $erreurs
+    );
+}
 
+/** Un seul lancement de yt-dlp, sans aucune reprise. */
+function ytdlpLancer(array $arguments): array
+{
     $cmd = '/usr/local/bin/yt-dlp ' . implode(' ', array_map('escapeshellarg', $arguments));
 
     $fichierErreurs = tempnam('/tmp', 'ytdlp_');
@@ -257,6 +271,34 @@ function executerYtDlp(array $arguments): array
     @unlink($fichierErreurs);
 
     return [implode("\n", $lignes), $erreurs, $code];
+}
+
+/**
+ * Lance yt-dlp, et ne ressaie avec les cookies que si c'est nécessaire.
+ *
+ * Envoyer les cookies à chaque appel coûte cher : mesuré sur un titre
+ * ordinaire, 4,4 s sans, 13,5 s avec — trois fois plus lent, parce que
+ * YouTube impose aux requêtes authentifiées un chemin d'extraction bien plus
+ * bavard. Or l'immense majorité des titres n'en a aucun besoin.
+ *
+ * D'où ces deux passes : la première sans cookies, rapide, qui suffit presque
+ * toujours ; la seconde seulement quand l'échec ressemble à un refus
+ * d'authentification. Les rares vidéos concernées paient une tentative
+ * perdue ; toutes les autres retrouvent leur vitesse d'avant.
+ */
+function executerYtDlp(array $arguments): array
+{
+    $cookies = ytdlpOptionsCookies();
+
+    [$sortie, $erreurs, $code] = ytdlpLancer(
+        array_merge(YTDLP_OPTIONS_COMMUNES, $arguments)
+    );
+
+    if ($code === 0 || !$cookies || !ytdlpEchecAuthentification($erreurs)) {
+        return [$sortie, $erreurs, $code];
+    }
+
+    return ytdlpLancer(array_merge(YTDLP_OPTIONS_COMMUNES, $cookies, $arguments));
 }
 
 /**
