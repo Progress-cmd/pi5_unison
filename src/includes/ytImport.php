@@ -304,6 +304,20 @@ function traduireErreurYtDlp(string $erreurs): string
             => 'YouTube demande une confirmation anti-robot',
 
         /*
+         * Demande d'authentification sèche, sans motif annoncé : la vidéo est
+         * réservée aux comptes connectés. À placer APRÈS les deux motifs
+         * ci-dessus, plus précis — âge et anti-robot commencent aussi par
+         * « sign in » et méritent leur propre message.
+         *
+         * Le message brut de yt-dlp remontait tel quel, en anglais, et
+         * conseillait `--cookies-from-browser` — une option que personne ne
+         * peut passer depuis l'interface. Il fallait dire le vrai geste.
+         */
+        '/please sign in|use --cookies/i'
+            => 'YouTube réserve cette vidéo aux comptes connectés — '
+             . 'déposez des cookies sur le serveur (unison cookies)',
+
+        /*
          * Limitation de débit. À placer AVANT le motif réseau ci-dessous :
          * le message de yt-dlp est « unable to download video data: HTTP Error
          * 429 », qui contient « unable to download » et se faisait donc
