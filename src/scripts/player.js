@@ -133,6 +133,27 @@
         if (analyseTentee) return;
         analyseTentee = true;
 
+        /*
+         * Pas d'analyseur sur un appareil tactile, et c'est une question de
+         * son, pas de performance.
+         *
+         * createMediaElementSource() détourne définitivement la sortie de
+         * l'élément audio vers le graphe Web Audio : l'élément ne joue plus
+         * nulle part ailleurs, et l'appel est irréversible. Si le contexte
+         * n'est pas repris — il démarre suspendu sur mobile, et resume() est
+         * refusé hors geste utilisateur — le morceau avance sans qu'on
+         * entende rien. Le navigateur ne voyant aucune lecture audible,
+         * il n'affiche pas non plus la notification du système : les deux
+         * symptômes signalés venaient de là.
+         *
+         * La vague est décorative ; le son ne l'est pas. Sur ces appareils on
+         * garde l'animation de secours (voir niveauxCibles), qui ne touche
+         * pas au chemin audio.
+         */
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            return;
+        }
+
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (!Ctx) return;
 
@@ -601,6 +622,43 @@
         });
     });
 
+    /*
+     * Barre d'espace : lecture / pause.
+     *
+     * Le raccourci ne doit se déclencher que quand l'espace n'a rien d'autre à
+     * faire. Deux cas à écarter, et ils arrivent en permanence dans cette
+     * application :
+     *
+     *   - la saisie de texte. Un espace tapé dans le chat, dans la recherche
+     *     ou dans le champ d'un genre doit s'écrire, pas mettre la musique en
+     *     pause. D'où le test sur l'élément qui a le focus, contentEditable
+     *     compris — le chat pourrait en utiliser un ;
+     *   - les boutons et les cases à cocher. L'espace y vaut « activer » :
+     *     l'intercepter ferait deux actions d'un seul appui.
+     *
+     * preventDefault() dans les autres cas, sinon la page défile d'un écran à
+     * chaque appui, ce qui est le comportement par défaut de l'espace.
+     */
+    document.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space' && e.key !== ' ') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const cible = e.target;
+        if (cible instanceof HTMLInputElement
+            || cible instanceof HTMLTextAreaElement
+            || cible instanceof HTMLSelectElement
+            || cible instanceof HTMLButtonElement
+            || (cible && cible.isContentEditable)) {
+            return;
+        }
+
+        // Rien de chargé : il n'y a rien à mettre en pause.
+        if (!audio.src) return;
+
+        e.preventDefault();
+        audio.paused ? audio.play() : audio.pause();
+    });
+
     audio.addEventListener('play', updatePlayBtns);
     audio.addEventListener('pause', updatePlayBtns);
     audio.addEventListener('pause', () => flusherTemps());
@@ -653,13 +711,20 @@
 
         const pct = (audio.currentTime / audio.duration) * 100;
 
-        const miniBar = document.querySelector('#retract .player-progress_current');
-        if (miniBar) miniBar.style.width = pct + '%';
+        /*
+         * Tant que le doigt tient la barre, c'est lui qui commande : laisser
+         * timeupdate repositionner le remplissage le ferait revenir en
+         * arrière entre deux mouvements, et la poignée semblerait résister.
+         */
+        if (!enDeplacement) {
+            const miniBar = document.querySelector('#retract .player-progress_current');
+            if (miniBar) miniBar.style.width = pct + '%';
 
-        const expBar = document.querySelector('#extend .player-progress_current');
-        if (expBar) expBar.style.width = pct + '%';
+            const expBar = document.querySelector('#extend .player-progress_current');
+            if (expBar) expBar.style.width = pct + '%';
 
-        majOnde(pct);
+            majOnde(pct);
+        }
 
         document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
         document.querySelector('.time-total').textContent = formatTime(audio.duration);
@@ -897,13 +962,80 @@
 
     brancherMediaSession();
 
+    /*
+     * Déplacement dans le morceau : la position suit le doigt ou le curseur.
+     *
+     * C'était un simple `click` : on sautait d'un point à un autre, et tenir
+     * la barre ne faisait rien. Ici le remplissage, le temps affiche et la
+     * lecture suivent le pointeur tant qu'il est tenu.
+     *
+     * Trois choix qui demandent un mot :
+     *
+     *   - setPointerCapture : le glissement continue meme quand le doigt sort
+     *     de la barre, ce qui arrive constamment sur un élément de 6 px de
+     *     haut. Sans lui, le déplacement s'interrompt dès qu'on dérive ;
+     *   - l'affichage est mis à jour à chaque mouvement, mais le seek est
+     *     limité à un toutes les 120 ms : chaque changement de currentTime
+     *     relance une requête Range sur le serveur, et les enchaîner rend le
+     *     son haché. L'oreille suit quand même le geste ;
+     *   - un dernier seek au relâchement, pour atterrir exactement où le
+     *     doigt s'est arrêté et non à la dernière position limitée.
+     */
+    let enDeplacement = false;
+    let dernierSeek = 0;
+
     document.querySelectorAll('.player-progress_bar').forEach(bar => {
-        bar.addEventListener('click', function(e) {
+        const ratioDe = (clientX) => {
+            const r = bar.getBoundingClientRect();
+            return Math.min(Math.max((clientX - r.left) / r.width, 0), 1);
+        };
+
+        const peindre = (ratio) => {
+            const remplissage = bar.querySelector('.player-progress_current');
+            if (remplissage) remplissage.style.width = (ratio * 100) + '%';
+            if (audio.duration) {
+                const t = document.querySelector('.time-current');
+                if (t) t.textContent = formatTime(ratio * audio.duration);
+                majOnde(ratio * 100);
+            }
+        };
+
+        bar.addEventListener('pointerdown', (e) => {
             if (!audio.duration) return;
-            const rect = this.getBoundingClientRect();
-            const ratio = (e.clientX - rect.left) / rect.width;
+            e.preventDefault();
+            enDeplacement = true;
+            bar.setPointerCapture(e.pointerId);
+
+            const ratio = ratioDe(e.clientX);
+            peindre(ratio);
             audio.currentTime = ratio * audio.duration;
+            dernierSeek = performance.now();
         });
+
+        bar.addEventListener('pointermove', (e) => {
+            if (!enDeplacement || !audio.duration) return;
+
+            const ratio = ratioDe(e.clientX);
+            peindre(ratio);
+
+            const maintenant = performance.now();
+            if (maintenant - dernierSeek > 120) {
+                audio.currentTime = ratio * audio.duration;
+                dernierSeek = maintenant;
+            }
+        });
+
+        const terminer = (e) => {
+            if (!enDeplacement) return;
+            enDeplacement = false;
+            if (bar.hasPointerCapture(e.pointerId)) bar.releasePointerCapture(e.pointerId);
+            if (audio.duration) audio.currentTime = ratioDe(e.clientX) * audio.duration;
+        };
+
+        bar.addEventListener('pointerup', terminer);
+        // pointercancel : le navigateur reprend la main (appel entrant, geste
+        // système). Sans ce filet, la barre resterait figée sous le doigt.
+        bar.addEventListener('pointercancel', terminer);
     });
 
     /*
