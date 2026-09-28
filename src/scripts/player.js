@@ -134,26 +134,21 @@
         analyseTentee = true;
 
         /*
-         * Pas d'analyseur sur un appareil tactile, et c'est une question de
-         * son, pas de performance.
+         * L'analyseur tourne aussi sur mobile.
          *
-         * createMediaElementSource() détourne définitivement la sortie de
-         * l'élément audio vers le graphe Web Audio : l'élément ne joue plus
-         * nulle part ailleurs, et l'appel est irréversible. Si le contexte
-         * n'est pas repris — il démarre suspendu sur mobile, et resume() est
-         * refusé hors geste utilisateur — le morceau avance sans qu'on
-         * entende rien. Le navigateur ne voyant aucune lecture audible,
-         * il n'affiche pas non plus la notification du système : les deux
-         * symptômes signalés venaient de là.
+         * Il en avait été écarté un temps, sur le soupçon que le détour par
+         * un AudioContext y coupait le son. C'était faux : la coupure venait
+         * d'un déverrouillage audio ajouté au même moment, qui rappelait
+         * pause() après la lecture de l'utilisateur. Le soupçon n'était pas
+         * absurde — createMediaElementSource() détourne définitivement la
+         * sortie de l'élément, et un contexte resté suspendu rendrait bien
+         * muet — mais ce n'était pas ce qui se passait.
          *
-         * La vague est décorative ; le son ne l'est pas. Sur ces appareils on
-         * garde l'animation de secours (voir niveauxCibles), qui ne touche
-         * pas au chemin audio.
+         * Les garde-fous d'origine suffisent : le contexte est créé pendant
+         * un geste, repris à chaque geste suivant, et niveauxCibles() bascule
+         * sur l'animation de secours si l'analyseur reste muet vingt images
+         * de suite.
          */
-        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-            return;
-        }
-
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (!Ctx) return;
 

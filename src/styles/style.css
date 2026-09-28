@@ -765,26 +765,38 @@ footer > #navbar {
  * largeur qu'il lui faut et la barre défile horizontalement. Les neuf restent
  * atteignables, et lisibles.
  */
-body.admin footer > #navbar {
-    justify-content: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    /* Le doigt s'arrête sur une entrée, pas entre deux. */
-    scroll-snap-type: x proximity;
-    /* Les entrées de bord restent atteignables une fois défilé à fond. */
-    padding: 0 8px;
-}
+/*
+ * Sous 1024 px seulement — et l'oubli de cette borne était un vrai défaut.
+ *
+ * Ces règles décrivent une barre HORIZONTALE : défilement en x, entrées qui
+ * ne s'étirent pas, accrochage latéral. Laissées en portée globale, elles
+ * s'appliquaient aussi à la colonne latérale du bureau, qui est verticale.
+ * La plus nuisible était `overflow-y: hidden` : sur une fenêtre un peu
+ * courte, les dernières entrées (Console, SQL) se retrouvaient coupées sans
+ * aucun moyen de les atteindre.
+ */
+@media (max-width: 1023.98px) {
+    body.admin footer > #navbar {
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        /* Le doigt s'arrête sur une entrée, pas entre deux. */
+        scroll-snap-type: x proximity;
+        /* Les entrées de bord restent atteignables une fois défilé à fond. */
+        padding: 0 8px;
+    }
 
-body.admin footer > #navbar::-webkit-scrollbar {
-    display: none;
-}
+    body.admin footer > #navbar::-webkit-scrollbar {
+        display: none;
+    }
 
-body.admin footer > #navbar a {
-    flex: 0 0 auto;
-    min-width: 68px;
-    padding: 0 6px;
-    scroll-snap-align: center;
+    body.admin footer > #navbar a {
+        flex: 0 0 auto;
+        min-width: 68px;
+        padding: 0 6px;
+        scroll-snap-align: center;
+    }
 }
 
 /* Six entrées dans la barre : sur les écrans étroits, « Bibliothèque » et
