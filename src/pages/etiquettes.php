@@ -5,18 +5,24 @@ include_once "../includes/rendu.php";
 ?>
 <article id="etiquettes-choix" class="containers">
     <div class="head-bar">
-        Étiquettes
+        Genres et étiquettes
         <span id="etiquettes-mode-zone" class="more-bar" hidden>
             <button type="button" id="etiquettes-mode" class="buttons">Croiser</button>
         </span>
     </div>
     <div class="body-bar">
         <p class="infos-note" id="etiquettes-aide">
-            Cochez une ou plusieurs étiquettes. En mode « Croiser », un titre
-            doit les porter <strong>toutes</strong> ; en mode « Cumuler », il
-            lui suffit d'en porter une.
+            Cochez des genres, des étiquettes, ou les deux. En mode
+            « Croiser », un titre doit <strong>tout</strong> porter — « Rock »
+            et « calme » ensemble ; en mode « Cumuler », il lui suffit d'un
+            seul critère.
         </p>
-        <div id="etiquettes-liste"><?= squelettes(2) ?></div>
+
+        <h3 class="etiquettes-groupe">Genres</h3>
+        <div id="genres-liste"><?= squelettes(1) ?></div>
+
+        <h3 class="etiquettes-groupe">Étiquettes</h3>
+        <div id="etiquettes-liste"><?= squelettes(1) ?></div>
     </div>
 </article>
 
@@ -56,7 +62,14 @@ include_once "../includes/rendu.php";
      * une, alors que les croiser désigne quelque chose qu'aucune ne dit seule.
      */
     let mode = 'et';
-    const choisies = new Set();
+
+    /*
+     * Deux ensembles distincts : un genre et une étiquette peuvent porter le
+     * même identifiant, les mélanger dans un seul Set croiserait des critères
+     * qui n'ont rien à voir.
+     */
+    const choisies = { tags: new Set(), genres: new Set() };
+    const nbChoisies = () => choisies.tags.size + choisies.genres.size;
 
     /** Le bouton dit ce que fait le mode courant, pas son nom technique. */
     function majMode() {
@@ -64,7 +77,7 @@ include_once "../includes/rendu.php";
         boutonMode.title = mode === 'et'
             ? "Les titres portent toutes les étiquettes cochées"
             : "Les titres portent au moins une des étiquettes cochées";
-        zoneMode.hidden = choisies.size < 2;
+        zoneMode.hidden = nbChoisies() < 2;
     }
 
     async function chargerEtiquettes() {
@@ -72,42 +85,53 @@ include_once "../includes/rendu.php";
             const data = await (await fetch('actions/etiquettes.php')).json();
             if (!data.success) throw new Error(data.message);
 
-            liste.innerHTML = '';
+            /** Dessine une famille de pastilles dans son conteneur. */
+            const peupler = (conteneur, entrees, ensemble, motVide) => {
+                conteneur.innerHTML = '';
 
-            if (!data.etiquettes.length) {
-                const vide = document.createElement('p');
-                vide.className = 'infos-note';
-                vide.textContent = "Aucune étiquette pour l'instant. On en crée depuis la fiche d'un titre.";
-                liste.appendChild(vide);
-                document.getElementById('etiquettes-aide').hidden = true;
-                return;
-            }
+                if (!entrees.length) {
+                    const vide = document.createElement('p');
+                    vide.className = 'infos-note';
+                    vide.textContent = motVide;
+                    conteneur.appendChild(vide);
+                    return;
+                }
 
-            data.etiquettes.forEach(e => {
-                const l = document.createElement('label');
-                l.className = 'tag-checkbox';
+                entrees.forEach(e => {
+                    const l = document.createElement('label');
+                    l.className = 'tag-checkbox';
 
-                const c = document.createElement('input');
-                c.type = 'checkbox';
-                c.value = e.id;
+                    const c = document.createElement('input');
+                    c.type = 'checkbox';
+                    c.value = e.id;
 
-                // textContent : un nom d'étiquette est saisi par l'utilisateur.
-                const nom = document.createElement('span');
-                nom.textContent = e.name;
+                    // textContent : ces noms sont saisis par l'utilisateur.
+                    const nom = document.createElement('span');
+                    nom.textContent = e.name;
 
-                const n = document.createElement('span');
-                n.className = 'etiquette-compte';
-                n.textContent = e.nb_titres;
+                    const n = document.createElement('span');
+                    n.className = 'etiquette-compte';
+                    n.textContent = e.nb_titres;
 
-                c.addEventListener('change', () => {
-                    if (c.checked) choisies.add(e.id); else choisies.delete(e.id);
-                    majMode();
-                    chargerTitres();
+                    c.addEventListener('change', () => {
+                        if (c.checked) ensemble.add(e.id); else ensemble.delete(e.id);
+                        majMode();
+                        chargerTitres();
+                    });
+
+                    l.append(c, nom, n);
+                    conteneur.appendChild(l);
                 });
+            };
 
-                l.append(c, nom, n);
-                liste.appendChild(l);
-            });
+            peupler(document.getElementById('genres-liste'), data.genres, choisies.genres,
+                    "Aucun genre pour l'instant. On en crée depuis la fiche d'un titre.");
+            peupler(liste, data.etiquettes, choisies.tags,
+                    "Aucune étiquette pour l'instant. On en crée depuis la fiche d'un titre.");
+
+            if (!data.genres.length && !data.etiquettes.length) {
+                document.getElementById('etiquettes-aide').hidden = true;
+            }
         } catch (err) {
             liste.innerHTML = '';
             const p = document.createElement('p');
@@ -118,14 +142,15 @@ include_once "../includes/rendu.php";
     }
 
     async function chargerTitres() {
-        if (!choisies.size) {
+        if (!nbChoisies()) {
             resultat.hidden = true;
             return;
         }
 
         try {
             const url = 'actions/etiquettes.php?mode=' + mode
-                      + '&tags=' + [...choisies].join(',');
+                      + '&tags=' + [...choisies.tags].join(',')
+                      + '&genres=' + [...choisies.genres].join(',');
             const data = await (await fetch(url)).json();
             if (!data.success) throw new Error(data.message);
 
@@ -153,10 +178,11 @@ include_once "../includes/rendu.php";
 
     /** Envoie la sélection courante dans la file, selon la place demandée. */
     async function envoyer(position, remplacer) {
-        if (!choisies.size) return;
+        if (!nbChoisies()) return;
 
         const corpsRequete = new URLSearchParams({
-            tags: [...choisies].join(','),
+            tags: [...choisies.tags].join(','),
+            genres: [...choisies.genres].join(','),
             mode,
             position,
             remplacer: remplacer ? '1' : '0',

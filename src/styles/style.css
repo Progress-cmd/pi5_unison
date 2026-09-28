@@ -1077,10 +1077,23 @@ body.admin footer > #navbar a {
     color: var(--white);
 }
 
-#etiquettes-liste {
+#etiquettes-liste,
+#genres-liste {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+/* Intitulé d'une famille de critères (Genres, Étiquettes). */
+.etiquettes-groupe {
+    margin: 18px 0 8px;
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.etiquettes-groupe:first-of-type {
+    margin-top: 6px;
 }
 
 #etiquettes-actions {
@@ -4270,19 +4283,18 @@ body:not(.lecture-en-cours) .onde-lecture i {
      * entière, quand les autres sont des vitrines avec leur « Voir tout ».
      */
     /*
-     * Trois rangées, et c'est volontairement indépendant du nombre de cartes.
-     *
-     * La carte « Albums » ne s'affiche que s'il existe des albums : avec elle,
-     * les rangées sont titres / albums+artistes / favoris+playlists ; sans
-     * elle, titres / artistes+favoris / playlists. Dans les deux cas, trois.
-     *
-     * C'est ce que j'avais cassé en ajoutant un bloc « Étiquettes » en
-     * quatrième enfant : sur une discothèque sans album, tout remontait d'une
-     * rangée et « Tous les titres » se retrouvait écrasé à sa hauteur
-     * minimale. Le lien vit désormais dans l'en-tête de la carte des titres.
+     * Quatre rangées : titres, lien « étiquettes », puis deux rangées de
+     * cartes. Le compte tient que la carte « Albums » existe ou non — avec
+     * elle les paires sont albums+artistes et favoris+playlists, sans elle
+     * artistes+favoris et playlists seule. Ce qui ne doit jamais varier,
+     * c'est le lien : rendu hors de toute condition (voir library.php).
      */
     #main-content[data-page="library"] {
-        grid-template-rows: minmax(240px, 1.2fr) minmax(190px, 1fr) minmax(190px, 1fr);
+        grid-template-rows: minmax(240px, 1.2fr) auto minmax(190px, 1fr) minmax(190px, 1fr);
+    }
+
+    #main-content[data-page="library"] > #etiquettes-entree {
+        grid-column: 1 / -1;
     }
 
     #main-content[data-page="library"] > * {
