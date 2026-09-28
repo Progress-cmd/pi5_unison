@@ -14,6 +14,8 @@ function balisesApplication(): void
     $v = static fn (string $f): string => assetVersionne($f);
     ?>
     <link rel="manifest" href="<?= $v('manifest.webmanifest') ?>">
+    <?php /* Deux tailles : à 16 px l'onglet réduit la 32 et brouille le motif. */ ?>
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= $v('icones/favicon-16.png') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= $v('icones/favicon-32.png') ?>">
     <link rel="apple-touch-icon" href="<?= $v('icones/apple-touch-icon.png') ?>">
 

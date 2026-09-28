@@ -754,6 +754,39 @@ footer > #navbar {
 }
 
 
+/*
+ * Barre d'administration : neuf entrées, qu'on fait défiler.
+ *
+ * La barre d'écoute en compte six et tient tout juste ; celle-ci en a neuf —
+ * 43 px par cellule sur un écran de 390, quand « Maintenance » en réclame 70.
+ * Les libellés se chevauchaient et la section était inutilisable au doigt.
+ *
+ * Plutôt que de rogner encore la taille du texte, chaque entrée reprend la
+ * largeur qu'il lui faut et la barre défile horizontalement. Les neuf restent
+ * atteignables, et lisibles.
+ */
+body.admin footer > #navbar {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    /* Le doigt s'arrête sur une entrée, pas entre deux. */
+    scroll-snap-type: x proximity;
+    /* Les entrées de bord restent atteignables une fois défilé à fond. */
+    padding: 0 8px;
+}
+
+body.admin footer > #navbar::-webkit-scrollbar {
+    display: none;
+}
+
+body.admin footer > #navbar a {
+    flex: 0 0 auto;
+    min-width: 68px;
+    padding: 0 6px;
+    scroll-snap-align: center;
+}
+
 /* Six entrées dans la barre : sur les écrans étroits, « Bibliothèque » et
    « Importation » remplissent leur cellule au pixel près et les libellés
    finissent par se toucher. */
@@ -1580,7 +1613,17 @@ footer > #navbar {
     font-size: 13px;
 }
 
-.infos-champs input {
+/*
+ * textarea au même titre que input : il manquait au sélecteur.
+ *
+ * Laissé à lui-même, un textarea prend les valeurs par défaut du navigateur —
+ * police à chasse fixe et bordure grise. Sur la page des annonces, le champ
+ * « Message » se retrouvait donc en monospace juste sous un champ « Titre »
+ * à la police de l'application : deux champs du même formulaire qui ne se
+ * ressemblaient pas.
+ */
+.infos-champs input,
+.infos-champs textarea {
     padding: 8px 10px;
     border: 1px solid var(--dark-beige);
     border-radius: 8px;
@@ -1588,9 +1631,18 @@ footer > #navbar {
     font-family: var(--sans);
     font-size: 14px;
     color: var(--text-dark);
+    box-sizing: border-box;
 }
 
-.infos-champs input:focus {
+.infos-champs textarea {
+    /* Seule la hauteur se règle : l'élargir déborderait de la carte. */
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.45;
+}
+
+.infos-champs input:focus,
+.infos-champs textarea:focus {
     outline: none;
     border-color: var(--text-orange);
 }
