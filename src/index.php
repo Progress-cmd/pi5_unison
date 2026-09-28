@@ -140,10 +140,40 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
                 <?= $admin ? 'Console d\'administration' : 'Que voulez-vous écouter ' . $moment . ' ?' ?>
             </p>
         </div>
+
         <?php
         $isPersonal = (($_SESSION['user']['view_mode'] ?? 'mixed') === 'personal');
         $partenaire = idPartenaire();
         ?>
+        <?php if (!$admin && $partenaire !== null): ?>
+        <?php
+        /*
+         * Ce que l'autre écoute, en clair.
+         *
+         * L'information n'existait que dans l'infobulle du cercle de présence,
+         * donc elle demandait un survol : sur un téléphone, il n'y en a pas.
+         * Elle était littéralement inatteignable.
+         *
+         * Elle reste derrière un geste — on ne montre pas d'office ce que
+         * l'autre écoute — mais un geste qui existe au doigt : un appui, et
+         * non un survol.
+         *
+         * Rempli par scripts/presence.js, masqué tant que personne n'écoute.
+         */
+        ?>
+        <div id="presence-ecoute" hidden>
+            <?php /*
+             * Deux boutons et non un seul imbriqué : un bouton dans un bouton
+             * n'est pas du HTML valide, et chacun a ici un sens distinct —
+             * l'un ouvre, l'autre mène au titre.
+             */ ?>
+            <button type="button" id="presence-bascule" aria-expanded="false">
+                <span class="presence-vague" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span id="presence-bascule-texte">Voir ce qui est écouté</span>
+            </button>
+            <button type="button" id="presence-ecoute-texte" hidden></button>
+        </div>
+        <?php endif; ?>
         <?php
         /*
          * Les deux cercles servent aussi de bascule d'affichage : les deux

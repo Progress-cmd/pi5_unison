@@ -947,6 +947,131 @@ body.admin footer > #navbar a {
 }
 
 
+/*
+ * « Voir ce qu'écoute X » : un bouton replié dans l'en-tête.
+ *
+ * Ce que l'autre écoute ne s'affiche pas de soi-même — on le demande. Le
+ * bouton annonce qu'il y a quelque chose à voir ; le texte n'arrive qu'au
+ * clic, et mène alors à la fiche du titre.
+ */
+#presence-ecoute {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    max-width: 100%;
+    min-width: 0;
+}
+
+#presence-ecoute[hidden] {
+    /* display: flex ci-dessus est une règle d'auteur : sans ce rappel, elle
+       l'emporte sur le display: none du navigateur. */
+    display: none;
+}
+
+#presence-bascule,
+#presence-ecoute-texte {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px 5px 9px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 999px;
+    background-color: var(--light-beige);
+    color: var(--text-gray);
+    font-family: var(--sans);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+#presence-ecoute-texte[hidden] {
+    display: none;
+}
+
+#presence-bascule:hover,
+#presence-ecoute-texte:hover:not(:disabled) {
+    border-color: var(--text-orange);
+    color: var(--text-dark);
+}
+
+/* Une fois ouvert, le bouton d'appel se réduit à sa vague : le libellé
+   « Voir ce qu'écoute X » n'a plus rien à annoncer, la réponse est à côté. */
+#presence-ecoute.ouvert #presence-bascule-texte {
+    display: none;
+}
+
+#presence-ecoute.ouvert #presence-bascule {
+    padding: 5px 9px;
+}
+
+/* Un titre long se tronque au lieu de pousser l'en-tête. */
+#presence-ecoute-texte {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+/* Sans identifiant de titre, le texte informe mais ne mène nulle part. */
+#presence-ecoute-texte:disabled {
+    cursor: default;
+}
+
+/* La vague reprend celle des cercles de présence, à la même échelle. */
+#presence-bascule .presence-vague {
+    position: static;
+    flex: 0 0 auto;
+    box-shadow: none;
+}
+
+/* ----- Parcourir par étiquettes ----- */
+
+/* Nombre de titres porté par une étiquette, dans sa pastille. */
+.etiquette-compte {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background-color: var(--dark-beige);
+    color: var(--text-gray);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.tag-checkbox:has(input:checked) .etiquette-compte {
+    background-color: var(--text-orange);
+    color: var(--white);
+}
+
+#etiquettes-liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#etiquettes-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+#etiquettes-actions[hidden] {
+    display: none;
+}
+
+#etiquettes-resultat[hidden],
+#etiquettes-mode-zone[hidden] {
+    display: none;
+}
+
+/* Le bouton de mode vit dans l'en-tête : il y reprend la mesure du texte. */
+#etiquettes-mode {
+    padding: 3px 12px;
+    font-size: 13px;
+}
+
 /* En-tête d'une playlist : le bouton d'ajout porte son libellé. */
 .playlist-entete-actions {
     display: flex;
@@ -4112,7 +4237,13 @@ body:not(.lecture-en-cours) .onde-lecture i {
      * entière, quand les autres sont des vitrines avec leur « Voir tout ».
      */
     #main-content[data-page="library"] {
-        grid-template-rows: minmax(240px, 1.2fr) minmax(190px, 1fr) minmax(190px, 1fr);
+        /* La deuxième rangée est le lien « Parcourir par étiquettes » : une
+           ligne, pleine largeur, qui ne prend que sa hauteur. */
+        grid-template-rows: minmax(240px, 1.2fr) auto minmax(190px, 1fr) minmax(190px, 1fr);
+    }
+
+    #main-content[data-page="library"] > #etiquettes-entree {
+        grid-column: 1 / -1;
     }
 
     #main-content[data-page="library"] > * {

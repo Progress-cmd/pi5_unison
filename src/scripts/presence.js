@@ -90,9 +90,14 @@
         cercle.classList.toggle('est-en-ligne', enLigne);
         cercle.classList.toggle('est-en-ecoute', enEcoute);
 
-        // L'infobulle porte le détail : le cercle dit l'état, le survol dit
-        // quoi. Y écrire le titre évite une zone d'affichage supplémentaire
-        // dans un en-tête déjà chargé.
+        majLigneEcoute(etat, enEcoute);
+
+        /*
+         * L'infobulle reste, en complément de la ligne ci-dessus : au survol
+         * d'un cercle, sur ordinateur, elle répond sans déplacer le regard.
+         * Elle était en revanche le SEUL porteur de l'information, ce qui la
+         * rendait inaccessible au doigt — un téléphone n'a pas de survol.
+         */
         if (!etat) {
             cercle.title = '';
         } else if (enEcoute && etat.titre) {
@@ -105,6 +110,87 @@
         } else {
             cercle.title = etat.username + ' est hors ligne';
         }
+    }
+
+    /*
+     * « Voir ce qui est écouté » : replié par défaut.
+     *
+     * Ce que l'autre écoute ne s'affiche pas d'office — il faut le demander.
+     * Mais le geste doit exister au doigt : c'est un appui, pas un survol.
+     * L'infobulle du cercle, qui portait seule cette information, était
+     * inatteignable sur téléphone.
+     */
+    const ligneEcoute   = document.getElementById('presence-ecoute');
+    const bascule       = document.getElementById('presence-bascule');
+    const basculeTexte  = document.getElementById('presence-bascule-texte');
+    const ligneTexte    = document.getElementById('presence-ecoute-texte');
+    let titreCourantId = null;
+
+    /** Referme et remet le bouton dans son état d'invite. */
+    function replier() {
+        if (!ligneEcoute) return;
+        ligneTexte.hidden = true;
+        bascule.setAttribute('aria-expanded', 'false');
+        ligneEcoute.classList.remove('ouvert');
+    }
+
+    function majLigneEcoute(etat, enEcoute) {
+        if (!ligneEcoute) return;
+
+        /*
+         * Sans titre partagé, il n'y a rien à révéler : le bouton lui-même
+         * disparaît. Le réglage « partager ce que j'écoute » vaut ici aussi.
+         */
+        if (!enEcoute || !etat || !etat.titre) {
+            ligneEcoute.hidden = true;
+            titreCourantId = null;
+            replier();
+            return;
+        }
+
+        const nouveau = (etat.track_id || null);
+
+        /*
+         * Un changement de titre referme le volet : laisser affiché l'ancien
+         * nom pendant que l'autre écoute déjà autre chose serait pire que de
+         * ne rien montrer.
+         */
+        if (nouveau !== titreCourantId) replier();
+
+        titreCourantId = nouveau;
+
+        // textContent : titre et artiste viennent de la base.
+        ligneTexte.textContent = etat.username + ' écoute ' + etat.titre
+                               + (etat.artiste ? ' · ' + etat.artiste : '');
+        basculeTexte.textContent = 'Voir ce qu\'écoute ' + etat.username;
+        bascule.setAttribute('aria-label', 'Voir ce qu\'écoute ' + etat.username);
+
+        ligneTexte.disabled = !titreCourantId;
+        ligneEcoute.hidden = false;
+    }
+
+    if (ligneEcoute) {
+        bascule.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const ouvre = ligneTexte.hidden;
+            ligneTexte.hidden = !ouvre;
+            bascule.setAttribute('aria-expanded', ouvre ? 'true' : 'false');
+            ligneEcoute.classList.toggle('ouvert', ouvre);
+        });
+
+        // Le texte révélé mène à la fiche du titre.
+        ligneTexte.addEventListener('click', () => {
+            if (!titreCourantId) return;
+            sessionStorage.setItem('titre_id', String(titreCourantId));
+            navigateTo('library/titre');
+            replier();
+        });
+
+        // Un clic ailleurs referme : le volet n'a pas à rester ouvert derrière
+        // l'utilisateur une fois qu'il a lu.
+        document.addEventListener('click', (e) => {
+            if (!ligneEcoute.contains(e.target)) replier();
+        });
     }
 
     async function battre() {

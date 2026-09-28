@@ -105,6 +105,15 @@ $nombreAlbums = (int) $pdo->query("SELECT COUNT(*) FROM albums")->fetchColumn();
 ?>
 
 <?php if ($nombreAlbums > 0): ?>
+<?php /* Porte d'entrée vers le croisement d'étiquettes : c'est une façon de
+         parcourir la discothèque, sa place est ici. */ ?>
+<a id="etiquettes-entree" class="containers bloc-lien" href="?page=library/etiquettes"
+   data-page="library/etiquettes">
+    <span class="material-symbols-outlined">sell</span>
+    <span>Parcourir par étiquettes</span>
+    <span class="material-symbols-outlined bloc-lien-chevron">chevron_right</span>
+</a>
+
 <article id="albums-bar" class="containers">
     <div class="head-bar">Albums<a href="?page=library/albums" class="more-bar" data-page="library/albums">Voir tout (<?= $nombreAlbums ?>)</a></div>
     <div class="body-bar">

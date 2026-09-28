@@ -115,7 +115,7 @@ try {
     $req = $pdo->prepare("
         SELECT users.id AS user_id, users.username,
                users.presence_visible, users.presence_partage_titre,
-               presence.en_ecoute,
+               presence.en_ecoute, presence.track_id,
                TIMESTAMPDIFF(SECOND, presence.`vu-a`, NOW()) AS silence,
                tracks.title AS titre,
                GROUP_CONCAT(DISTINCT artists.name ORDER BY artists.name SEPARATOR ', ') AS artiste
@@ -155,6 +155,8 @@ try {
             'en_ecoute' => $enEcoute,
             'titre'     => $enEcoute ? $l['titre'] : null,
             'artiste'   => $enEcoute ? $l['artiste'] : null,
+            // Permet d'ouvrir la fiche du titre depuis la ligne d'en-tete.
+            'track_id'  => $enEcoute && $l['track_id'] ? (int) $l['track_id'] : null,
         ];
     }
 
