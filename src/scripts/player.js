@@ -749,22 +749,36 @@
      * À retirer une fois la cause connue.
      */
     (function tracerAudio() {
+        /*
+         * Activation par l'adresse, pas par la console : il n'y a pas de
+         * console accessible sur un Firefox Android. « ?trace=audio » arme la
+         * trace et la retient ; « ?trace=off » l'éteint.
+         */
         let actif = false;
-        try { actif = localStorage.getItem('unison.trace') === '1'; } catch (e) {}
+        try {
+            const demande = new URLSearchParams(location.search).get('trace');
+            if (demande === 'audio') { localStorage.setItem('unison.trace', '1'); }
+            if (demande === 'off')   { localStorage.removeItem('unison.trace'); }
+            actif = localStorage.getItem('unison.trace') === '1';
+        } catch (e) {}
         if (!actif) return;
 
-        const dire = (quoi) => {
+        window.__traceAudio = (quoi) => {
             const etat = ' [' + (audio.paused ? 'en pause' : 'joue')
-                       + ' t=' + audio.currentTime.toFixed(1)
-                       + ' ready=' + audio.readyState
-                       + ' net=' + audio.networkState
-                       + (audio.error ? ' err=' + audio.error.code : '')
-                       + ']';
+                       + ' t=' + audio.currentTime.toFixed(1) + ']';
             if (window.showToast) window.showToast(quoi + etat, 'error', 8000);
             console.warn('[trace audio] ' + quoi + etat);
         };
 
-        ['pause', 'stalled', 'suspend', 'waiting', 'error', 'emptied', 'abort']
+        const dire = window.__traceAudio;
+
+        /*
+         * Liste volontairement courte. « suspend », « emptied » et « waiting »
+         * surviennent en temps normal pendant le chargement : les afficher
+         * noyait ce qu'on cherche sous du bruit. Ne restent que les
+         * événements qui signifient vraiment « la lecture s'est arrêtée ».
+         */
+        ['pause', 'stalled', 'error', 'abort']
             .forEach(e => audio.addEventListener(e, () => dire('événement : ' + e)));
 
         /*
@@ -993,9 +1007,23 @@
     function brancherMediaSession() {
         if (!mediaSessionDispo) return;
 
+        /*
+         * Chaque commande du système est tracée à son entrée.
+         *
+         * C'est le point décisif pour un casque Bluetooth : l'AVRCP peut
+         * envoyer une commande « pause » de son propre chef, notamment juste
+         * après le début d'un flux. Vue du code, cette pause est
+         * indiscernable d'un appui de l'utilisateur — sauf ici, au moment où
+         * elle franchit la frontière.
+         */
+        const tracer = (nom, fn) => (...args) => {
+            if (window.__traceAudio) window.__traceAudio('commande système : ' + nom);
+            return fn(...args);
+        };
+
         const actions = {
-            play:  () => demanderLecture(),
-            pause: () => audio.pause(),
+            play:  tracer('play',  () => demanderLecture()),
+            pause: tracer('pause', () => audio.pause()),
 
             nexttrack: () => pisteSuivante(),
 
