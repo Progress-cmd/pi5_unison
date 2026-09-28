@@ -166,25 +166,50 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
         <form method="post" data-action="actions/modifier_titre.php" data-redirect="library/titre">
             <input type="hidden" name="track_id" value="<?= $titre['id'] ?>">
 
+            <?php
+            /*
+             * Genres : en lecture seule, et c'est la distinction avec les
+             * etiquettes.
+             *
+             * Un genre decrit ce qu'EST le morceau. Il arrive avec l'import,
+             * depuis les metadonnees de la source (voir ytImport.php), et il
+             * se propage a l'artiste — Radiohead reste rock quel que soit le
+             * titre qu'on regarde. Le modifier a la main sur un titre n'a donc
+             * pas de sens isolement ; cela se fait depuis l'administration,
+             * ou l'on voit tous les titres concernes.
+             *
+             * Aucun champ « genres[] » n'est envoye : modifier_titre.php
+             * distingue explicitement « non fourni » de « aucun coche », sans
+             * quoi enregistrer une etiquette effacerait les genres.
+             */
+            ?>
             <div class="form-group">
                 <label>Genres</label>
                 <div class="tags-selector" id="genres-selector">
-                    <?php foreach ($allGenres as $genre): ?>
-                        <label class="tag-checkbox">
-                            <input type="checkbox" name="genres[]" value="<?= $genre['id'] ?>"
-                                <?= in_array($genre['id'], $currentGenreIds) ? 'checked' : '' ?>>
+                    <?php
+                    $genresDuTitre = array_values(array_filter(
+                        $allGenres,
+                        static fn (array $g): bool => in_array($g['id'], $currentGenreIds)
+                    ));
+                    ?>
+                    <?php foreach ($genresDuTitre as $genre): ?>
+                        <span class="tag-checkbox tag-lecture-seule">
                             <?= htmlspecialchars($genre['name'] ?? '') ?>
-                        </label>
+                        </span>
                     <?php endforeach; ?>
+                    <?php if (!$genresDuTitre): ?>
+                        <span class="infos-note">Aucun genre — la source n'en indiquait pas.</span>
+                    <?php endif; ?>
                 </div>
-                <div class="titre-creation">
-                    <input type="text" id="new-genre" class="titre-creation-champ" placeholder="Ajouter un genre">
-                    <button type="button" id="create-genre-btn" class="buttons">+ Créer le genre</button>
-                </div>
+                <p class="infos-note titre-note-genres">
+                    Les genres viennent de l'import et suivent l'artiste. Ils se
+                    modifient depuis l'administration.
+                </p>
             </div>
 
             <div class="form-group">
                 <label>Étiquettes</label>
+                <p class="infos-note">Vos mots à vous : libres, et propres à ce titre.</p>
                 <div class="tags-selector" id="tags-selector">
                     <?php foreach ($allTags as $tag): ?>
                         <label class="tag-checkbox">
@@ -272,7 +297,6 @@ $playlists = $req->fetchAll(PDO::FETCH_ASSOC);
                 });
             }
 
-            brancherCreation('create-genre-btn', 'new-genre', 'actions/creer_genre.php', 'genre_id', 'genres-selector', 'genres[]');
             brancherCreation('create-tag-btn', 'new-tag', 'actions/create_tag.php', 'tag_id', 'tags-selector', 'tags[]');
 
             // Suppression de notes

@@ -382,6 +382,8 @@
      */
     ['pointerdown', 'touchstart', 'keydown'].forEach(evt =>
         document.addEventListener(evt, () => {
+            // Le déverrouillage d'abord : c'est lui qui conditionne le son.
+            deverrouillerAudio();
             brancherAnalyseur();
             if (contexteAudio && contexteAudio.state === 'suspended') {
                 contexteAudio.resume().catch(() => {});
@@ -502,11 +504,23 @@
         dessinerOnde(track.onde);
 
         audio.load();
-        if (autoplay) {
-            audio.addEventListener('canplay', () => {
-                audio.play().catch(() => {});
-            }, { once: true });
-        }
+
+        /*
+         * play() demandé directement, et non depuis un gestionnaire canplay.
+         *
+         * C'était la cause du silence sur téléphone. canplay est un événement
+         * média : il arrive bien après le geste qui a lancé le morceau, et à
+         * ce moment-là il n'y a plus d'activation utilisateur. Firefox, qui
+         * est strict, refuse alors la lecture AUDIBLE et l'autorise muette —
+         * d'où le symptôme exact rapporté : ça ne démarre que si le volume de
+         * l'application est à zéro. Chrome sur ordinateur laisse passer une
+         * fois le site « fréquenté », ce qui masquait le problème.
+         *
+         * Un play() sur un élément pas encore prêt est parfaitement valide :
+         * le navigateur démarre dès qu'il a de quoi jouer.
+         */
+        if (autoplay) demanderLecture();
+
         updateSelected();
     }
 
@@ -608,6 +622,66 @@
         }, { once: true });
     });
 
+    /*
+     * Lecture demandée, avec le refus rendu visible.
+     *
+     * Le rejet partait dans un catch vide : quand le navigateur refusait, il
+     * ne restait aucune trace, ni pour l'utilisateur ni dans la console.
+     */
+    function demanderLecture() {
+        const p = audio.play();
+        if (!p || !p.catch) return;
+
+        p.catch((err) => {
+            if (err && err.name === 'NotAllowedError') {
+                if (window.showToast) {
+                    window.showToast(
+                        "Le navigateur demande un appui pour lancer le son — touchez « lecture ».",
+                        'error', 6000
+                    );
+                }
+                return;
+            }
+            console.warn('lecture refusée :', err && err.name, err && err.message);
+        });
+    }
+
+    /*
+     * Déverrouillage de l'élément audio au premier vrai geste.
+     *
+     * Les navigateurs mobiles n'accordent le droit de jouer du son qu'à un
+     * élément qui a déjà joué pendant un geste utilisateur. Toutes les
+     * lectures suivantes — piste d'après, reprise, commande de la
+     * notification — en héritent. Sans ce passage, seule une lecture lancée
+     * par un appui direct sur « lecture » aurait du son.
+     *
+     * Le volume est mis à zéro le temps de l'opération : sans cela on
+     * entendrait un éclat du morceau en cours à chaque premier contact.
+     */
+    let audioDeverrouille = false;
+
+    function deverrouillerAudio() {
+        if (audioDeverrouille || !audio.src) return;
+
+        const volumeAvant = audio.volume;
+        const enLectureAvant = !audio.paused;
+
+        audio.volume = 0;
+        const p = audio.play();
+
+        const remettre = () => {
+            if (!enLectureAvant) audio.pause();
+            audio.volume = volumeAvant;
+        };
+
+        if (p && p.then) {
+            p.then(() => { audioDeverrouille = true; remettre(); }).catch(remettre);
+        } else {
+            audioDeverrouille = true;
+            remettre();
+        }
+    }
+
     function updatePlayBtns() {
         const icon = audio.paused ? 'play_arrow' : 'pause';
         document.querySelectorAll('.play-button').forEach(el => {
@@ -618,7 +692,7 @@
     document.querySelectorAll('.play-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            audio.paused ? audio.play() : audio.pause();
+            audio.paused ? demanderLecture() : audio.pause();
         });
     });
 
@@ -656,7 +730,7 @@
         if (!audio.src) return;
 
         e.preventDefault();
-        audio.paused ? audio.play() : audio.pause();
+        audio.paused ? demanderLecture() : audio.pause();
     });
 
     audio.addEventListener('play', updatePlayBtns);
@@ -875,7 +949,7 @@
         if (!mediaSessionDispo) return;
 
         const actions = {
-            play:  () => audio.play().catch(() => {}),
+            play:  () => demanderLecture(),
             pause: () => audio.pause(),
 
             nexttrack: () => pisteSuivante(),
@@ -1091,7 +1165,7 @@
         if (repeatMode === 1) {
             // Rejoue la même piste une fois : la relecture compte comme une nouvelle écoute
             audio.currentTime = 0;
-            audio.play();
+            demanderLecture();
             tempsLectureTitre = 0;
             ecouteComptee = false;
             dernierTemps = 0;
