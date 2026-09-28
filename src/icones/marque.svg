@@ -2,10 +2,13 @@
     <!--
         Marque de l'interface : barre latérale et page de connexion.
 
-        Fond transparent, et les teintes suivent le thème — la barre latérale
-        existe en clair comme en sombre, et un bleu profond y devenait presque
-        noir. Une SVG chargée par <img> honore prefers-color-scheme, ce qui
-        évite d'avoir à maintenir deux fichiers.
+        Sans tuile, contrairement au favicon : elle se pose à l'intérieur de
+        l'application, sur une surface qui a déjà sa couleur. Les teintes
+        suivent donc le thème — un bleu profond devenait presque noir sur la
+        barre latérale en mode sombre. Une SVG chargée par <img> honore
+        prefers-color-scheme, ce qui évite de maintenir deux fichiers.
+
+        Trait fin, accordé à celui de l'icône.
     -->
     <style>
         .orange { stroke: #c8593a; }
@@ -16,7 +19,7 @@
             .bleu   { stroke: #2ba7ce; }
         }
     </style>
-    <g fill="none" stroke-width="8">
+    <g fill="none" stroke-width="5.4">
         <circle class="orange" cx="32" cy="31" r="27"/>
         <circle class="bleu"   cx="68" cy="31" r="27"/>
     </g>
