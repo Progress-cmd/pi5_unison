@@ -93,8 +93,17 @@
             return;
         }
 
-        note.textContent = "Votre navigateur ne propose pas l'installation ici. "
-            + "Si Unison est déjà installée, ouvrez-la depuis votre bureau.";
+        /*
+         * Aucune invite alors que tout s'y prête : le cas de loin le plus
+         * fréquent est que l'application est déjà installée — le navigateur
+         * ne repropose pas ce qui existe déjà. On ne peut pas le vérifier
+         * depuis un onglet ordinaire, donc on énonce les deux possibilités
+         * plutôt que d'affirmer la mauvaise.
+         */
+        note.textContent = "Aucune invite d'installation : soit Unison est déjà "
+            + "installée sur cet appareil — ouvrez-la depuis votre bureau —, soit "
+            + "votre navigateur ne le propose pas. Son menu ⋮ peut contenir "
+            + "« Installer Unison ».";
     };
 
     document.addEventListener('click', async (e) => {
@@ -120,9 +129,22 @@
                 window.showToast('Installation annulée');
             }
         } catch (err) {
+            /*
+             * Le message doit dire quoi faire, pas réciter l'exception.
+             *
+             * L'invite du navigateur se périme : Chrome ne la délivre qu'une
+             * fois, au chargement, et l'application ne rechargeant jamais la
+             * page (routeur côté client), elle peut n'être plus valable au
+             * moment où l'on atteint cette page. Le menu du navigateur, lui,
+             * marche toujours.
+             */
             invite = null;
             if (window.showToast) {
-                window.showToast("Installation impossible : " + err.message, 'error', 6000);
+                window.showToast(
+                    "Le navigateur a refusé l'invite. Passez par son menu ⋮ → "
+                    + "« Installer Unison », ou rechargez la page et réessayez.",
+                    'error', 7000
+                );
             }
         }
 

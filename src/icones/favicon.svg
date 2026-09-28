@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Unison">
+    <!--
+        Favicon qui suit le thème du navigateur.
+
+        C'est le seul endroit où l'icône peut vraiment s'adapter à son
+        environnement : une SVG est réévaluée à chaque affichage, donc
+        prefers-color-scheme y est vivant. L'icône d'une application
+        installée, elle, est figée au moment de l'installation — d'où le fond
+        transparent des PNG, qui les laisse se poser sur la tuile du système
+        quelle qu'en soit la couleur.
+
+        Le motif est tracé épais et fortement chevauchant : à 16 px, deux
+        anneaux fins se confondent en une tache.
+    -->
+    <style>
+        .orange { stroke: #d66446; }
+        .bleu   { stroke: #1794b8; }
+
+        /* Sur fond sombre, les mêmes teintes s'éteignent : on les éclaircit. */
+        @media (prefers-color-scheme: dark) {
+            .orange { stroke: #e8836a; }
+            .bleu   { stroke: #3fb6d8; }
+        }
+    </style>
+    <g fill="none" stroke-width="15">
+        <circle class="orange" cx="34" cy="50" r="27"/>
+        <circle class="bleu"   cx="66" cy="50" r="27"/>
+    </g>
+</svg>
