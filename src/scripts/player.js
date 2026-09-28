@@ -733,6 +733,51 @@
         audio.paused ? demanderLecture() : audio.pause();
     });
 
+    /*
+     * Trace de diagnostic, désactivée par défaut.
+     *
+     * Activation depuis la console du téléphone :
+     *     localStorage.setItem('unison.trace', '1')
+     *
+     * Elle ne cherche pas à corriger quoi que ce soit : elle nomme l'événement
+     * qui a coupé la lecture. Quand le son s'arrête « tout seul », la question
+     * utile est de savoir QUI l'a arrêté — le navigateur (pause spontanée), le
+     * système (commande de notification), le réseau (stalled), ou un
+     * changement de périphérique audio. Sans ça on ne peut que supposer, et
+     * supposer a déjà coûté assez cher ici.
+     *
+     * À retirer une fois la cause connue.
+     */
+    (function tracerAudio() {
+        let actif = false;
+        try { actif = localStorage.getItem('unison.trace') === '1'; } catch (e) {}
+        if (!actif) return;
+
+        const dire = (quoi) => {
+            const etat = ' [' + (audio.paused ? 'en pause' : 'joue')
+                       + ' t=' + audio.currentTime.toFixed(1)
+                       + ' ready=' + audio.readyState
+                       + ' net=' + audio.networkState
+                       + (audio.error ? ' err=' + audio.error.code : '')
+                       + ']';
+            if (window.showToast) window.showToast(quoi + etat, 'error', 8000);
+            console.warn('[trace audio] ' + quoi + etat);
+        };
+
+        ['pause', 'stalled', 'suspend', 'waiting', 'error', 'emptied', 'abort']
+            .forEach(e => audio.addEventListener(e, () => dire('événement : ' + e)));
+
+        /*
+         * C'est l'événement qui compte pour des écouteurs : brancher ou
+         * appairer un casque change la liste des périphériques. S'il précède
+         * immédiatement la coupure, on tient le coupable.
+         */
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange',
+                () => dire('périphériques audio modifiés'));
+        }
+    })();
+
     audio.addEventListener('play', updatePlayBtns);
     audio.addEventListener('pause', updatePlayBtns);
     audio.addEventListener('pause', () => flusherTemps());
