@@ -14,7 +14,16 @@ function balisesApplication(): void
     $v = static fn (string $f): string => assetVersionne($f);
     ?>
     <link rel="manifest" href="<?= $v('manifest.webmanifest') ?>">
-    <?php /* Deux tailles : à 16 px l'onglet réduit la 32 et brouille le motif. */ ?>
+    <?php
+    /*
+     * Le SVG d'abord : c'est la seule icône qui suive vraiment le thème du
+     * navigateur, parce qu'elle est réévaluée à chaque affichage. Les PNG
+     * restent en repli pour les navigateurs qui ignorent les favicons
+     * vectorielles — deux tailles, parce qu'à 16 px la réduction de la 32
+     * brouille le motif.
+     */
+    ?>
+    <link rel="icon" type="image/svg+xml" href="<?= $v('icones/favicon.svg') ?>">
     <link rel="icon" type="image/png" sizes="16x16" href="<?= $v('icones/favicon-16.png') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= $v('icones/favicon-32.png') ?>">
     <link rel="apple-touch-icon" href="<?= $v('icones/apple-touch-icon.png') ?>">

@@ -1,15 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 62" role="img" aria-label="Unison">
     <!--
-        Deux anneaux qui se chevauchent : le même motif que les cercles de
-        présence de l'en-tête, et que l'icône de l'application.
+        Marque de l'interface : barre latérale et page de connexion.
 
-        Fond transparent et tracé vectoriel, pour se poser aussi bien sur la
-        carte blanche de la connexion que sur la barre latérale, en clair
-        comme en sombre. Trait épais et fort chevauchement : c'est ce qui
-        garde le motif lisible une fois réduit à 22 px de haut.
+        Fond transparent, et les teintes suivent le thème — la barre latérale
+        existe en clair comme en sombre, et un bleu profond y devenait presque
+        noir. Une SVG chargée par <img> honore prefers-color-scheme, ce qui
+        évite d'avoir à maintenir deux fichiers.
     -->
+    <style>
+        .orange { stroke: #c8593a; }
+        .bleu   { stroke: #0583ab; }
+
+        @media (prefers-color-scheme: dark) {
+            .orange { stroke: #e0785c; }
+            .bleu   { stroke: #2ba7ce; }
+        }
+    </style>
     <g fill="none" stroke-width="8">
-        <circle cx="32" cy="31" r="27" stroke="#c8593a"/>
-        <circle cx="68" cy="31" r="27" stroke="#0583ab"/>
+        <circle class="orange" cx="32" cy="31" r="27"/>
+        <circle class="bleu"   cx="68" cy="31" r="27"/>
     </g>
 </svg>
