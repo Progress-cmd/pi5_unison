@@ -1027,6 +1027,39 @@ body.admin footer > #navbar a {
     box-shadow: none;
 }
 
+/*
+ * Barre de progression : le geste lui appartient.
+ *
+ * touch-action: none empêche le navigateur d'interpréter le glissement comme
+ * un défilement de la page — sans lui, traîner le doigt sur la barre fait
+ * défiler l'écran au lieu de déplacer la lecture, et le pointermove n'arrive
+ * jamais. La zone tactile est élargie par un pseudo-élément : la barre fait
+ * quelques pixels de haut, le doigt en demande quarante.
+ */
+.player-progress_bar {
+    position: relative;
+    touch-action: none;
+    cursor: pointer;
+}
+
+.player-progress_bar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 40px;
+    transform: translateY(-50%);
+}
+
+/* Plusieurs liens dans un en-tête de carte : ils se suivent à droite. */
+.head-bar-liens {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+}
+
 /* ----- Parcourir par étiquettes ----- */
 
 /* Nombre de titres porté par une étiquette, dans sa pastille. */
@@ -4236,14 +4269,20 @@ body:not(.lecture-en-cours) .onde-lecture i {
      * La première rangée pèse un peu plus : elle porte la discothèque
      * entière, quand les autres sont des vitrines avec leur « Voir tout ».
      */
+    /*
+     * Trois rangées, et c'est volontairement indépendant du nombre de cartes.
+     *
+     * La carte « Albums » ne s'affiche que s'il existe des albums : avec elle,
+     * les rangées sont titres / albums+artistes / favoris+playlists ; sans
+     * elle, titres / artistes+favoris / playlists. Dans les deux cas, trois.
+     *
+     * C'est ce que j'avais cassé en ajoutant un bloc « Étiquettes » en
+     * quatrième enfant : sur une discothèque sans album, tout remontait d'une
+     * rangée et « Tous les titres » se retrouvait écrasé à sa hauteur
+     * minimale. Le lien vit désormais dans l'en-tête de la carte des titres.
+     */
     #main-content[data-page="library"] {
-        /* La deuxième rangée est le lien « Parcourir par étiquettes » : une
-           ligne, pleine largeur, qui ne prend que sa hauteur. */
-        grid-template-rows: minmax(240px, 1.2fr) auto minmax(190px, 1fr) minmax(190px, 1fr);
-    }
-
-    #main-content[data-page="library"] > #etiquettes-entree {
-        grid-column: 1 / -1;
+        grid-template-rows: minmax(240px, 1.2fr) minmax(190px, 1fr) minmax(190px, 1fr);
     }
 
     #main-content[data-page="library"] > * {

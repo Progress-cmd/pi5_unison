@@ -23,7 +23,24 @@ $nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
 ?>
 
 <article id="tracks-bar" class="containers">
-    <div class="head-bar">Tous les titres<a href="?page=library/titres" class="more-bar" data-page="library/titres">Voir tout<?= $nombreTitres ? ' ('.$nombreTitres.')' : '' ?></a></div>
+    <div class="head-bar">
+        Tous les titres
+        <span class="head-bar-liens">
+            <?php /*
+             * Le croisement d'étiquettes est une façon de parcourir la
+             * discothèque : sa place est ici, dans l'en-tête de la carte qui
+             * la représente.
+             *
+             * Et surtout pas comme bloc à part : la grille de cette page
+             * compte ses rangées par position, et la carte « Albums » ne
+             * s'affiche que s'il existe des albums. Un bloc de plus décalait
+             * tout d'une rangée dès qu'il n'y en avait aucun — c'est ce qui
+             * écrasait « Tous les titres » en production.
+             */ ?>
+            <a href="?page=library/etiquettes" class="more-bar" data-page="library/etiquettes">Étiquettes</a>
+            <a href="?page=library/titres" class="more-bar" data-page="library/titres">Voir tout<?= $nombreTitres ? ' ('.$nombreTitres.')' : '' ?></a>
+        </span>
+    </div>
 
     <button id="tout-ecouter" type="button">
         <span class="material-symbols-outlined">shuffle</span>
@@ -105,15 +122,6 @@ $nombreAlbums = (int) $pdo->query("SELECT COUNT(*) FROM albums")->fetchColumn();
 ?>
 
 <?php if ($nombreAlbums > 0): ?>
-<?php /* Porte d'entrée vers le croisement d'étiquettes : c'est une façon de
-         parcourir la discothèque, sa place est ici. */ ?>
-<a id="etiquettes-entree" class="containers bloc-lien" href="?page=library/etiquettes"
-   data-page="library/etiquettes">
-    <span class="material-symbols-outlined">sell</span>
-    <span>Parcourir par étiquettes</span>
-    <span class="material-symbols-outlined bloc-lien-chevron">chevron_right</span>
-</a>
-
 <article id="albums-bar" class="containers">
     <div class="head-bar">Albums<a href="?page=library/albums" class="more-bar" data-page="library/albums">Voir tout (<?= $nombreAlbums ?>)</a></div>
     <div class="body-bar">
