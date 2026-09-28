@@ -20,19 +20,34 @@ include_once "../includes/config.php";
 
 header('Content-Type: application/json');
 
-$demandes = array_values(array_filter(array_map(
-    static fn ($v) => (int) $v,
-    explode(',', (string) ($_POST['tags'] ?? ''))
-), static fn (int $v): bool => $v > 0));
+$entiers = static function (?string $brut): array {
+    return array_values(array_filter(array_map(
+        static fn ($v) => (int) $v,
+        explode(',', (string) $brut)
+    ), static fn (int $v): bool => $v > 0));
+};
+
+$tagsDemandes   = $entiers($_POST['tags'] ?? '');
+$genresDemandes = $entiers($_POST['genres'] ?? '');
+
+// Mêmes conditions que actions/etiquettes.php : la sélection envoyée dans la
+// file doit être exactement celle qui était affichée.
+$conditions = static function (array $ids, string $table, string $colonne, string $mode): array {
+    if (!$ids) { return []; }
+    $exists = static fn (string $in): string =>
+        "EXISTS (SELECT 1 FROM $table WHERE $table.track_id = tracks.id AND $table.$colonne IN ($in))";
+    if ($mode === 'ou') { return [$exists(implode(',', $ids))]; }
+    return array_map(static fn (int $id): string => $exists((string) $id), $ids);
+};
 
 $mode      = ($_POST['mode'] ?? 'et') === 'ou' ? 'ou' : 'et';
 $position  = ($_POST['position'] ?? 'fin') === 'suivant' ? 'suivant' : 'fin';
 $remplacer = !empty($_POST['remplacer']);
 $apres     = filter_input(INPUT_POST, 'apres_track_id', FILTER_VALIDATE_INT) ?: null;
 
-if (!$demandes) {
+if (!$tagsDemandes && !$genresDemandes) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Aucune étiquette sélectionnée']);
+    echo json_encode(['success' => false, 'message' => 'Aucune étiquette ni genre sélectionné']);
     exit;
 }
 
@@ -50,24 +65,22 @@ if (!$fileId) {
     exit;
 }
 
-$in = implode(',', $demandes);
-$having = $mode === 'et'
-    ? 'HAVING COUNT(DISTINCT tag__track.tag_id) = ' . count($demandes)
-    : '';
+$clauses = array_merge(
+    $conditions($tagsDemandes, 'tag__track', 'tag_id', $mode),
+    $conditions($genresDemandes, 'track__genre', 'genre_id', $mode)
+);
+$where = implode($mode === 'ou' ? ' OR ' : ' AND ', $clauses);
 
 try {
     $selection = $pdo->query("
         SELECT tracks.id
           FROM tracks
-          JOIN tag__track ON tag__track.track_id = tracks.id
-         WHERE tag__track.tag_id IN ($in)
-         GROUP BY tracks.id
-         $having
+         WHERE $where
          ORDER BY tracks.title ASC
     ")->fetchAll(PDO::FETCH_COLUMN);
 
     if (!$selection) {
-        echo json_encode(['success' => false, 'message' => 'Aucun titre ne porte ces étiquettes']);
+        echo json_encode(['success' => false, 'message' => 'Aucun titre ne correspond à cette sélection']);
         exit;
     }
 
@@ -142,7 +155,8 @@ try {
     $file = $req->fetchAll(PDO::FETCH_ASSOC);
 
     journalInfo('contenu', 'file_lot', "Lot d'étiquettes envoyé dans la liste d'attente", [
-        'tags'      => $demandes,
+        'tags'      => $tagsDemandes,
+        'genres'    => $genresDemandes,
         'mode'      => $mode,
         'position'  => $remplacer ? 'remplacement' : $position,
         'titres'    => count($selection),

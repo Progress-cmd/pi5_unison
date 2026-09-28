@@ -23,24 +23,7 @@ $nombreTitres = (int) $pdo->query("SELECT COUNT(*) FROM tracks")->fetchColumn();
 ?>
 
 <article id="tracks-bar" class="containers">
-    <div class="head-bar">
-        Tous les titres
-        <span class="head-bar-liens">
-            <?php /*
-             * Le croisement d'étiquettes est une façon de parcourir la
-             * discothèque : sa place est ici, dans l'en-tête de la carte qui
-             * la représente.
-             *
-             * Et surtout pas comme bloc à part : la grille de cette page
-             * compte ses rangées par position, et la carte « Albums » ne
-             * s'affiche que s'il existe des albums. Un bloc de plus décalait
-             * tout d'une rangée dès qu'il n'y en avait aucun — c'est ce qui
-             * écrasait « Tous les titres » en production.
-             */ ?>
-            <a href="?page=library/etiquettes" class="more-bar" data-page="library/etiquettes">Étiquettes</a>
-            <a href="?page=library/titres" class="more-bar" data-page="library/titres">Voir tout<?= $nombreTitres ? ' ('.$nombreTitres.')' : '' ?></a>
-        </span>
-    </div>
+    <div class="head-bar">Tous les titres<a href="?page=library/titres" class="more-bar" data-page="library/titres">Voir tout<?= $nombreTitres ? ' ('.$nombreTitres.')' : '' ?></a></div>
 
     <button id="tout-ecouter" type="button">
         <span class="material-symbols-outlined">shuffle</span>
@@ -120,6 +103,24 @@ $req = $pdo->query("
 $apercuAlbums = $req->fetchAll(PDO::FETCH_ASSOC);
 $nombreAlbums = (int) $pdo->query("SELECT COUNT(*) FROM albums")->fetchColumn();
 ?>
+
+<?php
+/*
+ * Toujours rendu, et c'est ce qui compte pour la mise en page.
+ *
+ * Il était la première fois placé APRÈS le « if ($nombreAlbums > 0) » : sur
+ * une discothèque sans album il disparaissait, et la grille — dont les
+ * rangées sont décrites par position — décalait toutes les cartes d'un cran.
+ * Hors de la condition, le compte de rangées est le même dans les deux cas :
+ * titres / étiquettes / deux cartes / deux cartes.
+ */
+?>
+<a id="etiquettes-entree" class="containers bloc-lien" href="?page=library/etiquettes"
+   data-page="library/etiquettes">
+    <span class="material-symbols-outlined">sell</span>
+    <span>Parcourir par étiquettes</span>
+    <span class="material-symbols-outlined bloc-lien-chevron">chevron_right</span>
+</a>
 
 <?php if ($nombreAlbums > 0): ?>
 <article id="albums-bar" class="containers">
