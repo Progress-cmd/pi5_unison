@@ -382,8 +382,6 @@
      */
     ['pointerdown', 'touchstart', 'keydown'].forEach(evt =>
         document.addEventListener(evt, () => {
-            // Le déverrouillage d'abord : c'est lui qui conditionne le son.
-            deverrouillerAudio();
             brancherAnalyseur();
             if (contexteAudio && contexteAudio.state === 'suspended') {
                 contexteAudio.resume().catch(() => {});
@@ -644,42 +642,6 @@
             }
             console.warn('lecture refusée :', err && err.name, err && err.message);
         });
-    }
-
-    /*
-     * Déverrouillage de l'élément audio au premier vrai geste.
-     *
-     * Les navigateurs mobiles n'accordent le droit de jouer du son qu'à un
-     * élément qui a déjà joué pendant un geste utilisateur. Toutes les
-     * lectures suivantes — piste d'après, reprise, commande de la
-     * notification — en héritent. Sans ce passage, seule une lecture lancée
-     * par un appui direct sur « lecture » aurait du son.
-     *
-     * Le volume est mis à zéro le temps de l'opération : sans cela on
-     * entendrait un éclat du morceau en cours à chaque premier contact.
-     */
-    let audioDeverrouille = false;
-
-    function deverrouillerAudio() {
-        if (audioDeverrouille || !audio.src) return;
-
-        const volumeAvant = audio.volume;
-        const enLectureAvant = !audio.paused;
-
-        audio.volume = 0;
-        const p = audio.play();
-
-        const remettre = () => {
-            if (!enLectureAvant) audio.pause();
-            audio.volume = volumeAvant;
-        };
-
-        if (p && p.then) {
-            p.then(() => { audioDeverrouille = true; remettre(); }).catch(remettre);
-        } else {
-            audioDeverrouille = true;
-            remettre();
-        }
     }
 
     function updatePlayBtns() {
