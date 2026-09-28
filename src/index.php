@@ -99,7 +99,9 @@ if (!in_array($theme, ['clair', 'sombre', 'systeme'], true)) {
     ]) ?>;</script>
     <?php endif; ?>
 </head>
-<body class="<?= $demo ? 'is-demo' : '' ?>">
+<?php /* La classe « admin » sert à la barre de navigation : neuf entrées
+         ne se disposent pas comme six (voir style.css). */ ?>
+<body class="<?= trim(($demo ? 'is-demo ' : '') . ($admin ? 'admin' : '')) ?>">
     <?php if ($demo): ?>
     <!-- Bandeau permanent : rappelle que la session est en lecture seule -->
     <div id="demo-banner">
