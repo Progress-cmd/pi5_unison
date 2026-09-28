@@ -13,7 +13,18 @@ if (!isset($_SESSION['user']['id'])) {
 }
 
 $trackId = filter_input(INPUT_POST, 'track_id', FILTER_VALIDATE_INT);
-$genres = isset($_POST['genres']) ? array_map('intval', $_POST['genres']) : [];
+/*
+ * « Pas de genres envoyes » et « aucun genre coche » ne veulent pas dire la
+ * meme chose, et la nuance protege les donnees.
+ *
+ * Plus bas, les genres du titre sont effaces puis reinseres depuis le POST.
+ * Depuis que la fiche d'un titre presente les genres en lecture seule — ils
+ * viennent de l'import, pas de la main — elle ne les envoie plus du tout. Sans
+ * ce test, chaque enregistrement d'etiquette aurait efface les genres au
+ * passage.
+ */
+$genresFournis = array_key_exists('genres', $_POST);
+$genres = $genresFournis ? array_map('intval', (array) $_POST['genres']) : [];
 $tags = isset($_POST['tags']) ? array_map('intval', $_POST['tags']) : [];
 
 if (!$trackId) {
@@ -34,7 +45,8 @@ if (!$req->fetch()) {
 }
 
 try {
-    // Remplace les genres du titre
+    // Remplace les genres du titre, seulement si le formulaire les gere.
+    if ($genresFournis) {
     $req = $pdo->prepare("DELETE FROM track__genre WHERE track_id = :track_id");
     $req->execute([':track_id' => $trackId]);
 
@@ -43,6 +55,7 @@ try {
         foreach ($genres as $genreId) {
             $req->execute([':track_id' => $trackId, ':genre_id' => $genreId]);
         }
+    }
     }
 
     // Remplace les tags du titre

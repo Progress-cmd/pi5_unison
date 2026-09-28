@@ -1060,6 +1060,24 @@ body.admin footer > #navbar a {
     margin-left: auto;
 }
 
+/*
+ * Pastille en lecture seule : un genre, qu'on ne modifie pas d'ici.
+ *
+ * Elle reprend la forme d'une étiquette pour rester lisible dans la même
+ * liste, mais perd ce qui appelle au clic : pas de curseur, pas de survol,
+ * et un fond plus discret. La différence doit se voir avant d'être lue.
+ */
+.tag-lecture-seule {
+    cursor: default;
+    background-color: transparent;
+    border-style: dashed;
+    color: var(--text-gray);
+}
+
+.titre-note-genres {
+    margin-top: 8px;
+}
+
 /* ----- Parcourir par étiquettes ----- */
 
 /* Nombre de titres porté par une étiquette, dans sa pastille. */

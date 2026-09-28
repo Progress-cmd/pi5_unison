@@ -19,9 +19,11 @@ include_once "../includes/rendu.php";
         </p>
 
         <h3 class="etiquettes-groupe">Genres</h3>
+        <p class="infos-note">Ce qu'est la musique — renseigné par l'import, partagé avec l'artiste.</p>
         <div id="genres-liste"><?= squelettes(1) ?></div>
 
         <h3 class="etiquettes-groupe">Étiquettes</h3>
+        <p class="infos-note">Vos mots à vous — posés à la main, sur un titre ou sur une playlist.</p>
         <div id="etiquettes-liste"><?= squelettes(1) ?></div>
     </div>
 </article>
