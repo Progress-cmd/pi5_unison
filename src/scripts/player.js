@@ -792,6 +792,16 @@
         }
     })();
 
+    /*
+     * Instant du dernier démarrage réel de la lecture.
+     *
+     * Sert de repère à la garde AVRCP ci-dessous : une commande de pause
+     * venue du système n'a pas le même sens selon qu'elle arrive une seconde
+     * ou une minute après le début du morceau.
+     */
+    let instantLecture = 0;
+    audio.addEventListener('play', () => { instantLecture = performance.now(); });
+
     audio.addEventListener('play', updatePlayBtns);
     audio.addEventListener('pause', updatePlayBtns);
     audio.addEventListener('pause', () => flusherTemps());
@@ -1021,9 +1031,34 @@
             return fn(...args);
         };
 
+        /*
+         * Fenêtre pendant laquelle une pause venue du système est refusée.
+         *
+         * Un casque Bluetooth envoie, via AVRCP, une commande « pause » de son
+         * propre chef juste après l'ouverture du flux — vraisemblablement pour
+         * réaligner son état interne. Vue du code, elle est indiscernable d'un
+         * appui de l'utilisateur, et l'application l'exécutait : le morceau
+         * s'arrêtait net dès qu'il commençait, uniquement casque connecté.
+         *
+         * Tracé sur l'appareil concerné : les trois commandes arrivaient à la
+         * même position au dixième de seconde près. Une seconde suffit donc
+         * largement à les écarter, sans gêner une vraie pause — personne
+         * n'appuie sur pause dans la seconde qui suit son propre lancement,
+         * et si cela arrive, un second appui fonctionne.
+         */
+        const FENETRE_AVRCP = 1000;
+
         const actions = {
             play:  tracer('play',  () => demanderLecture()),
-            pause: tracer('pause', () => audio.pause()),
+            pause: tracer('pause', () => {
+                if (!audio.paused && performance.now() - instantLecture < FENETRE_AVRCP) {
+                    if (window.__traceAudio) {
+                        window.__traceAudio('pause système ignorée (trop tôt après le démarrage)');
+                    }
+                    return;
+                }
+                audio.pause();
+            }),
 
             nexttrack: () => pisteSuivante(),
 
