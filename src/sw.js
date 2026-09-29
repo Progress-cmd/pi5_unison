@@ -26,7 +26,7 @@
  * et l'ancienne disparaît avec le ménage fait à l'activation.
  */
 
-const VERSION = 'unison-v1';
+const VERSION = 'unison-v2';
 const COQUILLE = VERSION + '-coquille';
 const HABILLAGE = VERSION + '-habillage';
 
