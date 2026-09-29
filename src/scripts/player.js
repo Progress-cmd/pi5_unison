@@ -441,36 +441,62 @@
      */
 
     // --- Charge une piste par ID et met à jour le player ---
-    async function loadTrack(id, autoplay = true) {
-        flusherTemps();
-        tempsLectureTitre = 0;
-        ecouteComptee = false;
-        dernierTemps = 0;
-        dernierePositionPubliee = 0;
-        currentTrackId = id;
-        titreCourant = '';
+    /*
+     * Fiches de titres déjà connues, pour enchaîner sans aller-retour réseau.
+     *
+     * C'est ce qui permet à la lecture de continuer en arrière-plan. Sans ce
+     * cache, la fin d'un morceau déclenchait un `await fetch(getTrack.php)`
+     * avant de pouvoir poser la source suivante : pendant ce trou, l'élément
+     * n'avait plus rien à jouer. Le système en conclut que la lecture est
+     * terminée, libère le focus audio et retire la notification — et le
+     * play() qui arrivait ensuite, page en arrière-plan et sans geste, était
+     * refusé. D'où un lecteur qui s'arrêtait après chaque titre dès qu'on
+     * quittait l'application.
+     *
+     * Borné : une file peut compter des centaines de titres, et on ne garde
+     * que ce qui sert à enchaîner.
+     */
+    const cacheTitres = new Map();
+    const CACHE_TITRES_MAX = 30;
 
-        let track = null;
+    function memoriserTitre(track) {
+        if (!track || track.id === null) return;
+        cacheTitres.set(track.id, track);
+        if (cacheTitres.size > CACHE_TITRES_MAX) {
+            cacheTitres.delete(cacheTitres.keys().next().value);
+        }
+    }
+
+    async function recupererTitre(id) {
+        const connu = cacheTitres.get(id);
+        if (connu) return connu;
+
         try {
             const res = await fetch(`actions/getTrack.php?id=${id}`);
-            track = res.ok ? await res.json() : null;
+            const track = res.ok ? await res.json() : null;
+            memoriserTitre(track);
+            return track;
         } catch (e) {
-            track = null;
+            return null;
         }
+    }
 
-        /*
-         * Titre introuvable : typiquement une file d'attente qui référence un
-         * morceau supprimé depuis. On le dit — le lecteur restait auparavant
-         * figé sur la piste précédente sans le moindre signe. Pas d'avance
-         * automatique vers la suivante : si plusieurs titres manquent, elle
-         * ferait défiler toute la file d'un coup.
-         */
-        if (!track || track.id === null) {
-            currentTrackId = null;
-            if (window.showToast) window.showToast('Ce titre est introuvable', 'error', 6000);
-            return;
-        }
+    /**
+     * Prépare la fiche du titre suivant pendant que le morceau en cours joue.
+     *
+     * Appelé au démarrage d'une lecture : on a alors plusieurs minutes devant
+     * soi, et la requête se fait pendant que la page est encore au premier
+     * plan, donc sans throttling.
+     */
+    function prechargerSuivant() {
+        if (!window.waitPlaylist) return;
+        const suivant = window.waitPlaylist[window.currentIndex + 1];
+        if (!suivant || cacheTitres.has(suivant.id)) return;
+        recupererTitre(suivant.id);
+    }
 
+    /** Pose un titre déjà connu sur le lecteur. Volontairement synchrone. */
+    function appliquerTitre(track, autoplay) {
         audio.src = track.src;
 
         titreCourant = track.title;
@@ -515,6 +541,54 @@
         if (autoplay) demanderLecture();
 
         updateSelected();
+        prechargerSuivant();
+    }
+
+    function reinitialiserMesures(id) {
+        flusherTemps();
+        tempsLectureTitre = 0;
+        ecouteComptee = false;
+        dernierTemps = 0;
+        dernierePositionPubliee = 0;
+        currentTrackId = id;
+        titreCourant = '';
+    }
+
+    function titreIntrouvable() {
+        currentTrackId = null;
+        if (window.showToast) window.showToast('Ce titre est introuvable', 'error', 6000);
+    }
+
+    /*
+     * Deux chemins, et la distinction compte.
+     *
+     * Titre déjà connu : tout se fait dans la foulée, sans `await`. C'est
+     * indispensable à l'enchaînement en arrière-plan — la source suivante est
+     * posée dans le même tour de boucle que l'événement `ended`, sans laisser
+     * au système le temps de croire que la lecture est finie.
+     *
+     * Titre inconnu (première lecture, saut dans la file) : on passe par le
+     * réseau, comme avant.
+     */
+    function loadTrack(id, autoplay = true) {
+        reinitialiserMesures(id);
+
+        const connu = cacheTitres.get(id);
+        if (connu) {
+            appliquerTitre(connu, autoplay);
+            return;
+        }
+
+        recupererTitre(id).then((track) => {
+            /*
+             * La file a pu bouger pendant la requête — piste suivante pressée
+             * deux fois, par exemple. Appliquer une fiche périmée ramènerait
+             * le lecteur en arrière.
+             */
+            if (currentTrackId !== id) return;
+            if (!track || track.id === null) { titreIntrouvable(); return; }
+            appliquerTitre(track, autoplay);
+        });
     }
 
     window.loadTrack = loadTrack;
