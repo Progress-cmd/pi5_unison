@@ -37,6 +37,10 @@
     let minuteurReprise = 0;
     let abandonsConsecutifs = 0;
     let lectureAbandonnee = false;
+    /* Voir « Enchaînement anticipé » plus bas ; déclaré ici pour la même
+       raison que les compteurs de reprise : `reinitialiserMesures()` le remet
+       à zéro et peut tourner avant que ce bloc ait été évalué. */
+    let enchainementAnticipe = false;
 
     /*
      * Réglages propres à l'appareil (scripts/prefs.js) : volume mémorisé,
@@ -567,6 +571,7 @@
         clearTimeout(minuteurReprise);
         reprisesFaites = 0;
         lectureAbandonnee = false;
+        enchainementAnticipe = false;
         tempsLectureTitre = 0;
         ecouteComptee = false;
         dernierTemps = 0;
@@ -1653,6 +1658,70 @@
             if (window.__traceAudio) window.__traceAudio('fin de file : rien à enchaîner');
             updatePlayBtns();
         }
+    });
+
+    /* ---------- Enchaînement anticipé ---------- */
+
+    /*
+     * On passe au titre suivant un peu AVANT la fin, au lieu d'attendre
+     * `ended`.
+     *
+     * Mesuré le 30/09/2026 sur Firefox Android. La notification système
+     * survit à un changement de titre déclenché au doigt — depuis
+     * l'application, depuis la notification, et même téléphone verrouillé.
+     * Elle ne disparaît que sur l'enchaînement automatique. Or les deux
+     * empruntent la même fonction, `pisteSuivante()` : le code exécuté est
+     * identique. La seule chose qui change, c'est que dans un cas `ended`
+     * s'est déclenché.
+     *
+     * L'hypothèse est donc que Firefox traite `ended` comme la fin de la
+     * session média et retire la notification, sans la reconstruire pour la
+     * piste suivante faute de geste utilisateur. En enchaînant avant, `ended`
+     * n'arrive jamais et la session n'a pas de raison d'être close.
+     *
+     * Si la notification disparaît quand même, l'hypothèse est fausse et la
+     * cause est l'absence d'activation utilisateur — auquel cas ce bloc n'aura
+     * fait aucun mal, et il faudra s'attaquer au maintien de la session.
+     *
+     * La marge coûte les dernières fractions de seconde du morceau. C'est
+     * presque toujours du silence de fin, et `timeupdate` ne se déclenche
+     * qu'environ quatre fois par seconde : en dessous, on raterait la fenêtre
+     * et `ended` passerait devant.
+     */
+    const MARGE_ENCHAINEMENT = 0.4;
+
+    audio.addEventListener('timeupdate', () => {
+        if (enchainementAnticipe) return;
+
+        /*
+         * Les modes de répétition gardent leur chemin d'origine : `repeat 1`
+         * est traité dans `ended`, et `repeat 2` passe par `audio.loop`, qui
+         * ne déclenche jamais `ended`. Rien à anticiper dans les deux cas.
+         */
+        if (repeatMode !== 0 || audio.loop) return;
+
+        const duree = audio.duration;
+        if (!Number.isFinite(duree) || duree <= 0) return;
+        if (duree - audio.currentTime > MARGE_ENCHAINEMENT) return;
+
+        // Dernier titre de la file : le laisser finir normalement.
+        if (!window.waitPlaylist
+            || window.currentIndex >= window.waitPlaylist.length - 1) return;
+
+        enchainementAnticipe = true;
+        if (window.__traceAudio) {
+            window.__traceAudio('enchaînement anticipé',
+                'reste ' + (duree - audio.currentTime).toFixed(2) + ' s');
+        }
+
+        /*
+         * Bilan de fin de morceau, que `ended` ne fera plus : un titre
+         * terminé ne doit pas se rouvrir à sa dernière seconde au prochain
+         * démarrage.
+         */
+        if (prefs && prefs.lire('reprise')) prefs.poserDerniereEcoute(currentTrackId, 0);
+
+        pisteSuivante();
     });
 
     /*
