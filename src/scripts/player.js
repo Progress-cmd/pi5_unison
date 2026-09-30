@@ -1116,8 +1116,15 @@
      * que le système prenne la plus adaptée à l'endroit où il l'affiche
      * (notification déroulée, écran verrouillé).
      */
+    /*
+     * Dernière fiche publiée au système. Conservée parce que la session média
+     * peut la perdre sans prévenir — voir `assurerMetadonnees()`.
+     */
+    let titreMediaCourant = null;
+
     function majMetadonneesMedia(track) {
         if (!mediaSessionDispo || !track) return;
+        titreMediaCourant = track;
 
         let pochette = [];
         if (track.img) {
@@ -1146,8 +1153,38 @@
                 pochette: pochette.length > 0,
             };
         } catch (e) {
+            if (window.__traceAudio) window.__traceAudio('métadonnées REFUSÉES', e && e.name);
             console.warn('MediaSession : métadonnées refusées', e);
         }
+    }
+
+    /*
+     * Filet de sécurité sur les métadonnées, et mesure en même temps.
+     *
+     * `appliquerTitre()` publie la fiche AVANT `audio.load()`, pour que la
+     * notification ne montre pas brièvement le titre précédent. Mais `load()`
+     * vide l'élément média, et rien ne garantit que la session survive à ce
+     * passage : la notification se reconstruit autour de la nouvelle source.
+     * Or on ne republiait la fiche nulle part ensuite — seuls les boutons et
+     * la position l'étaient, sur `play`.
+     *
+     * Appelé sur `playing`, c'est-à-dire une fois le son réellement sorti.
+     * Ne republie que si la session a effectivement perdu la fiche : si la
+     * ligne « métadonnées média republiées » n'apparaît jamais dans le
+     * journal, c'est que l'hypothèse est fausse et qu'il faut chercher
+     * ailleurs.
+     */
+    function assurerMetadonnees() {
+        if (!mediaSessionDispo || !titreMediaCourant) return;
+
+        const actuelles = navigator.mediaSession.metadata;
+        if (actuelles && actuelles.title === titreMediaCourant.title) return;
+
+        if (window.__traceAudio) {
+            window.__traceAudio('métadonnées média republiées',
+                actuelles ? 'fiche obsolète : ' + actuelles.title : 'session vidée');
+        }
+        majMetadonneesMedia(titreMediaCourant);
     }
 
     /**
@@ -1178,6 +1215,9 @@
             positionPosee = duree;
         } catch (e) {
             // Position transitoirement incohérente : le prochain appel corrigera.
+            if (window.__traceAudio) {
+                window.__traceAudio('setPositionState refusé', e && e.name);
+            }
         }
     }
 
@@ -1288,7 +1328,15 @@
      * l'audio même quand la lecture est commandée depuis la page.
      */
     audio.addEventListener('play', () => {
-        if (mediaSessionDispo) navigator.mediaSession.playbackState = 'playing';
+        if (mediaSessionDispo) {
+            navigator.mediaSession.playbackState = 'playing';
+            if (window.__traceAudio) {
+                window.__traceAudio('session média : playing',
+                    navigator.mediaSession.metadata
+                        ? 'fiche = ' + navigator.mediaSession.metadata.title
+                        : 'AUCUNE fiche');
+            }
+        }
 
         /*
          * Les actions sont redéclarées ICI, et pas seulement au chargement de
@@ -1311,12 +1359,30 @@
     });
 
     audio.addEventListener('pause', () => {
-        if (mediaSessionDispo) navigator.mediaSession.playbackState = 'paused';
+        if (mediaSessionDispo) {
+            navigator.mediaSession.playbackState = 'paused';
+            if (window.__traceAudio) {
+                window.__traceAudio('session média : paused',
+                    navigator.mediaSession.metadata
+                        ? 'fiche = ' + navigator.mediaSession.metadata.title
+                        : 'AUCUNE fiche');
+            }
+        }
         majPositionMedia();
     });
 
     // La durée n'est connue qu'une fois les métadonnées chargées : c'est le
     // premier moment où la barre de progression peut être publiée.
+    /*
+     * `playing`, et non `play` : `play` signale l'intention, `playing` que le
+     * son sort vraiment. C'est à ce moment-là que la session média existe
+     * pour de bon et qu'on peut constater ce qu'elle a gardé.
+     */
+    audio.addEventListener('playing', () => {
+        assurerMetadonnees();
+        majPositionMedia();
+    });
+
     audio.addEventListener('loadedmetadata', majPositionMedia);
     audio.addEventListener('durationchange', majPositionMedia);
     audio.addEventListener('seeked', majPositionMedia);
