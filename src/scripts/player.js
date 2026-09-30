@@ -27,6 +27,18 @@
     window.unisonAudio = audio;
 
     /*
+     * Compteur de reprises après échec de chargement. Déclaré ici, et non
+     * près du gestionnaire qui s'en sert : `reinitialiserMesures()` les remet
+     * à zéro et peut tourner pendant l'initialisation, donc avant que le bloc
+     * plus bas ait été évalué. En `let` déclaré là-bas, c'était une zone
+     * morte temporelle.
+     */
+    let reprisesFaites = 0;
+    let minuteurReprise = 0;
+    let abandonsConsecutifs = 0;
+    let lectureAbandonnee = false;
+
+    /*
      * Réglages propres à l'appareil (scripts/prefs.js) : volume mémorisé,
      * reprise, aléatoire par défaut. L'objet peut manquer si le script n'a pas
      * chargé — tout ce qui suit le tolère et retombe sur le comportement
@@ -552,6 +564,9 @@
 
     function reinitialiserMesures(id) {
         flusherTemps();
+        clearTimeout(minuteurReprise);
+        reprisesFaites = 0;
+        lectureAbandonnee = false;
         tempsLectureTitre = 0;
         ecouteComptee = false;
         dernierTemps = 0;
@@ -1430,6 +1445,125 @@
             pistePrecedente();
         });
     });
+
+
+    /* ---------- Reprise après un échec de chargement ---------- */
+
+    /*
+     * Mesuré le 30/09/2026, téléphone en arrière-plan, écran éteint :
+     *
+     *     ended → titre suivant pris en CACHE → loadstart
+     *     stalled (3 s sans le moindre octet)
+     *     error code 4 (MEDIA_ERR_SRC_NOT_SUPPORTED)
+     *
+     * Le chaînage, le préchargement et le cache avaient tous fonctionné. Ce
+     * qui échouait, c'était la requête du flux lui-même. Et le lecteur ne
+     * possédait aucun gestionnaire `error` : il restait muet pour de bon,
+     * alors que le fichier était parfaitement valide — le morceau précédent
+     * venait d'être servi depuis le même dossier par le même script.
+     *
+     * Un échec de chargement n'est donc pas une raison d'abandonner la file.
+     * Trois tentatives espacées, puis on passe au titre suivant plutôt que de
+     * laisser le silence s'installer.
+     *
+     * Les délais valent au moins une seconde : en dessous, les navigateurs
+     * mobiles rabotent les minuteurs des pages en arrière-plan, et une
+     * reprise programmée trop court partirait de toute façon en retard.
+     */
+    const REPRISE_DELAIS = [1000, 3000, 8000];
+    const ABANDONS_MAX = 3;
+
+    /*
+     * Diagnostic, actif seulement sous trace : la requête média a échoué,
+     * mais était-ce le réseau ou le serveur ? Une requête Range de deux
+     * octets sur la même URL répond sans ambiguïté — et elle emprunte le même
+     * chemin que le lecteur, puisque le service worker laisse passer les
+     * requêtes Range.
+     */
+    function sonderReseau(url) {
+        if (!window.__traceAudio || !url) return;
+        const t0 = performance.now();
+        const depuis = () => Math.round(performance.now() - t0) + ' ms, onLine=' + navigator.onLine;
+        fetch(url, { headers: { Range: 'bytes=0-1' }, cache: 'no-store' })
+            .then(r => window.__traceAudio('sonde réseau : HTTP ' + r.status, depuis()))
+            .catch(e => window.__traceAudio('sonde réseau : ÉCHEC', e.name + ' après ' + depuis()));
+    }
+
+    audio.addEventListener('error', () => {
+        /* `load()` sur un élément vidé déclenche un error sans source : rien à reprendre. */
+        if (!audio.currentSrc && !audio.src) return;
+
+        /*
+         * Une seule série de reprises par chargement voulu.
+         *
+         * Sans ce garde-fou le gestionnaire se rappelle lui-même : mesuré en
+         * essai, un élément déjà en échec refait surface avec un nouvel
+         * `error` après l'abandon, et le cycle repartait indéfiniment. Le
+         * drapeau ne retombe que dans `reinitialiserMesures()`, c'est-à-dire
+         * quand quelqu'un demande vraiment un titre.
+         */
+        if (lectureAbandonnee) return;
+
+        const idFautif = currentTrackId;
+        const urlFautive = audio.currentSrc || audio.src;
+        const code = audio.error ? audio.error.code : 0;
+        sonderReseau(urlFautive);
+
+        if (reprisesFaites >= REPRISE_DELAIS.length) {
+            if (window.__traceAudio) {
+                window.__traceAudio('titre ' + idFautif + ' abandonné',
+                                    reprisesFaites + ' tentatives, code ' + code);
+            }
+            reprisesFaites = 0;
+            abandonsConsecutifs += 1;
+
+            /*
+             * Borne volontaire. Passer au suivant est bon quand un seul
+             * fichier est en cause ; quand c'est le réseau qui manque, chaque
+             * titre échoue à son tour et la file entière défilerait à raison
+             * de douze secondes par morceau. On s'arrête, et on le dit.
+             */
+            if (abandonsConsecutifs >= ABANDONS_MAX) {
+                if (window.__traceAudio) {
+                    window.__traceAudio('lecture interrompue',
+                                        abandonsConsecutifs + ' titres illisibles de suite');
+                }
+                abandonsConsecutifs = 0;
+                lectureAbandonnee = true;
+                updatePlayBtns();
+                if (window.showToast) {
+                    window.showToast('Lecture interrompue : le serveur est injoignable.',
+                                     'error', 6000);
+                }
+                return;
+            }
+
+            if (!pisteSuivante()) {
+                lectureAbandonnee = true;
+                updatePlayBtns();
+            }
+            return;
+        }
+
+        const delai = REPRISE_DELAIS[reprisesFaites];
+        reprisesFaites += 1;
+        if (window.__traceAudio) {
+            window.__traceAudio('reprise ' + reprisesFaites + ' dans ' + delai + ' ms',
+                                'code ' + code);
+        }
+
+        clearTimeout(minuteurReprise);
+        minuteurReprise = setTimeout(() => {
+            /* L'utilisateur a pu changer de titre entre-temps : ne pas le contredire. */
+            if (currentTrackId !== idFautif) return;
+            audio.load();
+            demanderLecture();
+        }, delai);
+    });
+
+    /* Un octet reçu suffit à dire que la source est bonne : le compteur repart. */
+    ['loadeddata', 'playing'].forEach(e =>
+        audio.addEventListener(e, () => { reprisesFaites = 0; abandonsConsecutifs = 0; }));
 
     // --- Fin de piste avec gestion du repeat ---
     let repeatMode = 0;
