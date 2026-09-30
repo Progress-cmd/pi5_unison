@@ -492,7 +492,13 @@
         if (!window.waitPlaylist) return;
         const suivant = window.waitPlaylist[window.currentIndex + 1];
         if (!suivant || cacheTitres.has(suivant.id)) return;
-        recupererTitre(suivant.id);
+        if (window.__traceAudio) window.__traceAudio('préchargement lancé', 'titre ' + suivant.id);
+        recupererTitre(suivant.id).then((t) => {
+            if (window.__traceAudio) {
+                window.__traceAudio(t ? 'préchargement abouti' : 'préchargement ÉCHOUÉ',
+                                    'titre ' + suivant.id);
+            }
+        });
     }
 
     /** Pose un titre déjà connu sur le lecteur. Volontairement synchrone. */
@@ -575,10 +581,12 @@
 
         const connu = cacheTitres.get(id);
         if (connu) {
+            if (window.__traceAudio) window.__traceAudio('titre ' + id + ' : CACHE (synchrone)');
             appliquerTitre(connu, autoplay);
             return;
         }
 
+        if (window.__traceAudio) window.__traceAudio('titre ' + id + ' : RÉSEAU (asynchrone)');
         recupererTitre(id).then((track) => {
             /*
              * La file a pu bouger pendant la requête — piste suivante pressée
@@ -701,6 +709,7 @@
 
         p.catch((err) => {
             if (err && err.name === 'NotAllowedError') {
+                if (window.__traceAudio) window.__traceAudio('play() REFUSÉ', 'NotAllowedError');
                 if (window.showToast) {
                     window.showToast(
                         "Le navigateur demande un appui pour lancer le son — touchez « lecture ».",
@@ -708,6 +717,9 @@
                     );
                 }
                 return;
+            }
+            if (window.__traceAudio) {
+                window.__traceAudio('play() REFUSÉ', (err && err.name) + ' : ' + (err && err.message));
             }
             console.warn('lecture refusée :', err && err.name, err && err.message);
         });
@@ -767,59 +779,181 @@
     /*
      * Trace de diagnostic, désactivée par défaut.
      *
-     * Activation depuis la console du téléphone :
-     *     localStorage.setItem('unison.trace', '1')
+     *     ?trace=audio   arme la trace et vide le journal
+     *     ?trace=voir    affiche le journal (marche même trace éteinte)
+     *     ?trace=off     éteint
      *
-     * Elle ne cherche pas à corriger quoi que ce soit : elle nomme l'événement
-     * qui a coupé la lecture. Quand le son s'arrête « tout seul », la question
-     * utile est de savoir QUI l'a arrêté — le navigateur (pause spontanée), le
-     * système (commande de notification), le réseau (stalled), ou un
-     * changement de périphérique audio. Sans ça on ne peut que supposer, et
-     * supposer a déjà coûté assez cher ici.
+     * Elle ne corrige rien : elle nomme QUI a arrêté la lecture. Les toasts
+     * de la version précédente ne servaient à rien pour le défaut qui reste —
+     * la coupure arrive en fin de titre, application en arrière-plan, écran
+     * éteint : personne ne regarde. Le journal est donc écrit dans
+     * localStorage, et se relit après coup.
+     *
+     * `freeze`, `resume` et `wasDiscarded` viennent de l'API Page Lifecycle.
+     * Ce sont eux qui tranchent l'hypothèse « le téléphone tue l'application
+     * en arrière-plan » : si Android gèle l'onglet, ils le disent noir sur
+     * blanc. S'ils n'apparaissent jamais et que la coupure a quand même lieu,
+     * la cause est dans le code, pas dans le système.
      *
      * À retirer une fois la cause connue.
      */
-    (function tracerAudio() {
-        /*
-         * Activation par l'adresse, pas par la console : il n'y a pas de
-         * console accessible sur un Firefox Android. « ?trace=audio » arme la
-         * trace et la retient ; « ?trace=off » l'éteint.
-         */
-        let actif = false;
-        try {
-            const demande = new URLSearchParams(location.search).get('trace');
-            if (demande === 'audio') { localStorage.setItem('unison.trace', '1'); }
-            if (demande === 'off')   { localStorage.removeItem('unison.trace'); }
-            actif = localStorage.getItem('unison.trace') === '1';
-        } catch (e) {}
-        if (!actif) return;
+    const TRACE_CLE = 'unison.trace.journal';
+    const TRACE_MAX = 400;
 
-        window.__traceAudio = (quoi) => {
-            const etat = ' [' + (audio.paused ? 'en pause' : 'joue')
-                       + ' t=' + audio.currentTime.toFixed(1) + ']';
-            if (window.showToast) window.showToast(quoi + etat, 'error', 8000);
-            console.warn('[trace audio] ' + quoi + etat);
+    function traceLire() {
+        try { return JSON.parse(localStorage.getItem(TRACE_CLE) || '[]'); }
+        catch (e) { return []; }
+    }
+
+    /*
+     * Rendu du journal dans la page, en texte sélectionnable.
+     *
+     * Pas de console : il n'y en a pas d'accessible sur un navigateur
+     * Android. Le bouton « tout copier » existe parce que le but de ce
+     * journal est d'être recopié ailleurs.
+     */
+    function traceAfficher() {
+        const lignes = traceLire().map((l) => {
+            const d = new Date(l.h);
+            const hms = d.toTimeString().slice(0, 8) + '.'
+                      + String(d.getMilliseconds()).padStart(3, '0');
+            return hms + ' ' + l.v + ' ' + (l.p ? 'pause' : 'joue ')
+                 + ' t=' + String(l.t).padStart(6) + '  ' + l.q
+                 + (l.d ? ' — ' + l.d : '');
+        });
+
+        const boite = document.createElement('div');
+        boite.setAttribute('style', [
+            'position:fixed', 'inset:0', 'z-index:99999',
+            'background:#111', 'color:#eee', 'font:12px/1.45 monospace',
+            'display:flex', 'flex-direction:column'
+        ].join(';'));
+
+        const barre = document.createElement('div');
+        barre.setAttribute('style', 'display:flex;gap:8px;padding:8px;flex:0 0 auto');
+
+        const bouton = (texte, action) => {
+            const b = document.createElement('button');
+            b.textContent = texte;
+            b.setAttribute('style', 'padding:8px 12px;font:inherit');
+            b.addEventListener('click', action);
+            barre.appendChild(b);
+            return b;
         };
 
-        const dire = window.__traceAudio;
+        const corps = document.createElement('pre');
+        corps.setAttribute('style',
+            'flex:1 1 auto;margin:0;padding:8px;overflow:auto;white-space:pre;user-select:text');
+        corps.textContent = lignes.length
+            ? lignes.join('\n')
+            : 'Journal vide. Ouvrir « ?trace=audio », écouter, puis revenir ici.';
+
+        bouton('Tout copier', () => {
+            if (navigator.clipboard) navigator.clipboard.writeText(corps.textContent);
+            else {
+                const s = getSelection();
+                const r = document.createRange();
+                r.selectNodeContents(corps);
+                s.removeAllRanges();
+                s.addRange(r);
+            }
+        });
+        bouton('Vider', () => {
+            try { localStorage.removeItem(TRACE_CLE); } catch (e) {}
+            corps.textContent = 'Journal vidé.';
+        });
+        bouton('Fermer', () => boite.remove());
+
+        boite.appendChild(barre);
+        boite.appendChild(corps);
+        document.body.appendChild(boite);
+    }
+
+    (function tracerAudio() {
+        let actif = false;
+        let voir = false;
+        try {
+            const demande = new URLSearchParams(location.search).get('trace');
+            if (demande === 'audio') {
+                localStorage.setItem('unison.trace', '1');
+                localStorage.removeItem(TRACE_CLE);
+            }
+            if (demande === 'off')  { localStorage.removeItem('unison.trace'); }
+            if (demande === 'voir') { voir = true; }
+            actif = localStorage.getItem('unison.trace') === '1';
+        } catch (e) {}
+
+        if (voir) {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', traceAfficher);
+            } else {
+                traceAfficher();
+            }
+        }
+        if (!actif) return;
 
         /*
-         * Liste volontairement courte. « suspend », « emptied » et « waiting »
-         * surviennent en temps normal pendant le chargement : les afficher
-         * noyait ce qu'on cherche sous du bruit. Ne restent que les
-         * événements qui signifient vraiment « la lecture s'est arrêtée ».
+         * Une écriture localStorage par ligne. C'est synchrone et donc cher,
+         * mais on ne trace que des transitions : une poignée par titre. Ne
+         * jamais brancher ça sur `timeupdate`.
          */
-        ['pause', 'stalled', 'error', 'abort']
-            .forEach(e => audio.addEventListener(e, () => dire('événement : ' + e)));
+        function noter(quoi, detail) {
+            const ligne = {
+                h: Date.now(),
+                q: quoi,
+                d: detail || '',
+                p: audio.paused ? 1 : 0,
+                t: Number(audio.currentTime.toFixed(1)),
+                v: (document.visibilityState || '?')[0]
+            };
+            try {
+                const journal = traceLire();
+                journal.push(ligne);
+                while (journal.length > TRACE_MAX) journal.shift();
+                localStorage.setItem(TRACE_CLE, JSON.stringify(journal));
+            } catch (e) {}
+            console.warn('[trace audio]', quoi, detail || '');
+        }
 
         /*
-         * C'est l'événement qui compte pour des écouteurs : brancher ou
-         * appairer un casque change la liste des périphériques. S'il précède
-         * immédiatement la coupure, on tient le coupable.
+         * Toasts conservés, mais seulement au premier plan : en arrière-plan
+         * ils ne servent à personne et ralentissent la page au pire moment.
          */
+        const noterEtDire = (quoi, detail) => {
+            noter(quoi, detail);
+            if (document.visibilityState === 'visible' && window.showToast) {
+                window.showToast(quoi + (detail ? ' — ' + detail : ''), 'error', 6000);
+            }
+        };
+        window.__traceAudio = noterEtDire;
+
+        /*
+         * Liste large, contrairement à la version précédente : le défaut se
+         * joue pendant la bascule d'un titre au suivant, et c'est justement
+         * la séquence `ended → emptied → loadstart → canplay → playing` qu'il
+         * faut voir en entier pour savoir où elle s'interrompt.
+         */
+        ['ended', 'emptied', 'loadstart', 'loadedmetadata', 'canplay',
+         'playing', 'play', 'pause', 'waiting', 'stalled', 'suspend',
+         'error', 'abort'].forEach((e) => {
+            audio.addEventListener(e, () => {
+                noter('événement : ' + e,
+                      e === 'error' && audio.error ? 'code ' + audio.error.code : '');
+            });
+        });
+
+        /* --- L'hypothèse « Android tue l'application » se mesure ici --- */
+        document.addEventListener('visibilitychange',
+            () => noter('page ' + document.visibilityState));
+        document.addEventListener('freeze', () => noter('PAGE GELÉE par le système'));
+        document.addEventListener('resume', () => noter('page dégelée'));
+        window.addEventListener('pagehide', (e) => noter('pagehide', e.persisted ? 'mise en cache' : 'déchargée'));
+        if (document.wasDiscarded) noter('page REJETÉE puis rechargée par le système');
+        noter('trace armée', navigator.userAgent.slice(0, 80));
+
         if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
             navigator.mediaDevices.addEventListener('devicechange',
-                () => dire('périphériques audio modifiés'));
+                () => noter('périphériques audio modifiés'));
         }
     })();
 
@@ -1316,6 +1450,7 @@
             return;
         } else if (!pisteSuivante()) {
             // Fin de la file : rien à enchaîner, on remet juste les boutons.
+            if (window.__traceAudio) window.__traceAudio('fin de file : rien à enchaîner');
             updatePlayBtns();
         }
     });
