@@ -4346,7 +4346,23 @@ body:not(.lecture-en-cours) .onde-lecture i {
     #main-content[data-page="library"],
     #main-content[data-page="account"] {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        /*
+         * minmax(0, 1fr) et non 1fr : « 1fr » vaut « minmax(auto, 1fr) », et
+         * ce minimum « auto » est le contenu minimum de la carte. Une seule
+         * ligne intronçable suffisait alors à élargir sa colonne au-delà de
+         * la place disponible.
+         *
+         * Mesuré avec un titre à quatre artistes (« Isabella Kearny, Jared
+         * Benjamin, Jared Benjamin Rosenberg, Michael Locatelli ») : les
+         * colonnes passaient de 456/456 à 894/561, le contenu réclamait
+         * 1471 px pour 933 disponibles, et les 538 px en trop étaient rognés
+         * par l'overflow — encarts coupés, listes passant sous le lecteur.
+         *
+         * Le min-width: 0 posé sur .song-infos ne suffit pas : il autorise le
+         * rétrécissement DANS le flex une fois la largeur imposée, il ne
+         * remet pas à zéro le minimum que la grille calcule au-dessus.
+         */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 12px 16px;
     }
 
