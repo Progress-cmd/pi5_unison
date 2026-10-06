@@ -277,14 +277,50 @@ async function navigateTo(page) {
     mainContent.addEventListener('animationend',
         () => mainContent.classList.remove('page-entre'), { once: true });
 
-    window.corrigerImagesVides(mainContent);
+    /*
+     * Le lecteur retrouve sa place AVANT les initialisations de page.
+     *
+     * Il vient d'être mis à l'abri dans le pied de page pour survivre à
+     * l'écrasement du contenu. Tant qu'il y reste, la colonne de droite
+     * n'existe pas dans la mise en page : le contenu garde toute la largeur
+     * et la carte du lecteur, en position fixe, le recouvre — encarts
+     * coupés, listes passant dessous.
+     *
+     * Cet appel était le DERNIER d'une chaîne de six initialisations non
+     * protégées. Il suffisait qu'une seule d'entre elles lève une exception
+     * pour que le lecteur reste dans le pied de page, et la page s'affichait
+     * cassée. Or il ne dépend d'aucune : il n'a besoin que du nouveau DOM.
+     */
+    updatePlayerDock();
 
-    reinjectScripts(mainContent);
-    bindForms(mainContent);
-    bindDataPageLinks(mainContent);
-    bindPlaylistAddLink(mainContent);
-    if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
-    if (window.initializePlaylistEditor) window.initializePlaylistEditor();
+    /*
+     * Chaque initialisation est isolée.
+     *
+     * Elles sont indépendantes les unes des autres : une page dont le menu
+     * contextuel échoue ne doit pas perdre en plus ses formulaires, ses liens
+     * et sa mise en page. L'erreur est signalée plutôt qu'avalée — sans quoi
+     * on remplacerait un défaut visible par un défaut silencieux.
+     */
+    [
+        ['images',          () => window.corrigerImagesVides(mainContent)],
+        ['scripts',         () => reinjectScripts(mainContent)],
+        ['formulaires',     () => bindForms(mainContent)],
+        ['liens',           () => bindDataPageLinks(mainContent)],
+        ['ajout playlist',  () => bindPlaylistAddLink(mainContent)],
+        ['menus titres',    () => window.initializeTrackContextMenus && window.initializeTrackContextMenus()],
+        ['editeur playlist',() => window.initializePlaylistEditor && window.initializePlaylistEditor()],
+    ].forEach(([nom, faire]) => {
+        try {
+            faire();
+        } catch (e) {
+            console.error('Initialisation « ' + nom + ' » en échec sur la page ' + page, e);
+        }
+    });
+
+    /*
+     * Second passage : un script de page réinjecté peut avoir ajouté son
+     * propre emplacement d'ancrage. Sans effet si rien n'a changé.
+     */
     updatePlayerDock();
 
     // Met à jour l'URL dans la barre d'adresse
