@@ -75,3 +75,58 @@ function exigerPlaylistDeLUtilisateur(PDO $pdo, int $playlistId): string
 
     return (string) $playlist['name'];
 }
+
+/**
+ * Vérifie qu'on a le droit d'AJOUTER un titre à une playlist.
+ *
+ * Plus permissif qu'`exigerPlaylistDeLUtilisateur()`, et volontairement : les
+ * playlists ordinaires du foyer sont communes, chacun peut y déposer un titre.
+ * Ce qui reste fermé, c'est tout le reste — retirer, renommer, supprimer,
+ * réordonner passent toujours par le contrôle de propriété.
+ *
+ * Deux refus :
+ *   - la playlist n'existe pas ;
+ *   - c'est une playlist SYSTÈME d'un autre compte. « Wait Tracks » est sa
+ *     file de lecture et « Favorite Tracks » ses favoris : ni l'une ni l'autre
+ *     n'est un endroit où déposer quelque chose chez quelqu'un d'autre.
+ *
+ * @return array{name:string, proprietaire:int, mienne:bool}
+ */
+function exigerPlaylistOuverteALAjout(PDO $pdo, int $playlistId): array
+{
+    $req = $pdo->prepare("SELECT name, `created-by_id` FROM playlists WHERE id = :id");
+    $req->execute([':id' => $playlistId]);
+    $playlist = $req->fetch(PDO::FETCH_ASSOC);
+
+    if (!$playlist) {
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Playlist introuvable']);
+        exit;
+    }
+
+    $proprietaire = (int) $playlist['created-by_id'];
+    $mienne = $proprietaire === (int) ($_SESSION['user']['id'] ?? 0);
+
+    // playlistSysteme() vit dans rendu.php, que reponse.php ne tire pas : la
+    // liste des noms réservés ne doit exister qu'à un seul endroit.
+    include_once __DIR__ . '/rendu.php';
+
+    if (!$mienne && playlistSysteme($playlist['name'])) {
+        journalAttention('contenu', 'playlist_systeme_etrangere',
+            "Tentative d'ajout dans une playlist système d'un autre compte",
+            ['playlist' => $playlistId, 'proprietaire' => $proprietaire]);
+
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false,
+            'message' => "Cette liste appartient en propre à l'autre compte"]);
+        exit;
+    }
+
+    return [
+        'name'         => (string) $playlist['name'],
+        'proprietaire' => $proprietaire,
+        'mienne'       => $mienne,
+    ];
+}

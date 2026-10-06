@@ -18,9 +18,16 @@ if (!$track_id || !$playlist_id) {
 
 $pdo = Config::getConnection();
 
-// La playlist visée doit être celle de l'utilisateur : sans ce contrôle,
-// changer le playlist_id de la requête suffisait à écrire chez le voisin.
-exigerPlaylistDeLUtilisateur($pdo, $playlist_id);
+/*
+ * Les playlists ordinaires du foyer sont communes : chacun peut déposer un
+ * titre chez l'autre. Restent fermées les playlists système d'autrui — file
+ * d'attente et favoris — qui ne sont pas des listes partagées mais l'état
+ * personnel d'un compte.
+ *
+ * Tout le reste (retirer, renommer, supprimer, réordonner) continue de passer
+ * par exigerPlaylistDeLUtilisateur().
+ */
+$cible = exigerPlaylistOuverteALAjout($pdo, $playlist_id);
 
 // Vérifie que la track n'est pas déjà dans la playlist
 $req = $pdo->prepare("SELECT COUNT(*) FROM track__playlist WHERE track_id = :track AND playlist_id = :playlist");
@@ -36,8 +43,28 @@ $req = $pdo->prepare("SELECT COALESCE(MAX(position), 0) + 1 FROM track__playlist
 $req->execute([':playlist' => $playlist_id]);
 $position = $req->fetchColumn();
 
-$req = $pdo->prepare("INSERT INTO track__playlist (track_id, playlist_id, position) VALUES (:track, :playlist, :position)");
-$req->execute([':track' => $track_id, ':playlist' => $playlist_id, ':position' => $position]);
+/*
+ * On note QUI a ajouté. Sans ça, rien ne distinguerait dans la playlist de
+ * quelqu'un un titre qu'il a choisi d'un titre déposé par l'autre compte —
+ * et c'est précisément ce qu'il faut pouvoir montrer.
+ */
+$req = $pdo->prepare("
+    INSERT INTO track__playlist (track_id, playlist_id, position, `added-by_id`)
+    VALUES (:track, :playlist, :position, :auteur)
+");
+$req->execute([
+    ':track'    => $track_id,
+    ':playlist' => $playlist_id,
+    ':position' => $position,
+    ':auteur'   => (int) $_SESSION['user']['id'],
+]);
+
+if (!$cible['mienne']) {
+    journalInfo('contenu', 'ajout_playlist_partagee',
+        "Titre ajouté dans la playlist d'un autre compte",
+        ['playlist' => $playlist_id, 'titre' => $track_id,
+         'proprietaire' => $cible['proprietaire']]);
+}
 
 echo json_encode(['success' => true, 'message' => 'Ajouté avec succès']);
 exit;

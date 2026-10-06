@@ -1054,8 +1054,15 @@
             majOnde(pct);
         }
 
-        document.querySelector('.time-current').textContent = formatTime(audio.currentTime);
-        document.querySelector('.time-total').textContent = formatTime(audio.duration);
+        /*
+         * Gardés comme le reste du gestionnaire : une exception ici
+         * interromprait tout ce qui suit, dont la publication de la position
+         * auprès du système.
+         */
+        const tCourant = document.querySelector('.time-current');
+        if (tCourant) tCourant.textContent = formatTime(audio.currentTime);
+        const tTotal = document.querySelector('.time-total');
+        if (tTotal) tTotal.textContent = formatTime(audio.duration);
 
         /*
          * Barre de progression du système, rafraîchie au plus une fois par
@@ -1436,8 +1443,24 @@
         bar.addEventListener('pointerdown', (e) => {
             if (!audio.duration) return;
             e.preventDefault();
+
+            /*
+             * Capture AVANT de lever le drapeau.
+             *
+             * Dans l'autre ordre, un `setPointerCapture` qui échoue — identifiant
+             * de pointeur déjà invalide, geste repris par le système — laissait
+             * `enDeplacement` levé pour de bon : plus aucun `pointerup` ne venait
+             * sur cette barre, et `timeupdate` cessait définitivement de repeindre
+             * les deux barres. D'où une progression « parfois » figée, jusqu'au
+             * rechargement de la page.
+             */
+            try {
+                bar.setPointerCapture(e.pointerId);
+            } catch (err) {
+                // Sans capture le glissement ne suivra pas le doigt hors de la
+                // barre, mais le filet plus bas garantit qu'on se débloquera.
+            }
             enDeplacement = true;
-            bar.setPointerCapture(e.pointerId);
 
             const ratio = ratioDe(e.clientX);
             peindre(ratio);
@@ -1470,6 +1493,23 @@
         // système). Sans ce filet, la barre resterait figée sous le doigt.
         bar.addEventListener('pointercancel', terminer);
     });
+
+    /*
+     * Dernier filet, au niveau de la fenêtre.
+     *
+     * `enDeplacement` est partagé par les deux barres (#retract et #extend) et
+     * commande le repeint de toute la progression : levé par erreur, il fige
+     * l'affichage jusqu'au rechargement. Les gestionnaires posés sur les barres
+     * ne suffisent pas, puisqu'ils supposent que le relâchement leur parvient.
+     *
+     * Ici on ne touche à rien d'autre que le drapeau : le déplacement final a
+     * déjà été appliqué par `terminer()`, qui s'exécute avant puisque
+     * l'événement remonte de la barre vers la fenêtre.
+     */
+    const relacherDeplacement = () => { enDeplacement = false; };
+    window.addEventListener('pointerup', relacherDeplacement);
+    window.addEventListener('pointercancel', relacherDeplacement);
+    window.addEventListener('lostpointercapture', relacherDeplacement);
 
     /*
      * Navigation dans la file d'attente.

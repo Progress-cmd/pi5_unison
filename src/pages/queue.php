@@ -43,13 +43,32 @@ $fileId = (int) $req->fetchColumn();
         }
 
         function rendre() {
-            window.remplirLignesTitres(queueFull, window.waitPlaylist, {
+            /*
+             * Rendu par paquets : une file de 2000 titres construisait 2000
+             * lignes à chaque ouverture de cette page, pour une quinzaine de
+             * visibles. Les données sont déjà toutes en mémoire, seul le DOM
+             * est étalé — aucune requête de plus.
+             *
+             * `jusqua` garantit que le morceau en cours est bâti dès le
+             * premier paquet, même s'il est au 1500e rang : sans ça on ne
+             * pourrait pas l'amener sous les yeux.
+             */
+            window.rendreParPaquets(queueFull, window.waitPlaylist, {
                 file: true,
                 badge: true,
                 messageVide: "File d'attente vide",
+                /*
+                 * On commence au morceau en cours, pas au début de la file :
+                 * s'il est au 1500e rang, bâtir les 1500 lignes au-dessus
+                 * pour pouvoir l'atteindre annulerait tout le bénéfice. Les
+                 * dix titres précédents donnent le contexte, et remonter plus
+                 * haut charge la suite.
+                 */
+                depuis: Math.max(0, (window.currentIndex || 0) - 10),
+                // Les écouteurs de glisser-déposer tiennent aux lignes :
+                // chaque paquet en apporte de nouvelles, il faut les rebrancher.
+                apresPaquet: brancherReordonnancement,
             });
-
-            brancherReordonnancement();
 
             // Amène le morceau en cours sous les yeux, sans animer : la page
             // vient de s'ouvrir, il n'y a rien à suivre du regard.

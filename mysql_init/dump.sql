@@ -266,6 +266,7 @@ CREATE TABLE `track__playlist` (
   `playlist_id` int(11) NOT NULL,
   `track_id` int(11) NOT NULL,
   `position` int(11) NOT NULL,
+  `added-by_id` int(11) DEFAULT NULL,
   `added-at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

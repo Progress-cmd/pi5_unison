@@ -108,4 +108,150 @@
 
         if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
     };
+
+    /**
+     * Rend une liste de titres par paquets, au fil du défilement.
+     *
+     * `remplirLignesTitres()` construit tout d'un coup. Sur une file de 2000
+     * titres, ça faisait 2000 sous-arbres DOM à chaque affichage de l'accueil
+     * ou de la liste d'attente — mesuré à plus d'un mégaoctet de HTML pour le
+     * seul fragment d'accueil — alors que l'écran en montre une quinzaine.
+     *
+     * Aucune requête supplémentaire : les titres sont déjà tous en mémoire
+     * dans `window.waitPlaylist`. Ce qu'on étale, c'est la construction du
+     * DOM, pas le chargement des données.
+     *
+     * La fenêtre s'étend dans les DEUX sens. C'est nécessaire à la liste
+     * d'attente : si le morceau en cours est au 1500e rang, commencer au
+     * premier titre obligerait à bâtir 1500 lignes invisibles avant de
+     * pouvoir l'amener sous les yeux — exactement ce qu'on cherche à éviter.
+     * On part donc de lui, et on remonte si l'utilisateur remonte.
+     *
+     * @param {HTMLElement} conteneur
+     * @param {Array}  titres
+     * @param {Object} opts   les options de creerLigneTitre(), plus :
+     *   - paquet  {number} lignes par paquet (40 par défaut)
+     *   - deja    {number} lignes déjà rendues par le serveur, à ne pas refaire
+     *   - depuis  {number} index où commencer (0 par défaut)
+     *   - apresPaquet {Function} rappelé après chaque paquet : les écouteurs
+     *                      posés sur les lignes doivent être rejoués.
+     * @return {{tout: Function}} tout() force le rendu complet.
+     */
+    window.rendreParPaquets = function (conteneur, titres, opts = {}) {
+        const PAQUET = opts.paquet || 40;
+        const apresPaquet = opts.apresPaquet || function () {};
+
+        if (!titres || titres.length === 0) {
+            window.remplirLignesTitres(conteneur, titres, opts);
+            return { tout: function () {} };
+        }
+
+        const borne = (n) => Math.min(Math.max(n, 0), titres.length);
+
+        /* premier = premier index rendu ; rendus = un cran après le dernier. */
+        let premier = borne(opts.depuis || 0);
+        let rendus  = Math.max(premier, borne(opts.deja || 0));
+
+        // Le serveur n'a rien posé : on repart d'un conteneur vide.
+        if (!opts.deja) conteneur.textContent = '';
+
+        function ligne(i) {
+            return window.creerLigneTitre(titres[i], {
+                ...opts,
+                index: opts.file ? i : undefined,
+                classes: ((opts.classes || '')
+                    + (opts.file && i === window.currentIndex ? ' selected' : '')).trim(),
+            });
+        }
+
+        function apres() {
+            if (window.initializeTrackContextMenus) window.initializeTrackContextMenus();
+            apresPaquet(premier, rendus);
+        }
+
+        /*
+         * Sentinelles plutôt qu'un écouteur de défilement : elles ne coûtent
+         * rien tant qu'elles restent hors du cadre. Même choix que la page
+         * d'activité.
+         */
+        const hautSentinelle = document.createElement('div');
+        hautSentinelle.className = 'rendu-sentinelle';
+        hautSentinelle.setAttribute('aria-hidden', 'true');
+
+        const basSentinelle = document.createElement('div');
+        basSentinelle.className = 'rendu-sentinelle';
+        basSentinelle.setAttribute('aria-hidden', 'true');
+
+        conteneur.insertBefore(hautSentinelle, conteneur.firstChild);
+        conteneur.appendChild(basSentinelle);
+
+        let obsHaut = null;
+        let obsBas = null;
+
+        function etendreVersLeBas(cible) {
+            if (rendus >= titres.length) return;
+            const fin = borne(cible);
+            const frag = document.createDocumentFragment();
+            for (let i = rendus; i < fin; i++) frag.appendChild(ligne(i));
+
+            // Avant la sentinelle : elle doit rester la dernière, sinon elle
+            // reste visible et l'observateur se redéclenche sans fin.
+            conteneur.insertBefore(frag, basSentinelle);
+            rendus = fin;
+            apres();
+
+            if (rendus >= titres.length && obsBas) {
+                obsBas.disconnect();
+                basSentinelle.remove();
+            }
+        }
+
+        function etendreVersLeHaut(cible) {
+            if (premier <= 0) return;
+            const debut = borne(cible);
+            const frag = document.createDocumentFragment();
+            for (let i = debut; i < premier; i++) frag.appendChild(ligne(i));
+
+            /*
+             * Préserver la position de lecture : insérer au-dessus décale
+             * tout ce qui est visible vers le bas, et l'utilisateur perdrait
+             * sa ligne des yeux à chaque paquet remonté.
+             */
+            const avant = conteneur.scrollHeight;
+            conteneur.insertBefore(frag, hautSentinelle.nextSibling);
+            conteneur.scrollTop += conteneur.scrollHeight - avant;
+
+            premier = debut;
+            apres();
+
+            if (premier <= 0 && obsHaut) {
+                obsHaut.disconnect();
+                hautSentinelle.remove();
+            }
+        }
+
+        etendreVersLeBas(rendus + PAQUET);
+
+        if (rendus < titres.length) {
+            obsBas = new IntersectionObserver((e) => {
+                if (e.some(x => x.isIntersecting)) etendreVersLeBas(rendus + PAQUET);
+            }, { rootMargin: '400px' });
+            obsBas.observe(basSentinelle);
+        } else {
+            basSentinelle.remove();
+        }
+
+        if (premier > 0) {
+            obsHaut = new IntersectionObserver((e) => {
+                if (e.some(x => x.isIntersecting)) etendreVersLeHaut(premier - PAQUET);
+            }, { rootMargin: '400px' });
+            obsHaut.observe(hautSentinelle);
+        } else {
+            hautSentinelle.remove();
+        }
+
+        return {
+            tout: () => { etendreVersLeHaut(0); etendreVersLeBas(titres.length); },
+        };
+    };
 })();

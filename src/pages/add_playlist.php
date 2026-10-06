@@ -1,8 +1,6 @@
 <?php
 include_once "../includes/auth.php";
 exigerConnexion(false);
-$_SESSION['token'] = bin2hex(random_bytes(32));
-$token = $_SESSION['token'];
 ?>
 <div id="add_playlist" class="containers">
     <div class="head-bar">
@@ -15,7 +13,6 @@ $token = $_SESSION['token'];
                 <div id="add_playlist-buttons">
                     <a href="?page=library/playlists" class="redirect buttons" data-page="library/playlists">Annuler</a>
 
-                    <input type="hidden" name="token" value="<?= $token; ?>">
                     <button type="submit" class="buttons">Créer</button>
                 </div>
             </form>

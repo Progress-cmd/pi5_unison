@@ -202,98 +202,231 @@
             cadre.appendChild(sous);
         }
 
-        if (!playlists.length) {
-            const vide = document.createElement('p');
-            vide.className = 'ajout-pl-vide';
-            vide.textContent = "Vous n'avez aucune playlist pour l'instant.";
-            cadre.appendChild(vide);
-        } else {
-            // Le champ de recherche ne s'affiche que s'il sert : sous six
-            // playlists, la liste entière tient sous les yeux.
-            let recherche = null;
-            if (playlists.length > 6) {
-                recherche = document.createElement('input');
-                recherche.type = 'search';
-                recherche.className = 'ajout-pl-recherche';
-                recherche.placeholder = 'Rechercher une playlist…';
-                recherche.autocomplete = 'off';
-                cadre.appendChild(recherche);
+        // Le champ de recherche ne s'affiche que s'il sert : sous six
+        // playlists, la liste entière tient sous les yeux.
+        let recherche = null;
+        if (playlists.length > 6) {
+            recherche = document.createElement('input');
+            recherche.type = 'search';
+            recherche.className = 'ajout-pl-recherche';
+            recherche.placeholder = 'Rechercher une playlist…';
+            recherche.autocomplete = 'off';
+            cadre.appendChild(recherche);
+        }
+
+        const liste = document.createElement('div');
+        liste.className = 'ajout-pl-liste';
+        cadre.appendChild(liste);
+
+        const vide = document.createElement('p');
+        vide.className = 'ajout-pl-vide';
+        vide.textContent = "Aucune playlist pour l'instant.";
+        vide.hidden = playlists.length > 0;
+        cadre.appendChild(vide);
+
+        const aucune = document.createElement('p');
+        aucune.className = 'ajout-pl-vide';
+        aucune.textContent = 'Aucune playlist à ce nom.';
+        aucune.hidden = true;
+        cadre.appendChild(aucune);
+
+        const lignes = [];
+
+        /*
+         * Construction d'une ligne, extraite parce qu'elle sert deux fois :
+         * au remplissage initial, et après la création d'une playlist depuis
+         * cette même modale.
+         */
+        function construireLigne(p) {
+            const ligne = document.createElement('label');
+            ligne.className = 'ajout-pl-ligne';
+
+            const case_ = document.createElement('input');
+            case_.type = 'checkbox';
+            case_.checked = p.contient;
+
+            const nom = document.createElement('span');
+            nom.className = 'ajout-pl-nom';
+            nom.textContent = p.nom;
+
+            /*
+             * Les playlists du foyer sont communes : on peut déposer un titre
+             * chez l'autre. Il faut donc dire chez qui — sans ça, deux listes
+             * du même nom seraient impossibles à distinguer, et on rangerait
+             * un morceau à l'aveugle.
+             */
+            if (!p.mienne && p.proprietaire) {
+                const proprio = document.createElement('span');
+                proprio.className = 'ajout-pl-proprio';
+                proprio.textContent = 'de ' + p.proprietaire;
+                nom.appendChild(document.createTextNode(' '));
+                nom.appendChild(proprio);
             }
 
-            const liste = document.createElement('div');
-            liste.className = 'ajout-pl-liste';
-            cadre.appendChild(liste);
+            const compte = document.createElement('span');
+            compte.className = 'ajout-pl-compte';
+            compte.textContent = pluriel(p.nb_titres);
 
-            const aucune = document.createElement('p');
-            aucune.className = 'ajout-pl-vide';
-            aucune.textContent = 'Aucune playlist à ce nom.';
-            aucune.hidden = true;
-            cadre.appendChild(aucune);
+            ligne.append(case_, nom, compte);
 
-            const lignes = playlists.map((p) => {
-                const ligne = document.createElement('label');
-                ligne.className = 'ajout-pl-ligne';
+            case_.addEventListener('change', async () => {
+                const ajouter = case_.checked;
+                case_.disabled = true;
 
-                const case_ = document.createElement('input');
-                case_.type = 'checkbox';
-                case_.checked = p.contient;
+                const ok = await basculer(trackId, p.id, ajouter);
+                case_.disabled = false;
 
-                const nom = document.createElement('span');
-                nom.className = 'ajout-pl-nom';
-                nom.textContent = p.nom;
+                if (!ok) {
+                    case_.checked = !ajouter;
+                    return;
+                }
 
-                const compte = document.createElement('span');
-                compte.className = 'ajout-pl-compte';
-                compte.textContent = pluriel(p.nb_titres);
+                p.nb_titres += ajouter ? 1 : -1;
+                compte.textContent = pluriel(Math.max(0, p.nb_titres));
+                window.showToast(
+                    (ajouter ? 'Ajouté à « ' : 'Retiré de « ') + p.nom + ' »'
+                    + (p.mienne ? '' : ' (' + p.proprietaire + ')')
+                );
 
-                ligne.append(case_, nom, compte);
-
-                case_.addEventListener('change', async () => {
-                    const ajouter = case_.checked;
-                    case_.disabled = true;
-
-                    const ok = await basculer(trackId, p.id, ajouter);
-                    case_.disabled = false;
-
-                    if (!ok) {
-                        case_.checked = !ajouter;
-                        return;
-                    }
-
-                    p.nb_titres += ajouter ? 1 : -1;
-                    compte.textContent = pluriel(Math.max(0, p.nb_titres));
-                    window.showToast(
-                        ajouter ? 'Ajouté à « ' + p.nom + ' »' : 'Retiré de « ' + p.nom + ' »'
-                    );
-
-                    /*
-                     * La page affichée peut être celle de cette playlist ou
-                     * celle des favoris : elle montrerait un contenu périmé.
-                     * On ne recharge pas — le routeur rejoue la page, ce qui
-                     * garde la modale et le lecteur en place.
-                     */
-                    if (typeof window.rafraichirPageCourante === 'function') {
-                        window.rafraichirPageCourante();
-                    }
-                });
-
-                liste.appendChild(ligne);
-                return { ligne, nom: p.nom.toLowerCase() };
+                /*
+                 * La page affichée peut être celle de cette playlist ou
+                 * celle des favoris : elle montrerait un contenu périmé.
+                 * On ne recharge pas — le routeur rejoue la page, ce qui
+                 * garde la modale et le lecteur en place.
+                 */
+                if (typeof window.rafraichirPageCourante === 'function') {
+                    window.rafraichirPageCourante();
+                }
             });
 
-            if (recherche) {
-                recherche.addEventListener('input', () => {
-                    const q = recherche.value.trim().toLowerCase();
-                    let visibles = 0;
-                    lignes.forEach(({ ligne, nom }) => {
-                        const garde = !q || nom.includes(q);
-                        ligne.hidden = !garde;
-                        if (garde) visibles++;
-                    });
-                    aucune.hidden = visibles > 0;
+            liste.appendChild(ligne);
+            lignes.push({ ligne, nom: p.nom.toLowerCase() });
+            return ligne;
+        }
+
+        playlists.forEach(construireLigne);
+
+        if (recherche) {
+            recherche.addEventListener('input', () => {
+                const q = recherche.value.trim().toLowerCase();
+                let visibles = 0;
+                lignes.forEach(({ ligne, nom }) => {
+                    const garde = !q || nom.includes(q);
+                    ligne.hidden = !garde;
+                    if (garde) visibles++;
                 });
+                aucune.hidden = visibles > 0;
+            });
+        }
+
+        /* ---------- Création d'une playlist sans quitter la modale ---------- */
+
+        /*
+         * Il fallait auparavant fermer, aller dans la bibliothèque, créer la
+         * playlist, revenir au titre et rouvrir ce sélecteur — en ayant retenu
+         * de quel morceau il s'agissait.
+         *
+         * La playlist créée reçoit le titre dans la foulée : c'est la seule
+         * raison pour laquelle on crée une playlist depuis cet écran.
+         */
+        const creation = document.createElement('div');
+        creation.className = 'ajout-pl-creer';
+
+        const ouvrirCreation = document.createElement('button');
+        ouvrirCreation.type = 'button';
+        ouvrirCreation.className = 'ajout-pl-creer-ouvrir';
+        ouvrirCreation.textContent = '+ Nouvelle playlist';
+
+        const champs = document.createElement('div');
+        champs.className = 'ajout-pl-creer-champs';
+        champs.hidden = true;
+
+        const saisie = document.createElement('input');
+        saisie.type = 'text';
+        saisie.maxLength = 50;          // taille de la colonne
+        saisie.placeholder = 'Nom de la playlist';
+        saisie.autocomplete = 'off';
+
+        const valider = document.createElement('button');
+        valider.type = 'button';
+        valider.className = 'ajout-pl-creer-valider';
+        valider.textContent = 'Créer';
+
+        champs.append(saisie, valider);
+        creation.append(ouvrirCreation, champs);
+        cadre.appendChild(creation);
+
+        ouvrirCreation.addEventListener('click', () => {
+            ouvrirCreation.hidden = true;
+            champs.hidden = false;
+            saisie.focus();
+        });
+
+        async function creerPuisAjouter() {
+            const nom = saisie.value.trim();
+            if (!nom) { saisie.focus(); return; }
+
+            saisie.disabled = true;
+            valider.disabled = true;
+
+            let creee = null;
+            try {
+                const res = await fetch('actions/add_playlist.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ name: nom }),
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    window.showToast(data.message || 'Création impossible', 'error');
+                } else {
+                    creee = data.playlist;
+                }
+            } catch (e) {
+                window.showToast('Erreur réseau', 'error');
+            }
+
+            saisie.disabled = false;
+            valider.disabled = false;
+            if (!creee) { saisie.focus(); return; }
+
+            /*
+             * L'ajout peut échouer alors que la création a réussi. On affiche
+             * quand même la playlist, décochée : elle existe, la cacher
+             * laisserait croire le contraire et pousserait à la recréer.
+             */
+            const ajoute = await basculer(trackId, creee.id, true);
+
+            const p = {
+                id: creee.id,
+                nom: creee.nom,
+                nb_titres: ajoute ? 1 : 0,
+                contient: ajoute,
+                mienne: true,
+                proprietaire: '',
+            };
+            const ligne = construireLigne(p);
+            liste.insertBefore(ligne, liste.firstChild);
+
+            vide.hidden = true;
+            saisie.value = '';
+            champs.hidden = true;
+            ouvrirCreation.hidden = false;
+
+            window.showToast(ajoute
+                ? 'Playlist « ' + p.nom + ' » créée, titre ajouté'
+                : 'Playlist « ' + p.nom + ' » créée');
+
+            if (typeof window.rafraichirPageCourante === 'function') {
+                window.rafraichirPageCourante();
             }
         }
+
+        valider.addEventListener('click', creerPuisAjouter);
+        saisie.addEventListener('keydown', (e) => {
+            // Entrée valide, mais ne doit pas soumettre une page autour.
+            if (e.key === 'Enter') { e.preventDefault(); creerPuisAjouter(); }
+        });
 
         const bouton = document.createElement('button');
         bouton.type = 'button';

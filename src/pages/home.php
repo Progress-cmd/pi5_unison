@@ -39,7 +39,7 @@ include_once "../includes/rendu.php";
     <div class="home-col">
     <article id="queue-bar" class="containers">
         <div class="head-bar">Liste d'attente</div>
-        <div class="body-bar">
+        <div class="body-bar" id="home-queue">
             <?php
             $req = $pdo->prepare("
                     SELECT tracks.id, tracks.img, tracks.title, playlists.id as playlist_id, GROUP_CONCAT(artists.name SEPARATOR ', ') AS artists_names
@@ -66,7 +66,21 @@ include_once "../includes/rendu.php";
              */
             if (!$titres || $titres[0]['id'] === null) { $titres = []; }
 
-            foreach ($titres as $i => $titre) {
+            /*
+             * Seules les premières lignes sont rendues ici ; le reste est
+             * construit au défilement par rendreParPaquets().
+             *
+             * Une file de 2000 titres produisait 2000 lignes à chaque
+             * affichage de l'accueil — un fragment de plus d'un mégaoctet,
+             * et autant de sous-arbres DOM à bâtir — pour une quinzaine de
+             * lignes visibles.
+             *
+             * Le serveur en pose quand même un premier paquet : sans ça
+             * l'accueil s'afficherait vide le temps que le script tourne.
+             */
+            $premierPaquet = 40;
+
+            foreach (array_slice($titres, 0, $premierPaquet) as $i => $titre) {
                 echo ligneTitre($titre, [
                     'classes' => $i === 0 ? 'selected' : '',
                     'badge'   => true,
@@ -85,6 +99,23 @@ include_once "../includes/rendu.php";
             detail: { playlist: window.waitPlaylist }
         }));
         window.currentIndex = 0;
+
+        /*
+         * Suite de la file, construite au défilement à partir des données
+         * déjà présentes ci-dessus : aucune requête de plus.
+         */
+        (function () {
+            const conteneur = document.getElementById('home-queue');
+            if (!conteneur || typeof window.rendreParPaquets !== 'function') return;
+            if (!window.waitPlaylist || window.waitPlaylist.length <= <?= $premierPaquet ?>) return;
+
+            window.rendreParPaquets(conteneur, window.waitPlaylist, {
+                file: true,
+                badge: true,
+                deja: <?= $premierPaquet ?>,
+                messageVide: "File d'attente vide",
+            });
+        })();
     </script>
 
     <article id="history-bar" class="containers">

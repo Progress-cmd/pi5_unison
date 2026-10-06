@@ -18,7 +18,39 @@ if (!$playlistId || !$trackId) {
 
 $pdo = Config::getConnection();
 
-exigerPlaylistDeLUtilisateur($pdo, $playlistId);
+/*
+ * Retrait : le propriétaire de la playlist, ou celui qui a déposé CE titre.
+ *
+ * Le second cas est nécessaire à la cohérence du sélecteur : depuis qu'on peut
+ * cocher une playlist de l'autre compte, il faut pouvoir décocher. Sans ça la
+ * case se rebellait — l'ajout passait, le retrait rendait 403, et la coche
+ * revenait toute seule.
+ *
+ * Ça ne donne aucun droit sur les titres d'autrui : seule la ligne qu'on a
+ * soi-même ajoutée est concernée.
+ */
+$cible = exigerPlaylistOuverteALAjout($pdo, $playlistId);
+
+if (!$cible['mienne']) {
+    $req = $pdo->prepare("
+        SELECT `added-by_id` FROM track__playlist
+         WHERE playlist_id = :playlist AND track_id = :track
+    ");
+    $req->execute([':playlist' => $playlistId, ':track' => $trackId]);
+    $deposePar = $req->fetchColumn();
+
+    if ((int) $deposePar !== (int) ($_SESSION['user']['id'] ?? 0)) {
+        journalAttention('contenu', 'retrait_playlist_etrangere',
+            "Tentative de retrait d'un titre qu'on n'a pas déposé",
+            ['playlist' => $playlistId, 'titre' => $trackId,
+             'proprietaire' => $cible['proprietaire']]);
+
+        http_response_code(403);
+        echo json_encode(['success' => false,
+            'message' => "Ce titre a été ajouté par quelqu'un d'autre"]);
+        exit;
+    }
+}
 
 try {
     // Supprime la chanson de la playlist

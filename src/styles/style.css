@@ -1268,6 +1268,75 @@ footer > #navbar {
     display: none;
 }
 
+/* Chez qui range-t-on : les playlists du foyer sont communes, et deux listes
+   peuvent porter le même nom sur les deux comptes. */
+.ajout-pl-proprio {
+    font-size: 12px;
+    color: var(--text-gray);
+    font-style: italic;
+}
+
+/* ----- Création d'une playlist depuis le sélecteur ----- */
+
+.ajout-pl-creer {
+    margin-bottom: 16px;
+}
+
+.ajout-pl-creer-ouvrir {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px dashed var(--dark-beige);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-gray);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ajout-pl-creer-ouvrir:hover {
+    background-color: var(--light-beige);
+    color: inherit;
+}
+
+.ajout-pl-creer-ouvrir[hidden] {
+    display: none;
+}
+
+/* `:not([hidden])` plutôt qu'un display nu : une règle d'auteur l'emporte sur
+   le display: none que le navigateur attache à [hidden]. */
+.ajout-pl-creer-champs:not([hidden]) {
+    display: flex;
+    gap: 8px;
+}
+
+.ajout-pl-creer-champs input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--dark-beige);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 14px;
+}
+
+.ajout-pl-creer-valider {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--accent-plein);
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ajout-pl-creer-valider:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 /* ===== CONTENU DES PAGES ===== */
 /* ----- HOME ----- */
 #propositions-bar {
